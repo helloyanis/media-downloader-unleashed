@@ -1,7 +1,7 @@
 {
-  "manifest_version": 2,
-  "version": "0.4.7.2",
-  "name": "Live Stream Downloader Unleashed!!",
+  "name": "File Downloader Unleashed!!",
+  "manifest_version": 3,
+  "version": "0.5.2",
   "description": "__MSG_description__",
   "default_locale": "en",
   "permissions": [
@@ -27,6 +27,7 @@
   "optional_permissions": [],
   "homepage_url": "https://github.com/helloyanis/live-stream-downloader-unleashed",
   "background": {
+    "service_worker": "worker.js",
     "scripts": [
       "network/core.js",
       "network/icon.js",
