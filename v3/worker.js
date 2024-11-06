@@ -21,20 +21,19 @@
 
 if (typeof importScripts !== 'undefined') {
   self.importScripts('network/core.js');
-  self.importScripts('network/icon.js');
   self.importScripts('context.js');
   self.importScripts('/plugins/blob-detector/core.js');
 }
 
 self.notify = (tabId, text, title) => {
-  chrome.action.setBadgeBackgroundColor({
+  browser.browserAction.setBadgeBackgroundColor({
     color: 'red'
   });
-  chrome.action.setBadgeText({
+  browser.browserAction.setBadgeText({
     tabId,
     text
   });
-  chrome.action.setTitle({
+  browser.browserAction.setTitle({
     tabId,
     title
   });

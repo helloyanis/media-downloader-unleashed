@@ -273,8 +273,6 @@ const build = async os => {
     else {
       clone.querySelector('[data-id=size]').textContent = '-';
     }
-    clone.querySelector('[data-id=href]').textContent = clone.querySelector('[data-id=href]').title =
-      o.blocked.value ? o.blocked.reason : (o.url || 'N/A');
 
     clone.querySelector('input[data-id=copy]').onclick = e => navigator.clipboard.writeText(o.url).then(() => {
       e.target.value = 'Done';
@@ -283,12 +281,6 @@ const build = async os => {
 
     div.o = o;
     div.meta = meta;
-    div.dataset.blocked = o.blocked.value;
-
-    if (o.blocked.value) {
-      clone.querySelector('input[data-id="copy"]').disabled = true;
-      clone.querySelector('input[type=submit]').disabled = true;
-    }
 
     document.getElementById('hrefs').appendChild(div);
     const c = document.getElementById('hrefs-container');
@@ -343,7 +335,7 @@ Promise.all([
     args: [types]
   }).then(a => a[0].result).catch(() => [])),
   // get jwplayer playlist
-  chrome.scripting.executeScript({
+  browser.scripting.executeScript({
     target: {
       tabId,
       allFrames: true
