@@ -1,7 +1,7 @@
 {
+  "name": "File Downloader Unleashed!!",
   "manifest_version": 2,
-  "version": "0.4.7.2",
-  "name": "Live Stream Downloader Unleashed!!",
+  "version": "0.5.2",
   "description": "__MSG_description__",
   "default_locale": "en",
   "permissions": [
@@ -29,7 +29,6 @@
   "background": {
     "scripts": [
       "network/core.js",
-      "network/icon.js",
       "context.js",
       "plugins/blob-detector/core.js",
       "worker.js"
