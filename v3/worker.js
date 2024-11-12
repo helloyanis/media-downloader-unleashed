@@ -26,14 +26,14 @@ if (typeof importScripts !== 'undefined') {
 }
 
 self.notify = (tabId, text, title) => {
-  browser.browserAction.setBadgeBackgroundColor({
+  browser.action.setBadgeBackgroundColor({
     color: 'red'
   });
-  browser.browserAction.setBadgeText({
+  browser.action.setBadgeText({
     tabId,
     text
   });
-  browser.browserAction.setTitle({
+  browser.action.setTitle({
     tabId,
     title
   });
@@ -70,14 +70,14 @@ const open = async (tab, extra = []) => {
     });
   });
 };
-browser.browserAction.onClicked.addListener(tab => open(tab));
-browser.browserAction.setBadgeBackgroundColor({
+browser.action.onClicked.addListener(tab => open(tab));
+browser.action.setBadgeBackgroundColor({
   color: '#666666'
 });
 
 const badge = (n, tabId) => {
   if (n) {
-    browser.browserAction.setIcon({
+    browser.action.setIcon({
       tabId: tabId,
       path: {
         '16': "/data/icons/active/download.svg",
@@ -86,7 +86,7 @@ const badge = (n, tabId) => {
       }
     });
 
-    browser.browserAction.setBadgeText({
+    browser.action.setBadgeText({
       tabId: tabId,
       text: new Intl.NumberFormat('en-US', {
         notation: 'compact',
@@ -95,7 +95,7 @@ const badge = (n, tabId) => {
     });
   }
   else {
-    browser.browserAction.setIcon({
+    browser.action.setIcon({
       tabId: tabId,
       path: {
         '16': "/data/icons/download_off.svg",
@@ -103,7 +103,7 @@ const badge = (n, tabId) => {
         '48': "/data/icons/download_off.svg"
       }
     });
-    browser.browserAction.setBadgeText({
+    browser.action.setBadgeText({
       tabId: tabId,
       text: ''
     });
