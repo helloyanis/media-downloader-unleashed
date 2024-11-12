@@ -46,7 +46,7 @@
     browser.contextMenus.create({
       title: 'Clear Detected Media List',
       id: 'clear',
-      contexts: ['browser_action'],
+      contexts: ['action'],
       documentUrlPatterns: ['*://*/*'],
     });
   };
@@ -66,7 +66,7 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
       }
     }).catch(() => {});
 
-    browser.browserAction.setIcon({
+    browser.action.setIcon({
       tabId: tab.id,
       path: {
         '16': '/data/icons/16.png',
@@ -74,7 +74,7 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
         '48': '/data/icons/48.png'
       }
     });
-    browser.browserAction.setBadgeText({
+    browser.action.setBadgeText({
       tabId: tab.id,
       text: ''
     });
