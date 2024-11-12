@@ -1,6 +1,11 @@
 {
-  "name": "File Downloader Unleashed!!",
+  "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "helloyanis@live-stream-downloader-unleashed"
+    }
+  },
   "version": "0.5.3",
   "description": "__MSG_description__",
   "default_locale": "en",
@@ -12,7 +17,7 @@
     "scripting",
     "unlimitedStorage"
   ],
-  "optional_permissions": [
+  "host_permissions": [
     "*://*/*.flv*",
     "*://*/*.avi*",
     "*://*/*.wmv*",
@@ -39,11 +44,7 @@
       "96": "/data/icons/download_off.svg",
       "128": "/data/icons/download_off.svg"
   },
-  
-  "browser_action": {},
-  
   "action": {
-    "default_title": "Download HLS Streams"
+    "default_title": "Download media"
   }
-
 }
