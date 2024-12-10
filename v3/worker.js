@@ -120,6 +120,7 @@ const observe = d => {
   if (
     d.url.includes('.m3u8') === false &&
     d.url.includes('.mpd') === false &&
+    d.type !== 'media' &&
     d.responseHeaders.some(({name, value}) => {
       return name === 'content-type' && value && value.startsWith('text/html');
     })) {
@@ -254,9 +255,7 @@ browser.runtime.onMessage.addListener((request, sender, response) => {
 {
   const once = async () => {
     for (const key of await caches.keys()) {
-      if (key !== network.NAME) {
-        caches.delete(key);
-      }
+      caches.delete(key);
     }
   };
   browser.runtime.onStartup.addListener(once);
