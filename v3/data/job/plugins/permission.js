@@ -19,10 +19,10 @@
 
 /* global events */
 
-  document.getElementById('power').checked = true;
+  let wakeLock = null;
   const getWakeLock = async () => {
     try {
-      const wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock = await navigator.wakeLock.request("screen");
       console.log('Screen wake lock has been acquired');
     } catch (err) {
       // the wake lock request fails - usually system related, such being low on battery
@@ -32,11 +32,27 @@
   
   document.getElementById('power').addEventListener('change', async () => {
     if (document.getElementById('power').checked) {
+      browser.storage.local.set({
+        'wake-lock': true
+      });
       getWakeLock();
     } else {
-      navigator.wakeLock.release();
+      browser.storage.local.remove('wake-lock');
+      wakeLock.release();
     }
   });
+
+  const getDefaultWakeLock = async () => {
+    const res = await browser.storage.local.get('wake-lock')
+    if (Object.keys(res).length !== 0) {
+      document.getElementById('power').checked = true;
+      getWakeLock();
+    } else {
+      document.getElementById('power').checked = false;
+    }
+  };
+
+  getDefaultWakeLock();
 
   events.after.add(() => browser.runtime.sendMessage({
     method: 'release-awake-if-possible'
