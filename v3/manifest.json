@@ -1,12 +1,7 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{dab9a10d-f9c5-4e8d-9351-67531e85b508}"
-    }
-  },
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "__MSG_description__",
   "default_locale": "en",
   "permissions": [
@@ -15,7 +10,8 @@
     "webRequest",
     "declarativeNetRequestWithHostAccess",
     "scripting",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "alarms"
   ],
   "host_permissions": [
     "*://*/*.flv*",

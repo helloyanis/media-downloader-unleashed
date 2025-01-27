@@ -19,35 +19,22 @@
 
 /* global events */
 
-if (/Firefox/.test(navigator.userAgent)) {
-  document.getElementById('power-container').classList.add('disabled');
-}
-else {
-  browser.permissions.contains({
-    permissions: ['power']
-  }, granted => {
-    browser.runtime.lastError;
-    document.getElementById('power').checked = granted;
-  });
-
-  document.getElementById('power').addEventListener('change', e => {
-    if (e.target.checked) {
-      browser.permissions.request({
-        permissions: ['power']
-      }, granted => {
-        if (granted) {
-          self.notify('Done, Reopen this window to apply', 2000);
-        }
-        else {
-          e.target.checked = false;
-        }
-      });
+  document.getElementById('power').checked = true;
+  const getWakeLock = async () => {
+    try {
+      const wakeLock = await navigator.wakeLock.request("screen");
+      console.log('Screen wake lock has been acquired');
+    } catch (err) {
+      // the wake lock request fails - usually system related, such being low on battery
+      console.log(`${err.name}, ${err.message}`);
     }
-    else {
-      browser.permissions.remove({
-        permissions: ['power']
-      });
-      self.notify('Done, Reopen this window to apply', 2000);
+  }
+  
+  document.getElementById('power').addEventListener('change', async () => {
+    if (document.getElementById('power').checked) {
+      getWakeLock();
+    } else {
+      navigator.wakeLock.release();
     }
   });
 
@@ -55,14 +42,15 @@ else {
     method: 'release-awake-if-possible'
   }, () => browser.runtime.lastError));
 
-  addEventListener('beforeunload', () => browser.runtime.sendMessage({
-    method: 'release-awake-if-possible'
-  }, () => browser.runtime.lastError));
+  // check after 1 minute
+  // in case there is an active downloading job and the warning prevents the window from being closed
+  addEventListener('beforeunload', () => browser.alarms.create('release-awake-if-possible', {
+    when: Date.now() + 60000
+  }));
 
   browser.runtime.onMessage.addListener((request, sender, response) => {
     if (request.method === 'any-active' && document.body.dataset.mode === 'download') {
       response(true);
     }
   });
-}
 

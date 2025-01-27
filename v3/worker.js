@@ -120,8 +120,9 @@ const observe = d => {
   if (
     d.url.includes('.m3u8') === false &&
     d.url.includes('.mpd') === false &&
+    d.type !== 'media' &&
     d.responseHeaders.some(({name, value}) => {
-      return name === 'content-type' && value && value.startsWith('text/html');
+      return (name === 'content-type' || name === 'Content-Type') && value && value.startsWith('text/html');
     })) {
     return;
   }
@@ -160,7 +161,7 @@ const observe = d => {
 };
 observe.mime = d => {
   for (const {name, value} of d.responseHeaders) {
-    if (name === 'content-type' && value && (
+    if ((name === 'content-type' || name === 'Content-Type') && value && (
       value.startsWith('video/') || value.startsWith('audio/')
     )) {
       return observe(d);
@@ -235,8 +236,27 @@ network.types({
   browser.storage.onChanged.addListener(ps => ps['mime-watch'] && run());
 }
 
+const raip = () => {
+    browser.runtime.sendMessage({
+      method: 'any-active'
+    }, r => async () => {
+      browser.runtime.lastError;
+      if (r !== true) {
+        try{
+          wakeLock.release();
+        }
+        catch(e){
+          console.error(e);
+        }
+      }
+    });
+};
+
 browser.runtime.onMessage.addListener((request, sender, response) => {
-  if (request.method === 'get-extra') {
+  if (request.method === 'release-awake-if-possible') {
+    raip();
+  }
+  else if (request.method === 'get-extra') {
     response(extra[request.tabId] || []);
     delete extra[request.tabId];
   }
@@ -249,14 +269,17 @@ browser.runtime.onMessage.addListener((request, sender, response) => {
     });
   }
 });
+browser.alarms.onAlarm.addListener(a => {
+  if (a.name === 'release-awake-if-possible') {
+    raip();
+  }
+});
 
 /* delete all leftover cache requests */
 {
   const once = async () => {
     for (const key of await caches.keys()) {
-      if (key !== network.NAME) {
-        caches.delete(key);
-      }
+      caches.delete(key);
     }
   };
   browser.runtime.onStartup.addListener(once);
