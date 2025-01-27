@@ -237,16 +237,19 @@ network.types({
 }
 
 const raip = () => {
-  if (browser.power) {
     browser.runtime.sendMessage({
       method: 'any-active'
-    }, r => {
+    }, r => async () => {
       browser.runtime.lastError;
       if (r !== true) {
-        browser.power.releaseKeepAwake();
+        try{
+          wakeLock.release();
+        }
+        catch(e){
+          console.error(e);
+        }
       }
     });
-  }
 };
 
 browser.runtime.onMessage.addListener((request, sender, response) => {

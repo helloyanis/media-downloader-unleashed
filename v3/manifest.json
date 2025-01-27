@@ -10,9 +10,10 @@
     "webRequest",
     "declarativeNetRequestWithHostAccess",
     "scripting",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "alarms"
   ],
-  "optional_permissions": [
+  "host_permissions": [
     "*://*/*.flv*",
     "*://*/*.avi*",
     "*://*/*.wmv*",
@@ -24,8 +25,7 @@
     "*://*/*.aac*",
     "*://*/*.ogg*",
     "*://*/*.wma*",
-    "*://*/*.m3u8*",
-    "power"
+    "*://*/*.m3u8*"
   ],
   "homepage_url": "https://github.com/helloyanis/live-stream-downloader-unleashed",
   "background": {
@@ -40,8 +40,6 @@
       "96": "/data/icons/download_off.svg",
       "128": "/data/icons/download_off.svg"
   },
-  
-  "browser_action": {},
   
   "action": {
     "default_title": "Download HLS Streams"
