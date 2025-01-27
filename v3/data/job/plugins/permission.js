@@ -55,9 +55,11 @@ else {
     method: 'release-awake-if-possible'
   }, () => browser.runtime.lastError));
 
-  addEventListener('beforeunload', () => browser.runtime.sendMessage({
-    method: 'release-awake-if-possible'
-  }, () => browser.runtime.lastError));
+  // check after 1 minute
+  // in case there is an active downloading job and the warning prevents the window from being closed
+  addEventListener('beforeunload', () => browser.alarms.create('release-awake-if-possible', {
+    when: Date.now() + 60000
+  }));
 
   browser.runtime.onMessage.addListener((request, sender, response) => {
     if (request.method === 'any-active' && document.body.dataset.mode === 'download') {

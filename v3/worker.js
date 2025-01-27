@@ -122,7 +122,7 @@ const observe = d => {
     d.url.includes('.mpd') === false &&
     d.type !== 'media' &&
     d.responseHeaders.some(({name, value}) => {
-      return name === 'content-type' && value && value.startsWith('text/html');
+      return (name === 'content-type' || name === 'Content-Type') && value && value.startsWith('text/html');
     })) {
     return;
   }
@@ -161,7 +161,7 @@ const observe = d => {
 };
 observe.mime = d => {
   for (const {name, value} of d.responseHeaders) {
-    if (name === 'content-type' && value && (
+    if ((name === 'content-type' || name === 'Content-Type') && value && (
       value.startsWith('video/') || value.startsWith('audio/')
     )) {
       return observe(d);
@@ -236,8 +236,24 @@ network.types({
   browser.storage.onChanged.addListener(ps => ps['mime-watch'] && run());
 }
 
+const raip = () => {
+  if (browser.power) {
+    browser.runtime.sendMessage({
+      method: 'any-active'
+    }, r => {
+      browser.runtime.lastError;
+      if (r !== true) {
+        browser.power.releaseKeepAwake();
+      }
+    });
+  }
+};
+
 browser.runtime.onMessage.addListener((request, sender, response) => {
-  if (request.method === 'get-extra') {
+  if (request.method === 'release-awake-if-possible') {
+    raip();
+  }
+  else if (request.method === 'get-extra') {
     response(extra[request.tabId] || []);
     delete extra[request.tabId];
   }
@@ -248,6 +264,11 @@ browser.runtime.onMessage.addListener((request, sender, response) => {
       tabId: sender.tab.id,
       initiator: sender.url
     });
+  }
+});
+browser.alarms.onAlarm.addListener(a => {
+  if (a.name === 'release-awake-if-possible') {
+    raip();
   }
 });
 
