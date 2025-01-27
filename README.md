@@ -8,5 +8,6 @@ Download M3U8 live streams to the local disk. This is a fork of the original [li
 - Removed code related to blocking, lighter extension!
 - Single SVG file for extension icon, even lighter!
 - Update to manifest v3!
+- Added and improved wake lock feature for Firefox! Don't let your screen turn off while downloading!
 
 Note : Even though Youtube was removed from the blocklist, the add-on still can't download videos from Youtube, because Youtube uses DASH streaming, which is not supported by this add-on.
