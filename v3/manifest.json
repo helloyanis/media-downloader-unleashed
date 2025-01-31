@@ -29,13 +29,10 @@
   ],
   "homepage_url": "https://github.com/helloyanis/live-stream-downloader-unleashed",
   "background": {
-    "scripts": [
-      "network/core.js",
-      "context.js",
-      "plugins/blob-detector/core.js",
-      "worker.js"
-    ]
+    "service_worker": "worker.js",
+    "scripts": ["worker.js"]
   },
+
   "icons": {
       "96": "/data/icons/download_off.svg",
       "128": "/data/icons/download_off.svg"

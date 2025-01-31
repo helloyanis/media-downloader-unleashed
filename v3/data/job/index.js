@@ -60,6 +60,11 @@
   aHR0cHM6Ly90cHR2ZW5jb3JlLmNvLnVrL3Byb2R1Y3QvbWVldC1qb2huLWRvZS02MzMzNDU2MTEzMTEy
 */
 
+if (typeof browser == "undefined") {
+  // Chrome does not support the browser namespace yet.
+  globalThis.browser = chrome;
+}
+
 const args = new URLSearchParams(location.search);
 
 const tabId = Number(args.get('tabId')); // original tab

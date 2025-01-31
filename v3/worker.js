@@ -25,6 +25,11 @@ if (typeof importScripts !== 'undefined') {
   self.importScripts('/plugins/blob-detector/core.js');
 }
 
+if (typeof browser == "undefined") {
+  // Chrome does not support the browser namespace yet.
+  globalThis.browser = chrome;
+}
+
 self.notify = (tabId, text, title) => {
   browser.action.setBadgeBackgroundColor({
     color: 'red'

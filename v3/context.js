@@ -18,7 +18,13 @@
 */
 
 /* global extra, network */
-
+if (typeof browser == "undefined") {
+  // Chrome does not support the browser namespace yet.
+  globalThis.browser = chrome;
+}
+if (typeof importScripts !== 'undefined') {
+  self.importScripts('network/core.js');
+}
 /* context menu */
 {
   const once = () => {
