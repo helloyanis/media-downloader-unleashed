@@ -69,8 +69,9 @@ Promise.all([
     for (const entry of (storageEntries || [])) {
       entries.set(entry.url, entry);
     }
+    await addEntries(entries);
   }
-  catch (e) {}
+  catch (e) {console.error(e);}
 });
 
 const error = e => {
@@ -179,7 +180,7 @@ ${timingObjects.map(([id, a]) => {
     }
   });
 
-  Object.assign(myGet.options, await chrome.storage.local.get({
+  Object.assign(myGet.options, await browser.storage.local.get({
     'threads': MyGet.OPTIONS.threads,
     'thread-timeout': MyGet.OPTIONS['thread-timeout']
   }));

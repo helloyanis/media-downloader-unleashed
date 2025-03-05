@@ -12,7 +12,7 @@ const response = ({url, responseHeaders = []}) => {
 };
 
 const addEntries = async entries => {
-  const prefs = await chrome.storage.local.get({
+  const prefs = await browser.storage.local.get({
     'filename': '[meta.name]' // [meta.name], [title], [hostname], [q:query|method|default-value]
   });
   let hostname = 'NA';
@@ -35,7 +35,7 @@ const addEntries = async entries => {
 
     if (matches.length) {
       try {
-        const r = await chrome.scripting.executeScript({
+        const r = await browser.scripting.executeScript({
           target: {
             tabId
           },
@@ -144,9 +144,6 @@ const addEntries = async entries => {
     else {
       clone.querySelector('[data-id=size]').textContent = '-';
     }
-    clone.querySelector('[data-id=href]').textContent = clone.querySelector('[data-id=href]').title =
-      entry.blocked?.value ? entry.blocked.reason : (entry.url || 'N/A');
-
     clone.querySelector('input[data-id=copy]').onclick = e => navigator.clipboard.writeText(entry.url).then(() => {
       e.target.value = 'Done';
       setTimeout(() => e.target.value = 'Copy', 750);
@@ -154,12 +151,6 @@ const addEntries = async entries => {
 
     div.entry = entry;
     div.meta = meta;
-    div.dataset.blocked = entry.blocked?.value || false;
-
-    if (entry.blocked?.value) {
-      clone.querySelector('input[data-id="copy"]').disabled = true;
-      clone.querySelector('input[type=submit]').disabled = true;
-    }
 
     document.getElementById('hrefs').appendChild(div);
     const c = document.getElementById('hrefs-container');
