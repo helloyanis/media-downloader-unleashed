@@ -1,13 +1,14 @@
 # live-stream-downloader
-Download M3U8 live streams to the local disk. This is a fork of the original [live-stream-downloader](https://webextension.org/listing/hls-downloader.html) extension.
 
 <a href="https://addons.mozilla.org/addon/file-downloader-unleashed/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
-#### What this fork changes
-- Removed blocklist, download videos and streams from any website!
-- Removed code related to blocking, lighter extension!
-- Single SVG file for extension icon, even lighter!
-- Update to manifest v3!
-- Added and improved wake lock feature for Firefox! Don't let your screen turn off while downloading!
+#### What this add-on does
 
-Note : Even though Youtube was removed from the blocklist, the add-on still can't download videos from Youtube, because Youtube uses DASH streaming, which is not supported by this add-on.
+You can download audios, videos and streams to view offline, from most websites!
+
+- Support for video, audio, and .m3u8 streams
+- Clean interface with material design!
+- Easy to use settings!
+- Multiple detection and download methods to try to find one that works on the site!
+- Android compatibility (to be tested extensively)
+- Media preview in d

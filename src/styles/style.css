@@ -1,0 +1,32 @@
+@font-face {
+    font-family: 'Roboto';
+    src: url('Roboto.woff') format('woff');
+}
+
+body {
+    background-color: #f0f0f0;
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.bottom-right {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+}
+
+.bottom-left {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+}
+
+.settings-radio-group, #color-picker {
+    --md-elevation-level: 3;
+    margin: 10px;
+    padding: 10px;
+    position: relative;
+    border-radius: 16px;
+}
