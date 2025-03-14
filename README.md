@@ -2,6 +2,8 @@
 
 <a href="https://addons.mozilla.org/addon/file-downloader-unleashed/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
+![image](https://github.com/user-attachments/assets/e35041d2-b320-4019-8178-ff153243a322)
+
 #### What this add-on does
 
 You can download audios, videos and streams to view offline, from most websites!
@@ -12,3 +14,5 @@ You can download audios, videos and streams to view offline, from most websites!
 - Multiple detection and download methods to try to find one that works on the site!
 - Android compatibility (to be tested extensively)
 - Media preview in the browser!
+
+![image](https://github.com/user-attachments/assets/78b73edd-9c40-4b62-9c24-203fd1311b8f)
