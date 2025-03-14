@@ -1,7 +1,7 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Download videos, music and live streams to your device!",
   "permissions": [
     "storage",

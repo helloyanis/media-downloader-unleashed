@@ -117,3 +117,10 @@ browser.runtime.onMessage.addListener((message) => {
         initListener();
     }
 });
+
+//Clear local storage when message is received
+browser.runtime.onMessage.addListener((message) => {
+    if (message.action === 'clearStorage') {
+        sessionStorage.clear();
+    }
+});

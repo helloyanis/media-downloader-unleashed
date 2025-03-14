@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeSettings() {
     // Check for detectionMethod setting in localStorage
+    if(!localStorage.getItem('detection-method')) {
+        browser.runtime.sendMessage({ action: 'clearStorage' });
+    }
     let detectionMethod = localStorage.getItem('detection-method') || 'url';
     localStorage.setItem('detection-method', detectionMethod);
 
@@ -38,9 +41,11 @@ async function initializeSettings() {
         radio.addEventListener('change', (event) => {
             let setting = event.target.name;
             let value = event.target.value;
-            browser.runtime.sendMessage({ action: 'initListener' }) // Reinitialize the listener
+            if(setting === 'detection-method'){
+                browser.runtime.sendMessage({ action: 'initListener' }) // Reinitialize the listener
+                browser.runtime.sendMessage({ action: 'clearStorage' })
+            }
             localStorage.setItem(setting, value);
-            sessionStorage.clear(); // Clear the session storage to avoid conflicts
         });
     });
     
