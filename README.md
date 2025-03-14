@@ -11,4 +11,4 @@ You can download audios, videos and streams to view offline, from most websites!
 - Easy to use settings!
 - Multiple detection and download methods to try to find one that works on the site!
 - Android compatibility (to be tested extensively)
-- Media preview in d
+- Media preview in the browser!

@@ -18,123 +18,78 @@ const mediaTypes = [
 ];
 
 
-
-if(localStorage.getItem('detection-method') === 'url') {
+let urlList = [];
+let headersSentListener, headersReceivedListener;
+function initListener() {
+    if(localStorage.getItem('detection-method') === 'url') {
+        urlList = [
+            "*://*/*.flv*",
+            "*://*/*.avi*",
+            "*://*/*.wmv*",
+            "*://*/*.mov*",
+            "*://*/*.mp4*",
+            "*://*/*.pcm*",
+            "*://*/*.wav*",
+            "*://*/*.mp3*",
+            "*://*/*.aac*",
+            "*://*/*.ogg*",
+            "*://*/*.wma*",
+            "*://*/*.m3u8*"
+        ];
+    } else {
+        urlList = ["<all_urls>"];
+    }
+    //Check for event listener existence before adding a new one
+    if (headersSentListener) {
+        browser.webRequest.onSendHeaders.removeListener(headersSentListener);
+    }
     //Add media request when request headers are sent
-    browser.webRequest.onSendHeaders.addListener(
+    headersSentListener = browser.webRequest.onSendHeaders.addListener(
         (details) => {
             let mediaRequest = {
                 url: details.url,
                 method: details.method,
-                requestHeaders: details.requestHeaders
-            }
+                requestHeaders: details.requestHeaders,
+                responseHeaders: null, // Placeholder for response headers
+                size: null // Placeholder for media size
+            };
             let existingRequests = JSON.parse(sessionStorage.getItem(details.url)) || [];
             existingRequests.push(mediaRequest);
             sessionStorage.setItem(details.url, JSON.stringify(existingRequests));
             console.log('Media request intercepted:', mediaRequest);
         },
         {
-            urls: [
-                "*://*/*.flv*",
-                "*://*/*.avi*",
-                "*://*/*.wmv*",
-                "*://*/*.mov*",
-                "*://*/*.mp4*",
-                "*://*/*.pcm*",
-                "*://*/*.wav*",
-                "*://*/*.mp3*",
-                "*://*/*.aac*",
-                "*://*/*.ogg*",
-                "*://*/*.wma*",
-                "*://*/*.m3u8*"
-            ],
+            urls: urlList,
         },
         ['requestHeaders']
     );
-    //Add media size when response headers are received
-    browser.webRequest.onHeadersReceived.addListener(
+    
+    //Check for event listener existence before adding a new one
+    if (headersReceivedListener) {
+        browser.webRequest.onHeadersReceived.removeListener(headersReceivedListener);
+    }
+    //Add media size and response headers when response headers are received
+    headersReceivedListener = browser.webRequest.onHeadersReceived.addListener(
         (details) => {
             let existingRequests = JSON.parse(sessionStorage.getItem(details.url)) || [];
-            let mediaSize = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length');
-            let size = mediaSize ? mediaSize.value : 'unknown';
 
-            // Find the corresponding request and update its size
+            let mediaSizeHeader = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length');
+            let size = mediaSizeHeader ? mediaSizeHeader.value : 'unknown';
+    
+            // Find the corresponding request and update its size and response headers
             for (let request of existingRequests) {
                 if (!request.size) {
                     request.size = size;
+                    request.responseHeaders = details.responseHeaders;
                     break;
                 }
             }
-
+    
             sessionStorage.setItem(details.url, JSON.stringify(existingRequests));
             console.log('Media response intercepted:', existingRequests);
         },
         {
-            urls: [
-                "*://*/*.flv*",
-                "*://*/*.avi*",
-                "*://*/*.wmv*",
-                "*://*/*.mov*",
-                "*://*/*.mp4*",
-                "*://*/*.pcm*",
-                "*://*/*.wav*",
-                "*://*/*.mp3*",
-                "*://*/*.aac*",
-                "*://*/*.ogg*",
-                "*://*/*.wma*",
-                "*://*/*.m3u8*"
-            ],
-        },
-        ['responseHeaders']
-    );
-} else if(localStorage.getItem('detection-method') === 'mime') {
-    //Add media request when request headers are sent
-    browser.webRequest.onSendHeaders.addListener(
-        (details) => {
-            let mediaRequest = {
-                url: details.url,
-                method: details.method,
-                requestHeaders: details.requestHeaders
-            }
-            let existingRequests = JSON.parse(sessionStorage.getItem(details.url)) || [];
-            existingRequests.push(mediaRequest);
-            sessionStorage.setItem(details.url, JSON.stringify(existingRequests));
-            console.log('Media request intercepted:', mediaRequest);
-        },
-        {
-            urls: ["<all_urls>"],
-        },
-        ['requestHeaders']
-    );
-    // Check content type of the response and store the size if it's a media response
-    browser.webRequest.onHeadersReceived.addListener(
-        (details) => {
-            let contentType = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-type');
-            if (contentType && mediaTypes.includes(contentType.value.split(';')[0])) {
-                // If it's a media response, store the size
-                let existingRequests = JSON.parse(sessionStorage.getItem(details.url)) || [];
-                let mediaSize = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length');
-                let size = mediaSize ? mediaSize.value : 'unknown';
-
-                // Find the corresponding request and update its size
-                for (let request of existingRequests) {
-                    if (!request.size) {
-                        request.size = size;
-                        break;
-                    }
-                }
-
-                // Update session storage with the media size
-                sessionStorage.setItem(details.url, JSON.stringify(existingRequests));
-                console.log('Media response intercepted:', existingRequests);
-            } else {
-                // If it's a non-media response, remove the corresponding entry from sessionStorage
-                sessionStorage.removeItem(details.url);
-                console.log('Non-media response, removed:', details.url);
-            }
-        },
-        {
-            urls: ["<all_urls>"]
+            urls: urlList,
         },
         ['responseHeaders']
     );
@@ -149,5 +104,16 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             mediaRequests[url] = JSON.parse(sessionStorage.getItem(url));
         }
         sendResponse(mediaRequests);
+    }
+});
+
+//Initialize the listener
+initListener();
+
+
+//Check if the listener should be reinitialized when message is received
+browser.runtime.onMessage.addListener((message) => {
+    if (message.action === 'initListener') {
+        initListener();
     }
 });

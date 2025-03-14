@@ -24,7 +24,7 @@ async function initializeSettings() {
     }
 
     // Check for streamDownload setting in localStorage
-    let streamDownload = localStorage.getItem('stream-download') || 'browser';
+    let streamDownload = localStorage.getItem('stream-download') || 'stream';
     localStorage.setItem('download-method', streamDownload);
 
     // Select the current downloadMethod
@@ -38,7 +38,9 @@ async function initializeSettings() {
         radio.addEventListener('change', (event) => {
             let setting = event.target.name;
             let value = event.target.value;
+            browser.runtime.sendMessage({ action: 'initListener' }) // Reinitialize the listener
             localStorage.setItem(setting, value);
+            sessionStorage.clear(); // Clear the session storage to avoid conflicts
         });
     });
     

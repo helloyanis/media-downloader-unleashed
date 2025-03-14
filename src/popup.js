@@ -12,19 +12,19 @@ document.addEventListener('DOMContentLoaded', () => {
         loadMediaList();
     });
 });
-function showDialog(message, title=null) {
+function showDialog(message) {
     const dialog = document.createElement('md-dialog');
     dialog.setAttribute('open', true);
     //Add the title to the dialog
     const titleElement = document.createElement('div');
-    titleElement.setAttribute('slot', 'title');
+    titleElement.setAttribute('slot', 'headline');
     errorTitles = ["Something went wrong!", "Oops!", "Uh oh!", "Error!", "Annnd it broke!", "Oh no!"];
-    titleElement.textContent = title || errorTitles[~~(Math.random() * errorTitles.length)];
+    titleElement.textContent = errorTitles[~~(Math.random() * errorTitles.length)];
     dialog.appendChild(titleElement);
 
     //Add the message to the dialog
     const messageElement = document.createElement('div');
-    messageElement.setAttribute('slot', 'message');
+    messageElement.setAttribute('slot', 'content');
     messageElement.textContent = message;
     dialog.appendChild(messageElement);
 
@@ -44,7 +44,7 @@ function showDialog(message, title=null) {
     const okButton = document.createElement('md-text-button');
     okButton.textContent = 'OK';
     okButton.addEventListener('click', () => {
-        dialog.removeAttribute(open);
+        dialog.removeAttribute('open');
     });
     actionsSlot.appendChild(okButton);
 
@@ -63,6 +63,28 @@ function loadMediaList() {
         console.log('Media requests:', mediaRequests);
         for (const url in mediaRequests) {
             const requests = mediaRequests[url];
+            //If no content type or wrong content type, skip
+            if(localStorage.getItem('detection-method') === 'mime') {
+                const mediaTypes = [
+                    "video/x-flv",
+                    "video/x-msvideo",
+                    "video/x-ms-wmv",
+                    "video/quicktime",
+                    "video/mp4",
+                    "audio/x-pcm",
+                    "audio/wav",
+                    "audio/mpeg",
+                    "audio/aac",
+                    "audio/ogg",
+                    "audio/x-ms-wma",
+                    "application/vnd.apple.mpegurl",
+                    "application/x-mpegURL"
+                ];
+
+                if (!requests[0].responseHeaders || !requests[0].responseHeaders.find(header => mediaTypes.includes(header.value))) {
+                    continue;
+                }
+            }
 
             // Create a container for each media request
             const mediaDiv = document.createElement('div');
@@ -136,7 +158,7 @@ function loadMediaList() {
             previewButton.style.margin = '10px';
             previewButton.addEventListener('click', () => {
                 browser.tabs.create({
-                    url: browser.runtime.getURL(`${document.location.origin}/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${sizeSelect.selectedIndex}`),
+                    url: browser.runtime.getURL(`${document.location.origin}/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${sizeSelect.selectedIndex}&isStream=${requests[sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') ? '1' : '0'}`),
                 });
             });
 
@@ -203,8 +225,7 @@ function getFileName(url) {
         return fileName;
     } catch (error) {
         console.error("Invalid URL", error);
-        showDialog('Error getting file name. Here\'s what went wrong: ' + error);
-        return null;
+        throw new Error('Invalid URL:', error);
     }
 }
 
@@ -224,70 +245,76 @@ function getHumanReadableSize(size) {
 
 async function downloadFile(url, sizeSelect, mediaDiv) {
     console.log('Downloading media file:', url);
-    
-    const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url });
-    const forbiddenHeaders = [
-        "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
-        "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
-        "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
-    ];
-    
-    const headers = requests[url][sizeSelect.selectedIndex].requestHeaders.filter(header =>
-        !forbiddenHeaders.includes(header.name) &&
-        !header.name.startsWith('Sec-') &&
-        !header.name.startsWith('Proxy-')
-    );
-
-    const downloadMethod = localStorage.getItem('download-method');
-    const streamDownload = localStorage.getItem('stream-download');
-
-    if (streamDownload === 'offline' && getFileName(url).endsWith('.m3u8')) {
-        console.log('M3U8 stream detected, converting to offline format...');
-        const loadingBar = document.createElement('md-linear-progress');
-        loadingBar.setAttribute('indeterminate', 'true');
-        mediaDiv.appendChild(loadingBar);
-        return await downloadM3U8Offline(url, headers, downloadMethod, loadingBar);
-    }
-
-    if (downloadMethod === 'browser') {
-        const fileName = getFileName(url) || 'media';
+    try{
+        const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url });
+        const forbiddenHeaders = [
+            "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
+            "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
+            "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
+        ];
         
-        browser.downloads.download({
-            url,
-            filename: fileName,
-            headers: headers,
-            method: requests[url][sizeSelect.selectedIndex].method
-        }).then((downloadId) => {
-            console.log('Media file downloaded:', downloadId);
-        }).catch((error) => {
-            console.error('Error downloading media file with browser download method:', error);
-            showDialog('Error downloading media file. Here\'s what went wrong: ' + error);
-        });
+        const headers = requests[url][sizeSelect.selectedIndex].requestHeaders.filter(header =>
+            !forbiddenHeaders.includes(header.name) &&
+            !header.name.startsWith('Sec-') &&
+            !header.name.startsWith('Proxy-')
+        );
 
-    } else {
-        const headersObject = {};
-        headers.forEach(header => {
-            headersObject[header.name] = header.value;
-        });
+        const downloadMethod = localStorage.getItem('download-method');
+        const streamDownload = localStorage.getItem('stream-download');
 
-        const response = await fetch(url, { 
-            method: requests[url][sizeSelect.selectedIndex].method, 
-            headers: headersObject, 
-            referrer: requests[url][sizeSelect.selectedIndex].referrer 
-        });
-
-        if (!response.ok) {
-            throw new Error(`Error downloading media file with fetch: ${response.status}`);
+        if (streamDownload === 'offline' && 
+            (getFileName(url).endsWith('.m3u8') ||
+            requests[url][sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') // Check if the response is a stream
+        )){
+            console.log('M3U8 stream detected, converting to offline format...');
+            const loadingBar = document.createElement('md-linear-progress');
+            loadingBar.style.width = '100%';
+            loadingBar.setAttribute('indeterminate', 'true');
+            mediaDiv.appendChild(loadingBar);
+            return await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][sizeSelect.selectedIndex]);
         }
 
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = getFileName(url) || 'media';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        if (downloadMethod === 'browser') {
+            const fileName = getFileName(url) || 'media';
+            
+            browser.downloads.download({
+                url,
+                filename: fileName,
+                headers: headers,
+                method: requests[url][sizeSelect.selectedIndex].method
+            }).then((downloadId) => {
+                console.log('Media file downloaded:', downloadId);
+            }).catch((error) => {
+                throw new Error('Error downloading media file with browser download method:', error);        });
+
+        } else {
+            const headersObject = {};
+            headers.forEach(header => {
+                headersObject[header.name] = header.value;
+            });
+
+            const response = await fetch(url, { 
+                method: requests[url][sizeSelect.selectedIndex].method, 
+                headers: headersObject, 
+                referrer: requests[url][sizeSelect.selectedIndex].referrer 
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error downloading media file with fetch: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = getFileName(url) || 'media';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    } catch (error) {
+        console.error('Error downloading media file:', error);
+        showDialog('Error downloading media file. Here\'s what went wrong: ' + error);
     }
 }
 
@@ -295,9 +322,14 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
  * Downloads and converts an M3U8 stream to an MP4 file for offline use.
  * Uses either browser.downloads API or fetch depending on the download method.
  */
-async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar) {
+async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
     return new Promise(async (resolve, reject) => {
-        const response = await fetch(m3u8Url, { headers: Object.fromEntries(headers.map(h => [h.name, h.value])) });
+        console.log("request", request);
+        const response = await fetch(m3u8Url, {
+            headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+            referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+            method: request.method
+        });
         const m3u8Text = await response.text();
         
         const baseUrl = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
@@ -314,9 +346,13 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar)
 
         for (let i = 0; i < tsUrls.length; i++) {
             try {
-                loadingBar.setAttribute('value', (i + 1) / tsUrls.length * 100);
+                loadingBar.setAttribute('value', (i + 1) / tsUrls.length);
                 console.log(`Downloading segment ${i + 1}/${tsUrls.length}: ${tsUrls[i]}`);
-                const tsResponse = await fetch(tsUrls[i], { headers: Object.fromEntries(headers.map(h => [h.name, h.value])) });
+                const tsResponse = await fetch(tsUrls[i], {
+                    headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+                    referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+                    method: sessionStorage.getItem(m3u8Url)?.method || "GET"
+                });
                 const tsData = await tsResponse.arrayBuffer();
                 tsBlobs.push(new Uint8Array(tsData));
             } catch (err) {
@@ -334,13 +370,13 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar)
             const blobUrl = URL.createObjectURL(mergedBlob);
             browser.downloads.download({
                 url: blobUrl,
-                filename: "video.ts"
+                filename: getFileName(m3u8Url)+".ts"
             }).then(() => resolve()).catch(reject);
         } else {
             const blobUrl = URL.createObjectURL(mergedBlob);
             const a = document.createElement("a");
             a.href = blobUrl;
-            a.download = "video.ts";
+            a.download = getFileName(m3u8Url)+".ts";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

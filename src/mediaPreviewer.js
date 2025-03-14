@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
+    const isStream = new URLSearchParams(document.location.search).get('isStream');
     const videoExtensions = [".flv", ".avi", ".wmv", ".mov", ".mp4", ".m3u8"];
     const audioExtensions = [".pcm", ".wav", ".mp3", ".aac", ".ogg", ".wma"];
     
@@ -25,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         video.style.maxHeight = '100%';
         document.body.appendChild(video);
 
-        if (mediaExtension === ".m3u8") {
+        if (mediaExtension === ".m3u8" || isStream === '1') {
             if (Hls.isSupported()) {
                 const hls = new Hls();
                 hls.loadSource(mediaBlobUrl);

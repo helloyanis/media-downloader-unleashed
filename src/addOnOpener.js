@@ -10,3 +10,5 @@ browser.runtime.onInstalled.addListener(() => {
         url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md`,
     });
 });
+
+browser.runtime.setUninstallURL(`https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/uninstalled.md`);
