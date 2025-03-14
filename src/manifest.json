@@ -43,8 +43,5 @@
     "gecko": {
       "id": "{dab9a10d-f9c5-4e8d-9351-67531e85b508}"
     }
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:"
   }
 }
