@@ -21,7 +21,7 @@ const mediaTypes = [
 let urlList = [];
 let headersSentListener, headersReceivedListener;
 function initListener() {
-    if(localStorage.getItem('detection-method') === 'url') {
+    if(localStorage.getItem('detection-method') !== 'mime') {
         urlList = [
             "*://*/*.flv*",
             "*://*/*.avi*",
