@@ -56,7 +56,10 @@ function showDialog(message) {
 function loadMediaList() {
     // Display a loading spinner while the media requests are being retrieved
     const mediaContainer = document.getElementById('media-list');
-    mediaContainer.innerHTML = '<md-progress-circular md-mode="indeterminate"></md-progress-circular>';
+    const loadingSpinner = document.createElement('md-progress-circular');
+    loadingSpinner.setAttribute('md-mode', 'indeterminate');
+    mediaContainer.innerHTML = '';
+    mediaContainer.appendChild(loadingSpinner);
     // Send a message to the background script to get media requests
     browser.runtime.sendMessage({ action: 'getMediaRequests' }).then((mediaRequests) => {
         // Iterate over the media requests and display them
