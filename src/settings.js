@@ -28,7 +28,7 @@ async function initializeSettings() {
 
     // Check for streamDownload setting in localStorage
     let streamDownload = localStorage.getItem('stream-download') || 'stream';
-    localStorage.setItem('download-method', streamDownload);
+    localStorage.setItem('stream-download', streamDownload);
 
     // Select the current downloadMethod
     let streamRadio = document.querySelector(`md-radio[value="${streamDownload}"]`);

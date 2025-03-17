@@ -1,10 +1,11 @@
+let requests
 document.addEventListener('DOMContentLoaded', async () => {
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
     const isStream = new URLSearchParams(document.location.search).get('isStream');
     const videoExtensions = [".flv", ".avi", ".wmv", ".mov", ".mp4", ".m3u8"];
     const audioExtensions = [".pcm", ".wav", ".mp3", ".aac", ".ogg", ".wma"];
-    
+    requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: mediaUrl });
     const mediaExtension = getFileExtension(mediaUrl);
 
     let mediaBlobUrl = mediaUrl; // Default to direct URL
@@ -28,7 +29,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (mediaExtension === ".m3u8" || isStream === '1') {
             if (Hls.isSupported()) {
-                const hls = new Hls();
+                // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API
+                let config = {}
+                if (localStorage.getItem('download-method') === 'fetch') {
+                    config = {
+                        fetchSetup: function (context, initParams) {
+                        initParams.referrer = requests[mediaUrl][mediaSize].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value
+                        initParams.method = requests[mediaUrl][mediaSize].method
+                        initParams.headers = requests[mediaUrl][mediaSize].requestHeaders.forEach(header => {
+                            return [header.name] = header.value;
+                        });
+                        return new Request(context.url, initParams);
+                        
+                        },
+                        progressive: true //Use the fetch api instead of XHR
+                    };
+                }
+                const hls = new Hls(config);
                 hls.loadSource(mediaBlobUrl);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function () {
@@ -57,8 +74,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchMedia(url, size) {
     console.log('Fetching media file:', url);
 
-    const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url });
-
     // Find the closest matching URL key
     const requestKey = Object.keys(requests).find(storedUrl => storedUrl.includes(url));
     
@@ -66,7 +81,7 @@ async function fetchMedia(url, size) {
         throw new Error(`No matching request found for ${url}`);
     }
 
-    const requestData = requests[requestKey][size]; // Assuming first entry is the desired one
+    const requestData = requests[requestKey][size];
 
     const forbiddenHeaders = [
         "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
@@ -86,7 +101,7 @@ async function fetchMedia(url, size) {
     const response = await fetch(requestData.url, {
         method: requestData.method,
         headers: headersObject,
-        referrer: requestData.referrer || document.referrer
+        referrer: requestData.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value
     });
 
     if (!response.ok) {
