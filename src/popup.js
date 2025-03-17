@@ -90,24 +90,34 @@ function loadMediaList() {
             }
 
             // Create a container for each media request
-            const mediaDiv = document.createElement('div');
+            const mediaDiv = document.createElement('md-list-item');
             mediaDiv.classList.add('media-item');
-            mediaDiv.style.display = 'flex';
-            mediaDiv.style.flexWrap = 'wrap';
-            mediaDiv.style.flexDirection = 'row';
-            mediaDiv.style.justifyContent = 'space-between';
-            mediaDiv.style.margin = '10px';
-            mediaDiv.style.alignItems = 'center';
+            // mediaDiv.style.display = 'flex';
+            // mediaDiv.style.flexWrap = 'wrap';
+            // mediaDiv.style.flexDirection = 'row';
+            // mediaDiv.style.justifyContent = 'space-between';
+            // mediaDiv.style.margin = '10px';
+            // mediaDiv.style.alignItems = 'center';
 
             // Display the media file name
             const fileName = getFileName(url) || url;
             const fileNameDiv = document.createElement('div');
             fileNameDiv.textContent = fileName;
-            fileNameDiv.style.flex = '1';
-            fileNameDiv.style.margin = '10px';
-            fileNameDiv.style.textAlign = 'center';
+            fileNameDiv.slot = 'headline';
             mediaDiv.appendChild(fileNameDiv);
 
+            //Display request method and referrer
+            const descriptionDiv = document.createElement('div');
+            descriptionDiv.textContent = `${requests[0].method} request from ${requests[0].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "an unknown source"}`;
+            descriptionDiv.slot = 'supporting-text';
+            mediaDiv.appendChild(descriptionDiv);
+
+            // Create a div to put actions at the end of the media item
+            const actionsDiv = document.createElement('div');
+            actionsDiv.slot = 'end'
+            actionsDiv.style.display = 'flex';
+            actionsDiv.style.flexDirection = 'row';
+            mediaDiv.appendChild(actionsDiv);
             // Create a select for the media sizes
             const sizeSelect = document.createElement('md-outlined-select');
             sizeSelect.label = 'Size';
@@ -129,7 +139,13 @@ function loadMediaList() {
                 option.appendChild(slot);
                 sizeSelect.appendChild(option);
             }
-            mediaDiv.appendChild(sizeSelect);
+
+            // Change description based on the selected size
+            sizeSelect.addEventListener('change', () => {
+                const selectedSize = sizeSelect.options[sizeSelect.selectedIndex].value;
+                descriptionDiv.textContent = `${requests[selectedSize].method} request from ${requests[selectedSize].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "an unknown source"}`;
+            });
+            actionsDiv.appendChild(sizeSelect);
 
             // Add a button to copy the selected media URL to the clipboard
             const copyButton = document.createElement('md-outlined-button');
@@ -153,7 +169,7 @@ function loadMediaList() {
             path.setAttribute('d', 'M300-180v-200l160 100-160 100Zm220-380q-50 0-85-35t-35-85q0-50 35-85t85-35h50v60h-50q-25 0-42.5 17.5T460-680q0 25 17.5 42.5T520-620h50v60h-50Zm110 0v-60h50q25 0 42.5-17.5T740-680q0-25-17.5-42.5T680-740h-50v-60h50q50 0 85 35t35 85q0 50-35 85t-85 35h-50Zm-110-90v-60h160v60H520Zm124 250v-80h196v-360H360v360h-80v-360q0-33 23.5-56.5T360-920h480q33 0 56.5 23.5T920-840v360q0 33-23.5 56.5T840-400H644ZM120-40q-33 0-56.5-23.5T40-120v-320q0-33 23.5-56.5T120-520h480q33 0 56.5 23.5T680-440v320q0 33-23.5 56.5T600-40H120Zm0-80h480v-320H120v320Zm480-540ZM360-280Z');
             copyIcon.appendChild(path);
             copyButton.appendChild(copyIcon);
-            mediaDiv.appendChild(copyButton);
+            actionsDiv.appendChild(copyButton);
 
             // Add a button to preview the selected media file
             const previewButton = document.createElement('md-outlined-button');
@@ -173,7 +189,7 @@ function loadMediaList() {
             previewPath.setAttribute('d', 'm380-300 280-180-280-180v360ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z');
             previewIcon.appendChild(previewPath);
             previewButton.appendChild(previewIcon);
-            mediaDiv.appendChild(previewButton);
+            actionsDiv.appendChild(previewButton);
 
             // Add a button to download the selected media file
             const downloadButton = document.createElement('md-filled-button');
@@ -191,7 +207,7 @@ function loadMediaList() {
             downloadPath.setAttribute('d', 'M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z');
             downloadIcon.appendChild(downloadPath);
             downloadButton.appendChild(downloadIcon);
-            mediaDiv.appendChild(downloadButton);
+            actionsDiv.appendChild(downloadButton);
 
             // Add the media container to the popup
             mediaContainer.appendChild(mediaDiv);
@@ -299,7 +315,7 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
             const response = await fetch(url, { 
                 method: requests[url][sizeSelect.selectedIndex].method, 
                 headers: headersObject, 
-                referrer: requests[url][sizeSelect.selectedIndex].referrer 
+                referrer: requests[url][sizeSelect.selectedIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value 
             });
 
             if (!response.ok) {

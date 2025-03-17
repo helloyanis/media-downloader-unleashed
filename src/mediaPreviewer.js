@@ -31,20 +31,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (Hls.isSupported()) {
                 // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API
                 let config = {}
-                if (localStorage.getItem('download-method') === 'fetch') {
+                if(localStorage.getItem('download-method') === 'fetch') {
                     config = {
                         fetchSetup: function (context, initParams) {
-                        initParams.referrer = requests[mediaUrl][mediaSize].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value
-                        initParams.method = requests[mediaUrl][mediaSize].method
-                        initParams.headers = requests[mediaUrl][mediaSize].requestHeaders.forEach(header => {
-                            return [header.name] = header.value;
-                        });
-                        return new Request(context.url, initParams);
-                        
+                            initParams.referrer = requests[mediaUrl][mediaSize].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value;
+                            initParams.method = requests[mediaUrl][mediaSize].method;
+                            initParams.headers = new Headers();
+                            requests[mediaUrl][mediaSize].requestHeaders.forEach(header => {
+                                initParams.headers.append(header.name, header.value);
+                            });
+                            return new Request(context.url, initParams);
                         },
-                        progressive: true //Use the fetch api instead of XHR
+                        progressive: true // Use the fetch API instead of XHR
                     };
                 }
+                console.log(config)
                 const hls = new Hls(config);
                 hls.loadSource(mediaBlobUrl);
                 hls.attachMedia(video);

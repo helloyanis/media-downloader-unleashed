@@ -12,7 +12,7 @@ You can download audios, videos and streams to view offline, from most websites!
 - Clean interface with material design!
 - Easy to use settings!
 - Multiple detection and download methods to try to find one that works on the site!
-- Android compatibility (to be tested extensively)
 - Media preview in the browser!
+- Spoof headers and referrer to play and download videos from sites with protections!
 
 ![image](https://github.com/user-attachments/assets/78b73edd-9c40-4b62-9c24-203fd1311b8f)
