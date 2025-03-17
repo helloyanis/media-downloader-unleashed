@@ -14,6 +14,5 @@ You can download audios, videos and streams to view offline, from most websites!
 - Multiple detection and download methods to try to find one that works on the site!
 - Media preview in the browser!
 - Spoof headers and referrer to play and download videos from sites with protections!
-- Completely free and open-source! Nothing to pay at all! (Except for donations of course)
-
+- Completely free and open-source! Nothing to pay at all! (Except for donations, which are optional and does not unlock any features)
 ![image](https://github.com/user-attachments/assets/78b73edd-9c40-4b62-9c24-203fd1311b8f)
