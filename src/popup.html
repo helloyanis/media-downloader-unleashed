@@ -51,7 +51,7 @@
   <div class="tab-content" id="home">
     <md-list id="media-list">
       <md-circular-progress id="loading-media-list" indeterminate></md-circular-progress>
-    </div>
+    </md-list>
     <md-fab label="Refresh list" id="refresh-list" class="bottom-right">
       <md-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
           <path
@@ -70,6 +70,7 @@
     <div role="radiogroup" id="detection-method" class="settings-radio-group">
       <md-elevation></md-elevation>
       <h3>Detection method</h3>
+      <h4>⚠️ Need to load the media again after changing this!</h4>
       <div>
         <md-radio id="url-detection" name="detection-method" value="url"></md-radio>
         <label for="url-detection">Detection via URL</label>

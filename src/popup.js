@@ -87,8 +87,25 @@ function loadMediaList() {
                 if (!requests[0].responseHeaders || !requests[0].responseHeaders.find(header => mediaTypes.includes(header.value))) {
                     continue;
                 }
+            }else{
+                const fileExtensions =  [
+                    ".flv",
+                    ".avi",
+                    ".wmv",
+                    ".mov",
+                    ".mp4",
+                    ".pcm",
+                    ".wav",
+                    ".mp3",
+                    ".aac",
+                    ".ogg",
+                    ".wma",
+                    ".m3u8"
+                  ]
+                if (getFileName(url) && !fileExtensions.includes(getFileName(url).split('.').pop())) {
+                    continue;
+                }
             }
-
             // Create a container for each media request
             const mediaDiv = document.createElement('md-list-item');
             mediaDiv.classList.add('media-item');
