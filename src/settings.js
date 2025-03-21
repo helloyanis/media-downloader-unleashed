@@ -44,7 +44,6 @@ async function initializeSettings() {
             if(setting === 'detection-method'){
                 browser.runtime.sendMessage({ action: 'initListener' }) // Reinitialize the listener
                 browser.runtime.sendMessage({ action: 'clearStorage' })
-                loadMediaList()
             }
             localStorage.setItem(setting, value);
         });
