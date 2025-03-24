@@ -201,7 +201,7 @@ function loadMediaList() {
             previewButton.style.margin = '10px';
             previewButton.addEventListener('click', () => {
                 browser.tabs.create({
-                    url: browser.runtime.getURL(`${document.location.origin}/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${sizeSelect.selectedIndex}&isStream=${requests[sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') ? '1' : '0'}`),
+                    url: browser.runtime.getURL(`/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${sizeSelect.selectedIndex}&isStream=${requests[sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') ? '1' : '0'}`),
                 });
             });
 
