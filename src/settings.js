@@ -1,3 +1,7 @@
+// Check for the existence of the browser object and use chrome if not found
+if (typeof browser === 'undefined') {
+    var browser = chrome;
+}
 document.addEventListener('DOMContentLoaded', () => {
     initializeSettings();
 });
@@ -17,7 +21,7 @@ async function initializeSettings() {
     }
 
     // Check for downloadMethod setting in localStorage
-    let downloadMethod = localStorage.getItem('download-method') || 'browser';
+    let downloadMethod = localStorage.getItem('download-method') || 'fetch';
     localStorage.setItem('download-method', downloadMethod);
 
     // Select the current downloadMethod

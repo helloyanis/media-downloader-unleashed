@@ -30,3 +30,13 @@ body {
     position: relative;
     border-radius: 16px;
 }
+.media-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 10px 0;
+}
+.md-item[multiline] {
+    flex-wrap: wrap;
+    align-items: center;
+}

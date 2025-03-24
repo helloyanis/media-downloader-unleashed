@@ -1,3 +1,7 @@
+// Check for the existence of the browser object and use chrome if not found
+if (typeof browser === 'undefined') {
+    var browser = chrome;
+}
 document.addEventListener('DOMContentLoaded', () => {
     loadMediaList();
     document.getElementById('navbar').addEventListener('change', (event) => {
@@ -102,7 +106,8 @@ function loadMediaList() {
                     ".wma",
                     ".m3u8"
                   ]
-                if (getFileName(url) && !fileExtensions.includes(getFileName(url).split('.').pop())) {
+                const mediaURL = new URL(url);
+                if (!fileExtensions.some(ext => mediaURL.pathname.endsWith(ext))) { // Check if the URL ends with any of the file extensions
                     continue;
                 }
             }
@@ -134,6 +139,8 @@ function loadMediaList() {
             actionsDiv.slot = 'end'
             actionsDiv.style.display = 'flex';
             actionsDiv.style.flexDirection = 'row';
+            actionsDiv.style.flexWrap = 'wrap';
+            actionsDiv.style.maxWidth = '50vw';
             mediaDiv.appendChild(actionsDiv);
             // Create a select for the media sizes
             const sizeSelect = document.createElement('md-outlined-select');

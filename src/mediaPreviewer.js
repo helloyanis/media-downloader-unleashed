@@ -1,4 +1,8 @@
 let requests
+// Check for the existence of the browser object and use chrome if not found
+if (typeof browser === 'undefined') {
+    var browser = chrome;
+}
 document.addEventListener('DOMContentLoaded', async () => {
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
