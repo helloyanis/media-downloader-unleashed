@@ -1,6 +1,6 @@
 # live-stream-downloader
 
-<a href="https://addons.mozilla.org/addon/file-downloader-unleashed/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
+<a href="https://addons.mozilla.org/addon/media-downloader-unleashed/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
 ![image](https://github.com/user-attachments/assets/e35041d2-b320-4019-8178-ff153243a322)
 
