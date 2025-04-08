@@ -1,7 +1,7 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Download videos, music and live streams to your device!",
   "permissions": [
     "storage",
@@ -12,7 +12,7 @@
     "unlimitedStorage"
   ],
   "host_permissions": [
-
+    "*://*/*"
   ],
   "homepage_url": "https://github.com/helloyanis/live-stream-downloader-unleashed",
   "background": {
