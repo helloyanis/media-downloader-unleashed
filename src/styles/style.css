@@ -10,6 +10,21 @@ body {
     padding: 0;
     height: 100%;
 }
+@media (prefers-color-scheme: dark) {
+    body {
+      background-color: #333;
+      color: white;
+      --md-sys-color-background: #333;
+      --md-sys-color-on-background: white;
+      --md-sys-color-surface: #444;
+      --md-sys-color-on-surface: white;
+      --md-sys-color-on-surface-variant: #ccc;
+      --md-sys-color-surface-container-high: #555;
+      --md-sys-color-surface-container: #555;
+      --md-sys-color-secondary-container: #666;
+      --md-sys-color-on-secondary-container: white;
+    }
+  }
 
 .bottom-right {
     position: fixed;
@@ -39,4 +54,19 @@ body {
 .md-item[multiline] {
     flex-wrap: wrap;
     align-items: center;
+}
+#settings-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+#settings-container > * {
+    max-width: 500px;
+    flex-grow: 1;
+    background-color: var(--md-sys-color-surface-container-high, #fff);
+}
+
+#end-of-media-list {
+    margin-bottom: 50px;
 }

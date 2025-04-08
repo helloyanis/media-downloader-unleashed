@@ -60,10 +60,9 @@ function showDialog(message) {
 function loadMediaList() {
     // Display a loading spinner while the media requests are being retrieved
     const mediaContainer = document.getElementById('media-list');
-    const loadingSpinner = document.createElement('md-progress-circular');
-    loadingSpinner.setAttribute('md-mode', 'indeterminate');
-    mediaContainer.innerHTML = '';
-    mediaContainer.appendChild(loadingSpinner);
+    const loadingSpinner = document.getElementById('loading-media-list');
+    loadingSpinner.style.display = 'block';
+    mediaContainer.innerHTML = ''; // Clear previous content
     // Send a message to the background script to get media requests
     browser.runtime.sendMessage({ action: 'getMediaRequests' }).then((mediaRequests) => {
         // Iterate over the media requests and display them
@@ -71,45 +70,54 @@ function loadMediaList() {
         for (const url in mediaRequests) {
             const requests = mediaRequests[url];
             //If no content type or wrong content type, skip
-            if(localStorage.getItem('detection-method') === 'mime') {
-                const mediaTypes = [
-                    "video/x-flv",
-                    "video/x-msvideo",
-                    "video/x-ms-wmv",
-                    "video/quicktime",
-                    "video/mp4",
-                    "audio/x-pcm",
-                    "audio/wav",
-                    "audio/mpeg",
-                    "audio/aac",
-                    "audio/ogg",
-                    "audio/x-ms-wma",
-                    "application/vnd.apple.mpegurl",
-                    "application/x-mpegURL"
-                ];
+            const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
+            const audioExtensions = [".3ga", ".aac", ".ac3", ".adts", ".aif", ".aiff", ".alac", ".ape", ".asf", ".au", ".dts", ".f4a", ".f4b", ".flac", ".isma", ".it", ".m4a", ".m4b", ".m4r", ".mid", ".mka", ".mod", ".mp1", ".mp2", ".mp3", ".mp4a", ".mpa", ".mpga", ".oga", ".ogg", ".ogx", ".opus", ".ra", ".shn", ".spx", ".vorbis", ".wav", ".weba", ".wma", ".xm"];
+            const streamExtensions = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
 
-                if (!requests[0].responseHeaders || !requests[0].responseHeaders.find(header => mediaTypes.includes(header.value))) {
-                    continue;
-                }
-            }else{
-                const fileExtensions =  [
-                    ".flv",
-                    ".avi",
-                    ".wmv",
-                    ".mov",
-                    ".mp4",
-                    ".pcm",
-                    ".wav",
-                    ".mp3",
-                    ".aac",
-                    ".ogg",
-                    ".wma",
-                    ".m3u8"
-                  ]
-                const mediaURL = new URL(url);
-                if (!fileExtensions.some(ext => mediaURL.pathname.endsWith(ext))) { // Check if the URL ends with any of the file extensions
-                    continue;
-                }
+            const fileExtensions = [...videoExtensions, ...audioExtensions, ...streamExtensions];
+
+            const mediaTypes = [
+                "video/x-flv",
+                "video/x-msvideo",
+                "video/x-ms-wmv",
+                "video/quicktime",
+                "video/mp4",
+                "audio/x-pcm",
+                "audio/wav",
+                "audio/mpeg",
+                "audio/aac",
+                "audio/ogg",
+                "audio/x-ms-wma",
+                "application/vnd.apple.mpegurl",
+                "application/x-mpegURL"
+            ];
+
+            const useMimeDetection = localStorage.getItem('mime-detection') === '1';
+            const useUrlDetection = localStorage.getItem('url-detection') === '1';
+
+            let mimeMatch = false;
+            let urlMatch = false;
+
+            // Check if the request matches the media types or file extensions
+            if (useMimeDetection && requests[0].responseHeaders) {
+                mimeMatch = requests[0].responseHeaders.find(header => mediaTypes.includes(header.value)) !== undefined;
+            }
+
+            const mediaURL = new URL(url);
+            // Check if the request matches the file extensions
+            if (useUrlDetection) {
+                urlMatch = fileExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext));
+            }
+            //Hide .ts segments
+            if (mediaURL.pathname.toLowerCase().endsWith(".ts")) {
+                continue;
+            }
+
+            if (!useMimeDetection && !useUrlDetection) {
+                // No filtering at all, proceed
+            } else if (!(mimeMatch || urlMatch)) {
+                // If neither detection matched, skip
+                continue;
             }
             // Create a container for each media request
             const mediaDiv = document.createElement('md-list-item');
@@ -130,7 +138,8 @@ function loadMediaList() {
 
             //Display request method and referrer
             const descriptionDiv = document.createElement('div');
-            descriptionDiv.textContent = `${requests[0].method} request from ${requests[0].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "an unknown source"}`;
+            console.log(requests)
+            descriptionDiv.textContent = `${requests[0]?.method ?? "Unknown"} request from ${requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value ?? "an unknown source"}`;
             descriptionDiv.slot = 'supporting-text';
             mediaDiv.appendChild(descriptionDiv);
 
@@ -167,7 +176,7 @@ function loadMediaList() {
             // Change description based on the selected size
             sizeSelect.addEventListener('change', () => {
                 const selectedSize = sizeSelect.options[sizeSelect.selectedIndex].value;
-                descriptionDiv.textContent = `${requests[selectedSize].method} request from ${requests[selectedSize].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "an unknown source"}`;
+                descriptionDiv.textContent = `${requests.find(request => request.size = selectedSize).method} request from ${requests.find(request => request.size = selectedSize).requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "an unknown source"}`;
             });
             actionsDiv.appendChild(sizeSelect);
 
@@ -201,7 +210,7 @@ function loadMediaList() {
             previewButton.style.margin = '10px';
             previewButton.addEventListener('click', () => {
                 browser.tabs.create({
-                    url: browser.runtime.getURL(`/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${sizeSelect.selectedIndex}&isStream=${requests[sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') ? '1' : '0'}`),
+                    url: browser.runtime.getURL(`/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${sizeSelect.selectedIndex}&isStream=${streamExtensions.some(ext => new URL(url).pathname.toLowerCase().endsWith(ext)) ? '1' : '0'}`),
                 });
             });
 
@@ -241,23 +250,25 @@ function loadMediaList() {
             mediaContainer.appendChild(divider);
         }
         endOfMediaList = document.createElement('div');
+        endOfMediaList.setAttribute("id", "end-of-media-list");
         endOfMediaList.textContent = "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings.";
         endOfMediaList.style.textAlign = 'center';
+        loadingSpinner.style.display = 'none'; // Hide the loading spinner
         mediaContainer.appendChild(endOfMediaList);
-        }).catch((error) => {
-            console.error('Error retrieving media requests:', error);
-            showDialog('Error retrieving media requests. Here\'s what went wrong: ' + error);
-        });      
-    }
+    }).catch((error) => {
+        console.error('Error retrieving media requests:', error);
+        showDialog('Error retrieving media requests. Here\'s what went wrong: ' + error);
+    });
+}
 
 function getFileName(url) {
     try {
         let parsedUrl = new URL(url);
-        
+
         // Extract path from URL
         let pathname = parsedUrl.pathname; // e.g. /path/to/file.mp4
         let fileName = pathname.substring(pathname.lastIndexOf('/') + 1);
-        
+
         // Remove query string from file name
         fileName = fileName.split('?')[0];
 
@@ -274,7 +285,7 @@ function getFileName(url) {
 
 function getHumanReadableSize(size) {
     const units = ['b', 'Kb', 'Mb', 'Gb', 'Tb'];
-    if(isNaN(size)) {
+    if (isNaN(size)) {
         return "Unknown size";
     }
     let unitIndex = 0;
@@ -288,14 +299,14 @@ function getHumanReadableSize(size) {
 
 async function downloadFile(url, sizeSelect, mediaDiv) {
     console.log('Downloading media file:', url);
-    try{
+    try {
         const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url });
         const forbiddenHeaders = [
             "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
             "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
             "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
         ];
-        
+
         const headers = requests[url][sizeSelect.selectedIndex].requestHeaders.filter(header =>
             !forbiddenHeaders.includes(header.name) &&
             !header.name.startsWith('Sec-') &&
@@ -305,10 +316,10 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
         const downloadMethod = localStorage.getItem('download-method');
         const streamDownload = localStorage.getItem('stream-download');
 
-        if (streamDownload === 'offline' && 
+        if (streamDownload === 'offline' &&
             (getFileName(url).endsWith('.m3u8') ||
-            requests[url][sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') // Check if the response is a stream
-        )){
+                requests[url][sizeSelect.selectedIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') // Check if the response is a stream
+            )) {
             console.log('M3U8 stream detected, converting to offline format...');
             const loadingBar = document.createElement('md-linear-progress');
             loadingBar.style.width = '100%';
@@ -319,7 +330,7 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
 
         if (downloadMethod === 'browser') {
             const fileName = getFileName(url) || 'media';
-            
+
             browser.downloads.download({
                 url,
                 filename: fileName,
@@ -328,7 +339,9 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
             }).then((downloadId) => {
                 console.log('Media file downloaded:', downloadId);
             }).catch((error) => {
-                throw new Error('Error downloading media file with browser download method:', error);        });
+                mediaDiv.removeChild(loadingBar);
+                throw new Error('Error downloading media file with browser download method:', error);
+            });
 
         } else {
             const headersObject = {};
@@ -336,10 +349,10 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
                 headersObject[header.name] = header.value;
             });
 
-            const response = await fetch(url, { 
-                method: requests[url][sizeSelect.selectedIndex].method, 
-                headers: headersObject, 
-                referrer: requests[url][sizeSelect.selectedIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value 
+            const response = await fetch(url, {
+                method: requests[url][sizeSelect.selectedIndex].method,
+                headers: headersObject,
+                referrer: requests[url][sizeSelect.selectedIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value
             });
 
             if (!response.ok) {
@@ -374,7 +387,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
             method: request.method
         });
         const m3u8Text = await response.text();
-        
+
         const baseUrl = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
         const tsUrls = m3u8Text
             .split("\n")
@@ -404,7 +417,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
                 return;
             }
         }
-        
+
         console.log("All TS segments downloaded. Merging...");
 
         const mergedBlob = new Blob(tsBlobs, { type: "video/mp2t" });
@@ -413,13 +426,13 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
             const blobUrl = URL.createObjectURL(mergedBlob);
             browser.downloads.download({
                 url: blobUrl,
-                filename: getFileName(m3u8Url)+".ts"
+                filename: getFileName(m3u8Url) + ".ts"
             }).then(() => resolve()).catch(reject);
         } else {
             const blobUrl = URL.createObjectURL(mergedBlob);
             const a = document.createElement("a");
             a.href = blobUrl;
-            a.download = getFileName(m3u8Url)+".ts";
+            a.download = getFileName(m3u8Url) + ".ts";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

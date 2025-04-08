@@ -9,7 +9,7 @@
 </head>
 
 <body>
-    <!--
+  <!--
     The bundle.js file is automatically generated and contains the source code for Material Web, used for the interface of the add-on.
     https://github.com/material-components/material-web
 
@@ -24,9 +24,9 @@
     npx rollup -c
     And replace the existing bundle.js file with the newly generated one, found in material-web-builder\dist\bundle.js
     -->
-    <script src="popup.js"></script>
-    <script type="module" src="libraries/bundle.js"></script>
-    <script type="module" src="libraries/hls.js"></script>
+  <script src="popup.js"></script>
+  <script type="module" src="libraries/bundle.js"></script>
+  <script type="module" src="libraries/hls.js"></script>
   <md-tabs id="navbar">
     <md-primary-tab active>
       <md-icon slot="icon">
@@ -49,8 +49,8 @@
   </md-tabs>
 
   <div class="tab-content" id="home">
+    <md-linear-progress id="loading-media-list" indeterminate></md-linear-progress>
     <md-list id="media-list">
-      <md-circular-progress id="loading-media-list" indeterminate></md-circular-progress>
     </md-list>
     <md-fab label="Refresh list" id="refresh-list" class="bottom-right">
       <md-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
@@ -58,68 +58,94 @@
             d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
         </svg></md-icon>
     </md-fab>
-    <md-filled-tonal-icon-button class="bottom-left" label="Source code" href="https://github.com/helloyanis/media-downloader-unleashed">
+    <md-filled-tonal-icon-button class="bottom-left" label="Source code"
+      href="https://github.com/helloyanis/media-downloader-unleashed">
       <md-icon>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+          <path
+            d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z" />
+        </svg>
       </md-icon>
     </md-filled-tonal-icon-button>
   </div>
 
   <div class="tab-content" id="settings" hidden>
     <script src="settings.js"></script>
-    <div role="radiogroup" id="detection-method" class="settings-radio-group">
-      <md-elevation></md-elevation>
-      <h3>Detection method</h3>
-      <h4>⚠️ Need to load the media again after changing this!</h4>
-      <div>
-        <md-radio id="url-detection" name="detection-method" value="url"></md-radio>
-        <label for="url-detection">Detection via URL</label>
-        <p>Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some
-          sites don't serve medias through these kind of URLs, so it might not detect everything.</p>
+    <div id="settings-container">
+      <div role="radiogroup" id="detection-method" class="settings-radio-group">
+        <md-elevation></md-elevation>
+        <h3>Detection method</h3>
+        <h4>⚠️ Need to load the media again after changing this!</h4>
+        <div>
+          <md-checkbox id="url-detection" name="detection-method" value="url"></md-checkbox>
+          <label for="url-detection">Detection via URL</label>
+          <p>Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some
+            sites don't serve medias through these kind of URLs, so it might not detect everything.</p>
+        </div>
+        <div>
+          <md-checkbox id="mime-detection" name="detection-method" value="mime"></md-checkbox>
+          <label for="mime-detection">Detection via server's MIME response</label>
+          <p>Detection by checking the MIME type of the media file. It's slower because the add-on needs to monitor
+            every
+            request and response, but it's more reliable as it doesn't rely on the URL. Try this if the media you're
+            looking for is not detected.</p>
+        </div>
       </div>
-      <div>
-        <md-radio id="mime-detection" name="detection-method" value="mime"></md-radio>
-        <label for="mime-detection">Detection via server's MIME response</label>
-        <p>Detection by checking the MIME type of the media file. It's slower because the add-on needs to monitor every
-          request and response, but it's more reliable as it doesn't rely on the URL. Try this if the media you're
-          looking for is not detected.</p>
-      </div>
-    </div>
 
-    <div role="radiogroup" id="download-method" class="settings-radio-group">
-      <md-elevation></md-elevation>
-      <h3>Download method</h3>
-      <div>
-        <md-radio id="browser-download" name="download-method" value="browser"></md-radio>
-        <label for="browser-download">Native browser download</label>
-        <p>Download the media using the browser's download API. Only works on some browsers (Firefox PC), and not on all websites, but is fast and handles disconnects very well.</p>
+      <div role="radiogroup" id="download-method" class="settings-radio-group">
+        <md-elevation></md-elevation>
+        <h3>Download method</h3>
+        <div>
+          <md-radio id="browser-download" name="download-method" value="browser"></md-radio>
+          <label for="browser-download">Native browser download</label>
+          <p>Download the media using the browser's download API. Only works on some browsers (Firefox PC), and not on
+            all websites, but is fast and handles disconnects very well.</p>
+        </div>
+        <div>
+          <md-radio id="fetch-download" name="download-method" value="fetch"></md-radio>
+          <label for="fetch-download">Fetch</label>
+          <p>Download the media using the Fetch API. It's slower than the native download, but it's more reliable and
+            works on more websites.</p>
+        </div>
       </div>
-      <div>
-        <md-radio id="fetch-download" name="download-method" value="fetch"></md-radio>
-        <label for="fetch-download">Fetch</label>
-        <p>Download the media using the Fetch API. It's slower than the native download, but it's more reliable and works on more websites.</p>
-      </div>
-    </div>
 
-    <div role="radiogroup" id="stream-download" class="settings-radio-group">
-      <md-elevation></md-elevation>
-      <h3>Stream download preference</h3>
-      <div>
-        <md-radio id="stream-file-download" name="stream-download" value="stream"></md-radio>
-        <label for="browser-download">Download stream file</label>
-        <p>Download the .m3u8 file directly. Open it with VLC to request the stream from the server. Very fast to download, but requires you to be online and a workig server to play the file.</p>
+      <div role="radiogroup" id="stream-download" class="settings-radio-group">
+        <md-elevation></md-elevation>
+        <h3>Stream download preference</h3>
+        <div>
+          <md-radio id="stream-file-download" name="stream-download" value="stream"></md-radio>
+          <label for="browser-download">Download .m3u8 stream file</label>
+          <p>Download the .m3u8 file directly. Open it with VLC to request the stream from the server. Very fast to
+            download, but requires you to be online and a workig server to play the file.</p>
+        </div>
+        <div>
+          <md-radio id="offline-download" name="stream-download" value="offline"></md-radio>
+          <label for="offline-download">Download offline .ts video file</label>
+          <p>Convert the .m3u8 file into a .ts file and download it to view offline. Can take a long time, and
+            disconnects are not properly handled.</p>
+        </div>
       </div>
-      <div>
-        <md-radio id="offline-download" name="stream-download" value="offline"></md-radio>
-        <label for="offline-download">Download offline video file</label>
-        <p>Convert the .m3u8 file into a .mp4 file and download it to view offline. Can take a long time, and disconnects are not properly handled.</p>
-      </div>
-    </div>
 
-    <div id="color-picker">
-      <md-elevation></md-elevation>
-      <h3>Interface color</h3>
-      <input type="color" id="color-picker-input">
+      <div role="radiogroup" id="open-preference" class="settings-radio-group">
+        <md-elevation></md-elevation>
+        <h3>Add-on opening preference</h3>
+        <div>
+          <md-radio id="new-tab" name="open-preference" value="tab"></md-radio>
+          <label for="new-tab">Open in new tab</label>
+          <p>Open the add-on in a new tab. If you are on mobile, it will open in a new full-screen window.</p>
+        </div>
+        <div>
+          <md-radio id="new-window" name="open-preference" value="window"></md-radio>
+          <label for="new-window">Open in new window</label>
+          <p>⚠️ This option is not compatible with Firefox for Android and some other mobile browsers, and might cause this add-on to stop opening! If this occurs, reinstall the add-on.</p>
+        </div>
+      </div>
+
+      <div id="color-picker">
+        <md-elevation></md-elevation>
+        <h3>Interface color</h3>
+        <input type="color" id="color-picker-input">
+      </div>
     </div>
   </div>
 </body>

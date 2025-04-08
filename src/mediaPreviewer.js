@@ -7,8 +7,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
     const isStream = new URLSearchParams(document.location.search).get('isStream');
-    const videoExtensions = [".flv", ".avi", ".wmv", ".mov", ".mp4", ".m3u8"];
-    const audioExtensions = [".pcm", ".wav", ".mp3", ".aac", ".ogg", ".wma"];
+    const videoExtensions = [".3g2",".3gp",".asx",".avi",".divx",".4v",".flv",".ismv",".m2t",".m2ts",".m2v",".m4s",".m4v",".mk3d",".mkv",".mng",".mov",".mp2v",".mp4",".mp4v",".mpe",".mpeg",".mpeg1",".mpeg2",".mpeg4",".mpg",".mxf",".ogm",".ogv",".qt",".rm",".swf",".ts",".vob",".vp9",".webm",".wmv"]
+    const audioExtensions = [".3ga",".aac",".ac3",".adts",".aif",".aiff",".alac",".ape",".asf",".au",".dts",".f4a",".f4b",".flac",".isma",".it",".m4a",".m4b",".m4r",".mid",".mka",".mod",".mp1",".mp2",".mp3",".mp4a",".mpa",".mpga",".oga",".ogg",".ogx",".opus",".ra",".shn",".spx",".vorbis",".wav",".weba",".wma",".xm"];
+    const streamExtensions = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
     requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: mediaUrl });
     const mediaExtension = getFileExtension(mediaUrl);
 
@@ -24,27 +25,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    if (videoExtensions.includes(mediaExtension)) {
+    if (videoExtensions.includes(mediaExtension) || streamExtensions.includes(mediaExtension) || isStream === '1') {
         const video = document.createElement('video');
         video.controls = true;
         video.style.maxWidth = '100%';
         video.style.maxHeight = '100%';
         document.body.appendChild(video);
 
-        if (mediaExtension === ".m3u8" || isStream === '1') {
+        if (streamExtensions.includes(mediaExtension)  || isStream === '1') {
             if (Hls.isSupported()) {
                 // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API
                 let config = {}
                 if(localStorage.getItem('download-method') === 'fetch') {
+                    console.log('Using fetch API for HLS.js')
                     config = {
                         fetchSetup: function (context, initParams) {
+                            const headers = new Headers();
+                            requests[mediaUrl][mediaSize].requestHeaders.forEach(header => {
+                                headers.append(header.name, header.value);
+                            });
+                        
+                            initParams.headers = headers;
                             initParams.referrer = requests[mediaUrl][mediaSize].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value;
                             initParams.method = requests[mediaUrl][mediaSize].method;
-                            initParams.headers = new Headers();
-                            requests[mediaUrl][mediaSize].requestHeaders.forEach(header => {
-                                initParams.headers.append(header.name, header.value);
-                            });
-                            return new Request(context.url, initParams);
+                        
+                            return new Request(context.url, initParams); // OR: return fetch(context.url, initParams);
                         },
                         progressive: true // Use the fetch API instead of XHR
                     };
@@ -55,6 +60,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function () {
                     video.play();
+                });
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    console.error("HLS.js error", data);
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.error("Fatal network error encountered, trying to recover...");
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.error("Fatal media error encountered, trying to recover...");
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                console.error("Unrecoverable error. Destroying HLS instance.");
+                                hls.destroy();
+                                break;
+                        }
+                    }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = mediaBlobUrl;

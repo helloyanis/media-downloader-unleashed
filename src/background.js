@@ -26,22 +26,95 @@ let urlList = [];
 let headersSentListener, headersReceivedListener;
 
 function initListener() {
-    browser.storage.local.get('detection-method', function(result) {
-        if (result['detection-method'] !== 'mime') {
-            urlList = [
-                "*://*/*.flv*",
-                "*://*/*.avi*",
-                "*://*/*.wmv*",
-                "*://*/*.mov*",
-                "*://*/*.mp4*",
-                "*://*/*.pcm*",
-                "*://*/*.wav*",
-                "*://*/*.mp3*",
-                "*://*/*.aac*",
-                "*://*/*.ogg*",
-                "*://*/*.wma*",
-                "*://*/*.m3u8*"
-            ];
+    browser.storage.local.get('url-detection', function(result) {
+        if (result['url-detection'] !== '1') {
+            urlList = ["<all_urls>"];   //We filter it in popup.js because there are many filter options that can be selected
+            // urlList = [
+            //     "*://*/*.flv*",
+            //     "*://*/*.avi*",
+            //     "*://*/*.wmv*",
+            //     "*://*/*.mov*",
+            //     "*://*/*.mp4*",
+            //     "*://*/*.pcm*",
+            //     "*://*/*.wav*",
+            //     "*://*/*.mp3*",
+            //     "*://*/*.aac*",
+            //     "*://*/*.ogg*",
+            //     "*://*/*.wma*",
+            //     "*://*/*.m3u8*",
+            
+            //     "*://*/*.3g2*",
+            //     "*://*/*.3gp*",
+            //     "*://*/*.asx*",
+            //     "*://*/*.divx*",
+            //     "*://*/*.f4v*",
+            //     "*://*/*.ismv*",
+            //     "*://*/*.m2t*",
+            //     "*://*/*.m2ts*",
+            //     "*://*/*.m2v*",
+            //     "*://*/*.m4s*",
+            //     "*://*/*.m4v*",
+            //     "*://*/*.mk3d*",
+            //     "*://*/*.mkv*",
+            //     "*://*/*.mng*",
+            //     "*://*/*.mp2v*",
+            //     "*://*/*.mp4v*",
+            //     "*://*/*.mpe*",
+            //     "*://*/*.mpeg*",
+            //     "*://*/*.mpeg1*",
+            //     "*://*/*.mpeg2*",
+            //     "*://*/*.mpeg4*",
+            //     "*://*/*.mpg*",
+            //     "*://*/*.mxf*",
+            //     "*://*/*.ogm*",
+            //     "*://*/*.ogv*",
+            //     "*://*/*.qt*",
+            //     "*://*/*.rm*",
+            //     "*://*/*.swf*",
+            //     "*://*/*.ts*",
+            //     "*://*/*.vob*",
+            //     "*://*/*.vp9*",
+            //     "*://*/*.webm*",
+            //     "*://*/*.3ga*",
+            //     "*://*/*.ac3*",
+            //     "*://*/*.adts*",
+            //     "*://*/*.aif*",
+            //     "*://*/*.aiff*",
+            //     "*://*/*.alac*",
+            //     "*://*/*.ape*",
+            //     "*://*/*.asf*",
+            //     "*://*/*.au*",
+            //     "*://*/*.dts*",
+            //     "*://*/*.f4a*",
+            //     "*://*/*.f4b*",
+            //     "*://*/*.flac*",
+            //     "*://*/*.isma*",
+            //     "*://*/*.it*",
+            //     "*://*/*.m4a*",
+            //     "*://*/*.m4b*",
+            //     "*://*/*.m4r*",
+            //     "*://*/*.mid*",
+            //     "*://*/*.mka*",
+            //     "*://*/*.mod*",
+            //     "*://*/*.mp1*",
+            //     "*://*/*.mp2*",
+            //     "*://*/*.mp4a*",
+            //     "*://*/*.mpa*",
+            //     "*://*/*.mpga*",
+            //     "*://*/*.oga*",
+            //     "*://*/*.ogx*",
+            //     "*://*/*.opus*",
+            //     "*://*/*.ra*",
+            //     "*://*/*.shn*",
+            //     "*://*/*.spx*",
+            //     "*://*/*.vorbis*",
+            //     "*://*/*.weba*",
+            //     "*://*/*.xm*",
+            //     "*://*/*.f4f*",
+            //     "*://*/*.f4m*",
+            //     "*://*/*.mpd*",
+            //     "*://*/*.smil*"
+            // ];            
         } else {
             urlList = ["<all_urls>"];
         }
@@ -141,10 +214,24 @@ browser.runtime.onMessage.addListener((message) => {
     }
 });
 
-// This file is used to open the popup.html file when the add-on icon is clicked, and to open the installed.md and when the add-on is installed.
+// This is used to open the popup.html file when the add-on icon is clicked, and to open the installed.md and when the add-on is installed.
 browser.action.onClicked.addListener((tab) => {
-    browser.tabs.create({
-        url: browser.runtime.getURL(`popup.html`),
+    browser.storage.local.get('open-preference', function(result) {
+        console.log('Open preference:', result['open-preference']);
+        if (result['open-preference'] !== 'window') {
+            // Open the popup in a new tab
+            browser.tabs.create({
+                url: browser.runtime.getURL(`popup.html`),
+            });
+        }else{
+            // Open the popup in a new window
+            browser.windows.create({
+                url: browser.runtime.getURL(`popup.html`),
+                type: 'popup',
+                width: 800,
+                height: 600,
+            });
+        }
     });
 });
 
