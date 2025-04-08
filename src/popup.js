@@ -99,7 +99,7 @@ function loadMediaList() {
             let urlMatch = false;
 
             // Check if the request matches the media types or file extensions
-            if (useMimeDetection && requests[0].responseHeaders) {
+            if (useMimeDetection && requests[0]?.responseHeaders) {
                 mimeMatch = requests[0].responseHeaders.find(header => mediaTypes.includes(header.value)) !== undefined;
             }
 
