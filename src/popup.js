@@ -16,20 +16,25 @@ document.addEventListener('DOMContentLoaded', () => {
         loadMediaList();
     });
 });
-function showDialog(message) {
+function showDialog(message, title=null) {
     const dialog = document.createElement('md-dialog');
     dialog.setAttribute('open', true);
     //Add the title to the dialog
     const titleElement = document.createElement('div');
     titleElement.setAttribute('slot', 'headline');
     errorTitles = ["Something went wrong!", "Oops!", "Uh oh!", "Error!", "Annnd it broke!", "Oh no!"];
-    titleElement.textContent = errorTitles[~~(Math.random() * errorTitles.length)];
+    if(title) {
+        titleElement.textContent = title;
+    }else {
+        titleElement.textContent = errorTitles[~~(Math.random() * errorTitles.length)];
+    }
+    
     dialog.appendChild(titleElement);
 
     //Add the message to the dialog
     const messageElement = document.createElement('div');
     messageElement.setAttribute('slot', 'content');
-    messageElement.textContent = message;
+    messageElement.innerHTML = message;
     dialog.appendChild(messageElement);
 
     //Add an buttons to the dialog
@@ -379,64 +384,119 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
  * Uses either browser.downloads API or fetch depending on the download method.
  */
 async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
-    return new Promise(async (resolve, reject) => {
-        console.log("request", request);
-        const response = await fetch(m3u8Url, {
+    const getText = async (url) => {
+        const res = await fetch(url, {
             headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
             referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
             method: request.method
         });
-        const m3u8Text = await response.text();
+        return res.text();
+    };
 
-        const baseUrl = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
-        const tsUrls = m3u8Text
-            .split("\n")
-            .filter(line => line && !line.startsWith("#"))
-            .map(line => (line.startsWith("http") ? line : baseUrl + line));
+    const m3u8Text = await getText(m3u8Url);
+    const isMasterPlaylist = m3u8Text.includes("#EXT-X-STREAM-INF");
 
-        console.log(`Found ${tsUrls.length} TS segments.`);
-        loadingBar.removeAttribute('indeterminate');
-        loadingBar.setAttribute('value', 0);
+    let videoUrl = m3u8Url;
+    let audioUrl = null;
 
-        const tsBlobs = [];
+    if (isMasterPlaylist) {
+        const lines = m3u8Text.split("\n");
 
-        for (let i = 0; i < tsUrls.length; i++) {
-            try {
-                loadingBar.setAttribute('value', (i + 1) / tsUrls.length);
-                console.log(`Downloading segment ${i + 1}/${tsUrls.length}: ${tsUrls[i]}`);
-                const tsResponse = await fetch(tsUrls[i], {
-                    headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-                    referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-                    method: sessionStorage.getItem(m3u8Url)?.method || "GET"
-                });
-                const tsData = await tsResponse.arrayBuffer();
-                tsBlobs.push(new Uint8Array(tsData));
-            } catch (err) {
-                console.error(`Failed to download segment ${i + 1}:`, err);
-                reject(err);
-                return;
+        const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
+        const videoLineIndex = lines.findIndex(l => l.startsWith("#EXT-X-STREAM-INF"));
+        const videoUri = lines[videoLineIndex + 1];
+
+        const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
+
+        videoUrl = videoUri.startsWith("http") ? videoUri : base + videoUri;
+        if (audioLine) {
+            const uriMatch = audioLine.match(/URI="([^"]+)"/);
+            if (uriMatch) {
+                const audioUri = uriMatch[1];
+                audioUrl = audioUri.startsWith("http") ? audioUri : base + audioUri;
             }
         }
+    }
 
-        console.log("All TS segments downloaded. Merging...");
+    const downloadSegments = async (playlistUrl) => {
+        let totalSegments = 0;
+        let downloadedSegments = 0;
+        const playlistText = await getText(playlistUrl);
+        const base = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1);
 
-        const mergedBlob = new Blob(tsBlobs, { type: "video/mp2t" });
-        loadingBar.remove();
-        if (downloadMethod === "browser") {
-            const blobUrl = URL.createObjectURL(mergedBlob);
-            browser.downloads.download({
-                url: blobUrl,
-                filename: getFileName(m3u8Url) + ".ts"
-            }).then(() => resolve()).catch(reject);
-        } else {
-            const blobUrl = URL.createObjectURL(mergedBlob);
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = getFileName(m3u8Url) + ".ts";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            resolve();
+        const tsUrls = playlistText
+            .split("\n")
+            .filter(line => line && !line.startsWith("#"))
+            .map(line => (line.startsWith("http") ? line : base + line));
+
+        totalSegments += tsUrls.length; // ← Add to total segment count
+
+        const segments = [];
+        for (let i = 0; i < tsUrls.length; i++) {
+            const res = await fetch(tsUrls[i], {
+                headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+                referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+                method: request.method
+            });
+
+            const data = new Uint8Array(await res.arrayBuffer());
+            segments.push(data);
+
+            downloadedSegments++; // ← Track completed
+            loadingBar.removeAttribute('indeterminate');
+            loadingBar.setAttribute("value", downloadedSegments / totalSegments);
         }
-    });
+
+        return new Blob(segments, { type: "video/mp2t" });
+    };
+
+    const videoBlob = await downloadSegments(videoUrl);
+    let finalBlob = videoBlob;
+
+    if (audioUrl) {
+        //Add a message to the loading bar
+        loadingBar.setAttribute('aria-label', 'Downloading audio stream...');
+        console.log("Downloading separate audio stream...");
+        const audioBlob = await downloadSegments(audioUrl);
+        console.log(videoBlob, audioBlob)
+        // Download both audio and video
+        await muxAudioVideo(videoBlob, audioBlob, downloadMethod);
+        loadingBar.remove();
+        return
+    }
+
+    loadingBar.remove();
+
+    const blobUrl = URL.createObjectURL(finalBlob);
+    const fileName = getFileName(m3u8Url) + ".mp4";
+
+    if (downloadMethod === "browser") {
+        browser.downloads.download({ url: blobUrl, filename: fileName }).then(() => resolve()).catch(reject);
+    } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+}
+
+async function muxAudioVideo(videoBlob, audioBlob, downloadMethod) {
+    //Temporary, before getting merges to work
+    if (downloadMethod === "browser") {
+        browser.downloads.download({ url: URL.createObjectURL(videoBlob), filename: "video.ts" }).then(() => resolve()).catch(reject);
+        browser.downloads.download({ url: URL.createObjectURL(audioBlob), filename: "audio.ts" }).then(() => resolve()).catch(reject);
+    } else {
+        const a = document.createElement("a");
+        a.href =  URL.createObjectURL(videoBlob);
+        a.download = "video.ts";
+        document.body.appendChild(a);
+        a.click();
+        a.href =  URL.createObjectURL(audioBlob);
+        a.download = "audio.ts";
+        a.click();
+        document.body.removeChild(a);
+    }
+    showDialog("Merging audio and video is not supported. Please use the <a href='https://ffmpeg.org/download.html'>ffmpeg</a> command line tool to merge both audio and video.<br/>Use the following command :<br/><code>ffmpeg -i video.ts -i audio.ts -c:v copy -c:a aac -strict experimental output.mp4</code>", "Separated audio and video streams downloaded!");
 }
