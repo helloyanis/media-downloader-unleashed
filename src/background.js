@@ -237,7 +237,7 @@ browser.action.onClicked.addListener((tab) => {
 
 browser.runtime.onInstalled.addListener(() => {
     browser.tabs.create({
-        url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md`,
+        url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md#thank-you-for-installing-the-file-downloader-unleashed-add-on`,
     });
 });
 

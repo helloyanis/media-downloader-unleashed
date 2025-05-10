@@ -1,13 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="mdui-theme-auto">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Media preview</title>
+    <link rel="stylesheet" href="styles/mdui.css">
+    <link rel="stylesheet" href="styles/style.css">
 </head>
 <body>
-    <script src="libraries/hls.js"></script>
+    <script type="module" src="libraries/mdui.global.js"></script> <!-- MDUI -->
+    <script type="module" src="libraries/hls.js"></script>
     <script src="mediaPreviewer.js"></script>
-    <h3>If video does not load, try setting the download method to "Fetch" in the add-on settings. It's slower but works with more sites.</h3>
+    <mdui-snackbar closeable id="previewhelp" auto-close-delay="0">If video does not load, try setting the download method to "Fetch" in the add-on settings. It's slower but works with more sites.
+        <mdui-button slot="action" variant="text" id="dontremindme">Don't remind me</mdui-button>
+    </mdui-snackbar>
 </body>
 </html>

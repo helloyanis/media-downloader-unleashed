@@ -17,18 +17,31 @@ async function initializeSettings() {
     let mimeDetection = localStorage.getItem('mime-detection') || '1';
     localStorage.setItem('mime-detection', mimeDetection);
 
+    // Uncheck all the checkboxes, the saved data will check the correct one later
+    document.querySelectorAll('mdui-checkbox').forEach(checkbox => {
+        checkbox.removeAttribute('checked');
+    });
+
     // Select the current detectionMethod
-    let detectionCheckbox = document.querySelector(`md-checkbox[name="detection-method"][value="${urlDetection == 1 ? 'url' : 'mime'}"]`);
-    if (detectionCheckbox) {
+    let detectionCheckbox = document.querySelector(`mdui-checkbox[name="detection-method"][value="url"]`);
+    if (detectionCheckbox && urlDetection === '1') {
+        detectionCheckbox.setAttribute('checked', true);
+    }
+    detectionCheckbox = document.querySelector(`mdui-checkbox[name="detection-method"][value="mime"]`);
+    if (detectionCheckbox && mimeDetection === '1') {
         detectionCheckbox.setAttribute('checked', true);
     }
 
+    // Uncheck all the radio buttons, the saved data will check the correct ones later
+    document.querySelectorAll('mdui-radio').forEach(radio => {
+        radio.removeAttribute('checked');
+    });
     // Check for downloadMethod setting in localStorage
     let downloadMethod = localStorage.getItem('download-method') || 'fetch';
     localStorage.setItem('download-method', downloadMethod);
 
     // Select the current downloadMethod
-    let downloadRadio = document.querySelector(`md-radio[value="${downloadMethod}"]`);
+    let downloadRadio = document.querySelector(`mdui-radio[value="${downloadMethod}"]`);
     if (downloadRadio) {
         downloadRadio.setAttribute('checked', true);
     }
@@ -38,7 +51,7 @@ async function initializeSettings() {
     localStorage.setItem('stream-download', streamDownload);
 
     // Select the current downloadMethod
-    let streamRadio = document.querySelector(`md-radio[value="${streamDownload}"]`);
+    let streamRadio = document.querySelector(`mdui-radio[value="${streamDownload}"]`);
     if (streamRadio) {
         streamRadio.setAttribute('checked', true);
     }
@@ -48,23 +61,35 @@ async function initializeSettings() {
     localStorage.setItem('open-preference', openPreference);
 
     // Select the current opening preference
-    let openRadio = document.querySelector(`md-radio[value="${openPreference}"]`);
+    let openRadio = document.querySelector(`mdui-radio[value="${openPreference}"]`);
     if (openRadio) {
         openRadio.setAttribute('checked', true);
     }
 
+    // Check for the stream quality preference in localStorage
+    let streamQuality = localStorage.getItem('stream-quality') || 'ask';
+    localStorage.setItem('stream-quality', streamQuality);
+    // Select the current stream quality preference
+    let qualityRadio = document.querySelector(`mdui-radio[value="${streamQuality}"]`);
+    if (qualityRadio) {
+        qualityRadio.setAttribute('checked', true);
+    }
+
     // Add event listeners to the radio buttons
-    document.querySelectorAll('md-radio').forEach(radio => {
+    document.querySelectorAll('mdui-radio-group').forEach(radio => {
         radio.addEventListener('change', (event) => {
             let setting = event.target.name;
             let value = event.target.value;
+            if(value === 'window' || value === 'browser') {
+                document.querySelector('.mobile-incompatible-warning').open = true;
+            }
             localStorage.setItem(setting, value);
             browser.storage.local.set({ [setting]: value });
         });
     });
 
     // Add event listeners to the checkboxes
-    document.querySelectorAll('md-checkbox').forEach(checkbox => {
+    document.querySelectorAll('mdui-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', (event) => {
             let setting = event.target.id;
             let value = event.target.checked ? '1' : '0';
@@ -77,20 +102,19 @@ async function initializeSettings() {
     // Check for interfaceColor setting in localStorage
     let interfaceColor = localStorage.getItem('interfaceColor') || '#2196f3';
     localStorage.setItem('interfaceColor', interfaceColor);
-    document.documentElement.style.setProperty('--md-sys-color-primary', interfaceColor);
-    document.documentElement.style.setProperty('--md-sys-color-secondary', interfaceColor);
+    mdui.setColorScheme(interfaceColor);
 
     // Select color picker element safely
     let colorPicker = document.querySelector('#color-picker-input');
     if (colorPicker) {
         colorPicker.value = interfaceColor;
         colorPicker.addEventListener('change', (event) => {
-            let color = event.target.value;
-            document.documentElement.style.setProperty('--md-sys-color-primary', color);
-            document.documentElement.style.setProperty('--md-sys-color-secondary', color);
-            localStorage.setItem('interfaceColor', color);
+            mdui.setColorScheme(event.target.value);
+            localStorage.setItem('interfaceColor', event.target.value);
         });
     }
+    document.getElementById('loading').setAttribute("style", "display: none;");
+    document.getElementById('content').removeAttribute("style");
 }
 
 async function checkAndMigrateLegacyDetectionMethod() {
@@ -103,7 +127,7 @@ async function checkAndMigrateLegacyDetectionMethod() {
         localStorage.removeItem('detection-method'); // Remove the legacy detection method
 
         //Show dialog to the user
-        const dialog = document.createElement('md-dialog');
+        const dialog = document.createElement('mdui-dialog');
         dialog.setAttribute('open', true);
         const titleElement = document.createElement('div');
         titleElement.setAttribute('slot', 'headline');
@@ -118,16 +142,16 @@ async function checkAndMigrateLegacyDetectionMethod() {
         // Add the action buttons to the dialog
         const actionsSlot = document.createElement('div');
         actionsSlot.setAttribute('slot', 'actions');
-        const reportButton = document.createElement('md-text-button');
+        const reportButton = document.createElement('mdui-text-button');
         reportButton.textContent = 'Open settings';
         reportButton.addEventListener('click', () => {
-            document.querySelectorAll("md-primary-tab")[1].click(); // Click the settings tab
+            document.querySelectorAll("mdui-primary-tab")[1].click(); // Click the settings tab
             dialog.removeAttribute('open'); // Close the dialog
         });
         actionsSlot.appendChild(reportButton);
         dialog.appendChild(actionsSlot);
 
-        const okButton = document.createElement('md-text-button');
+        const okButton = document.createElement('mdui-text-button');
         okButton.textContent = 'OK';
         okButton.addEventListener('click', () => {
             dialog.removeAttribute('open');

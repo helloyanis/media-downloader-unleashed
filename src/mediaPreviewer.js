@@ -4,6 +4,15 @@ if (typeof browser === 'undefined') {
     var browser = chrome;
 }
 document.addEventListener('DOMContentLoaded', async () => {
+    // Show the help dialog if it hasn't been dismissed
+    document.querySelector("#dontremindme").addEventListener("click", function() {
+        localStorage.setItem('dontremindme', '1');
+        document.querySelector("#previewhelp").open = false;
+    });
+    mdui.setColorScheme(localStorage.getItem('interfaceColor'));
+    document.querySelector("#previewhelp").open = localStorage.getItem('dontremindme') !== '1';
+
+
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
     const isStream = new URLSearchParams(document.location.search).get('isStream');

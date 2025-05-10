@@ -1,153 +1,194 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="mdui-theme-auto">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Media Downloader Unleashed!!</title>
   <link rel="stylesheet" href="styles/style.css">
+  <link rel="stylesheet" href="styles/mdui.css">
 </head>
 
 <body>
-  <!--
-    The bundle.js file is automatically generated and contains the source code for Material Web, used for the interface of the add-on.
-    https://github.com/material-components/material-web
-
-    You can generate this file by running the following commands :
-
-    cd ../material-web-builder
-    npm install @material/web rollup rollup-plugin-node-resolve rollup-plugin-terser --save-dev
-
-    Then edit material-web-builder\src\main.js to include the components you want to use. For convenience, I use all.js to be able to use them all.
-
-    Finally, run the following command :
-    npx rollup -c
-    And replace the existing bundle.js file with the newly generated one, found in material-web-builder\dist\bundle.js
-    -->
   <script src="popup.js"></script>
-  <script type="module" src="libraries/bundle.js"></script>
-  <script type="module" src="libraries/hls.js"></script>
-  <md-tabs id="navbar">
-    <md-primary-tab active>
-      <md-icon slot="icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
-          <path
-            d="M240-200h120v-240h240v240h120v-360L480-740 240-560v360Zm-80 80v-480l320-240 320 240v480H520v-240h-80v240H160Zm320-350Z" />
-        </svg>
-      </md-icon>
-      Home
-    </md-primary-tab>
-    <md-primary-tab>
-      <md-icon slot="icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
-          <path
-            d="m388-80-20-126q-19-7-40-19t-37-25l-118 54-93-164 108-79q-2-9-2.5-20.5T185-480q0-9 .5-20.5T188-521L80-600l93-164 118 54q16-13 37-25t40-18l20-127h184l20 126q19 7 40.5 18.5T669-710l118-54 93 164-108 77q2 10 2.5 21.5t.5 21.5q0 10-.5 21t-2.5 21l108 78-93 164-118-54q-16 13-36.5 25.5T592-206L572-80H388Zm48-60h88l14-112q33-8 62.5-25t53.5-41l106 46 40-72-94-69q4-17 6.5-33.5T715-480q0-17-2-33.5t-7-33.5l94-69-40-72-106 46q-23-26-52-43.5T538-708l-14-112h-88l-14 112q-34 7-63.5 24T306-642l-106-46-40 72 94 69q-4 17-6.5 33.5T245-480q0 17 2.5 33.5T254-413l-94 69 40 72 106-46q24 24 53.5 41t62.5 25l14 112Zm44-210q54 0 92-38t38-92q0-54-38-92t-92-38q-54 0-92 38t-38 92q0 54 38 92t92 38Zm0-130Z" />
-        </svg>
-      </md-icon>
-      Settings
-    </md-primary-tab>
-  </md-tabs>
+  <script type="module" src="libraries/mdui.global.js"></script> <!-- MDUI -->
 
-  <div class="tab-content" id="home">
-    <md-linear-progress id="loading-media-list" indeterminate></md-linear-progress>
-    <md-list id="media-list">
-    </md-list>
-    <md-fab label="Refresh list" id="refresh-list" class="bottom-right">
-      <md-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
-          <path
-            d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
-        </svg></md-icon>
-    </md-fab>
-    <md-filled-tonal-icon-button class="bottom-left" label="Source code"
-      href="https://github.com/helloyanis/media-downloader-unleashed">
-      <md-icon>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
-          <path
-            d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z" />
-        </svg>
-      </md-icon>
-    </md-filled-tonal-icon-button>
+  <!-- tabs -->
+  <div id="content" style="display: none;">
+    <mdui-tabs id="navbar" value="home" variant="primary" full-width>
+      <mdui-tab value="home">
+        <mdui-icon slot="icon">
+          <!-- home SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+            <path
+              d="M240-200h120v-240h240v240h120v-360L480-740 240-560v360Zm-80 80v-480l320-240 320 240v480H520v-240h-80v240H160Zm320-350Z" />
+          </svg>
+        </mdui-icon>
+        Home
+      </mdui-tab>
+      <mdui-tab value="settings">
+        <mdui-icon slot="icon">
+          <!-- settings SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+            <path
+              d="m388-80-20-126q-19-7-40-19t-37-25l-118 54-93-164 108-79q-2-9-2.5-20.5T185-480q0-9 .5-20.5T188-521L80-600l93-164 118 54q16-13 37-25t40-18l20-127h184l20 126q19 7 40.5 18.5T669-710l118-54 93 164-108 77q2 10 2.5 21.5t.5 21.5q0 10-.5 21t-2.5 21l108 78-93 164-118-54q-16 13-36.5 25.5T592-206L572-80H388Zm48-60h88l14-112q33-8 62.5-25t53.5-41l106 46 40-72-94-69q4-17 6.5-33.5T715-480q0-17-2-33.5t-7-33.5l94-69-40-72-106 46q-23-26-52-43.5T538-708l-14-112h-88l-14 112q-34 7-63.5 24T306-642l-106-46-40 72 94 69q-4 17-6.5 33.5T245-480q0 17 2.5 33.5T254-413l-94 69 40 72 106-46q24 24 53.5 41t62.5 25l14 112Zm44-210q54 0 92-38t38-92q0-54-38-92t-92-38q-54 0-92 38t-38 92q0 54 38 92t92 38Zm0-130Z" />
+          </svg>
+        </mdui-icon>
+        Settings
+      </mdui-tab>
+
+      <!-- panels -->
+      <mdui-tab-panel extended slot="panel" value="home">
+        <mdui-linear-progress id="loading-media-list"></mdui-linear-progress>
+        <mdui-list id="media-list"></mdui-list>
+        <div class="bottom-right">
+            <mdui-fab id="clear-list" extended>
+            <mdui-icon slot="icon">
+              <!-- refresh SVG -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="20px">
+                <path d="M600-230v-60h145v60H600Zm0-368v-60h280v60H600Zm0 184v-60h235v60H600ZM125-675H80v-60h170v-45h135v45h170v60h-45v415q0 24-18 42t-42 18H185q-24 0-42-18t-18-42v-415Zm60 0v415h265v-415H185Zm0 0v415-415Z"/>
+              </svg>
+            </mdui-icon>
+            Clear list
+          </mdui-fab>
+          <mdui-fab id="refresh-list" extended>
+            <mdui-icon slot="icon">
+              <!-- refresh SVG -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+                <path
+                  d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
+              </svg>
+            </mdui-icon>
+            Refresh list
+          </mdui-fab>
+        </div>
+        
+
+        <mdui-tooltip content="Source code">
+          <mdui-button-icon variant="tonal" href="https://github.com/helloyanis/media-downloader-unleashed"
+            class="bottom-left">
+            <mdui-icon>
+              <!-- link SVG -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+                <path
+                  d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z" />
+              </svg>
+            </mdui-icon>
+          </mdui-button-icon>
+        </mdui-tooltip>
+      </mdui-tab-panel>
+
+      <mdui-tab-panel slot="panel" value="settings">
+        <script src="settings.js"></script>
+        <div id="settings-container">
+
+          <!-- Detection method -->
+          <mdui-card id="detection-method" class="mdui-shadow-1 mdui-p-a-2" role="group" variant="filled">
+            <h3>Detection method</h3>
+            <h4 class="mdui-typo-body-2">⚠️ Need to load the media again after changing this!</h4>
+            <p>Unchecking both options will not filter anything, showing all requests (even non-media requests!) of the
+              browser.</p>
+
+            <mdui-tooltip content="Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some
+        sites don't serve medias through these kind of URLs, so it might not detect everything." placement="top-start">
+              <mdui-checkbox id="url-detection" name="detection-method" value="url">Detection via URL</mdui-checkbox>
+            </mdui-tooltip>
+
+            <mdui-tooltip
+              content="Detection by checking the MIME type of the media file. It's slower because the add-on needs to monitor every request and response, but it's more reliable as it doesn't rely on the URL. Try this if the media you're looking for is not detected."
+              placement="top-start">
+              <mdui-checkbox id="mime-detection" name="detection-method" value="mime">Detection via server's MIME
+                response</mdui-checkbox>
+            </mdui-tooltip>
+          </mdui-card>
+
+          <!-- Download method -->
+          <mdui-card variant="filled">
+            <mdui-radio-group id="download-method" class="mdui-shadow-1 mdui-p-a-2" value="browser"
+              name="download-method">
+              <h3>Download method</h3>
+
+              <mdui-tooltip content="Download the media using the browser's download API. Only works on some browsers (Firefox PC), and not on
+        all websites, but is fast and handles disconnects very well." placement="top-start">
+                <mdui-radio id="browser-download" value="browser" name="download-method">Native browser
+                  download</mdui-radio>
+              </mdui-tooltip>
+
+              <mdui-tooltip
+                content="Download the media using the Fetch API. It's slower than the native download, but it's more reliable and works on more websites."
+                placement="top-start">
+                <mdui-radio id="fetch-download" value="fetch" name="download-method">Fetch API</mdui-radio>
+              </mdui-tooltip>
+            </mdui-radio-group>
+          </mdui-card>
+
+          <!-- Stream download preference -->
+          <mdui-card variant="filled">
+            <mdui-radio-group id="stream-download" class="mdui-shadow-1 mdui-p-a-2" value="stream"
+              name="stream-download">
+              <h3>Stream download preference</h3>
+
+              <mdui-tooltip content="Download the .m3u8 file directly. Open it with VLC to request the stream from the server. Very fast to
+        download, but requires you to be online and a working server to play the file. Can also fail to play if the resfer serving the media has protections." placement="top-start">
+                <mdui-radio id="stream-file-download" value="stream" name="stream-download">Download stream
+                  manifest</mdui-radio>
+              </mdui-tooltip>
+
+              <mdui-tooltip content="Convert the stream manifest into a .ts file and download it to view offline. Can take a long time, and
+        disconnects are not properly handled." placement="top-start">
+                <mdui-radio id="offline-download" value="offline" name="stream-download">Convert to offline video
+                  file</mdui-radio>
+              </mdui-tooltip>
+            </mdui-radio-group>
+          </mdui-card>
+
+          <!-- Stream quality -->
+          <mdui-card variant="filled">
+            <mdui-radio-group id="stream-quality" class="mdui-shadow-1 mdui-p-a-2" value="stream"
+              name="stream-quality">
+              <h3>Stream quality preference</h3>
+
+              <mdui-tooltip content="Will show a popup when multiple qualities are available for a stream." placement="top-start">
+                <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality">Always ask me</mdui-radio>
+              </mdui-tooltip>
+
+              <mdui-tooltip content="Always download the highest available quality for a stream. Can take a lot of storage and more time to download." placement="top-start">
+                <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality">Always highest quality</mdui-radio>
+              </mdui-tooltip>
+              <mdui-tooltip content="Always download the lowest available quality for a stream. Lighter storage, faster downloads but can be hard to watch." placement="top-start">
+                <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality">Always lowest quality</mdui-radio>
+              </mdui-tooltip>
+            </mdui-radio-group>
+          </mdui-card>
+
+          <!-- Add-on opening preference -->
+          <mdui-card variant="filled">
+            <mdui-radio-group id="open-preference" class="mdui-shadow-1 mdui-p-a-2" value="tab" name="open-preference">
+              <h3>Add-on opening preference</h3>
+              <p>Choose how the add-on opens when you click on the icon.</p>
+              <mdui-radio id="new-tab" value="tab" name="open-preference">Open in new tab</mdui-radio>
+
+              <mdui-radio id="new-window" value="window" name="open-preference">Open in new window</mdui-radio>
+            </mdui-radio-group>
+          </mdui-card>
+
+          <!-- Color picker -->
+          <mdui-card variant="filled">
+            <section id="color-picker" class="mdui-shadow-1 mdui-p-a-2">
+              <h3>Interface color</h3>
+              <input type="color" id="color-picker-input">
+            </section>
+          </mdui-card>
+
+          <mdui-snackbar closeable class="mobile-incompatible-warning">⚠️ This option is not compatible for some
+            browsers, like Firefox for Android. If you are using this browser, then change the option
+            back.</mdui-snackbar>
+        </div>
+      </mdui-tab-panel>
+    </mdui-tabs>
   </div>
-
-  <div class="tab-content" id="settings" hidden>
-    <script src="settings.js"></script>
-    <div id="settings-container">
-      <div role="radiogroup" id="detection-method" class="settings-radio-group">
-        <md-elevation></md-elevation>
-        <h3>Detection method</h3>
-        <h4>⚠️ Need to load the media again after changing this!</h4>
-        <p>Unchecking both options will not filter anything, showing all requests (even non-media requests!) of the browser.</p>
-        <div>
-          <md-checkbox id="url-detection" name="detection-method" value="url"></md-checkbox>
-          <label for="url-detection">Detection via URL</label>
-          <p>Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some
-            sites don't serve medias through these kind of URLs, so it might not detect everything.</p>
-        </div>
-        <div>
-          <md-checkbox id="mime-detection" name="detection-method" value="mime"></md-checkbox>
-          <label for="mime-detection">Detection via server's MIME response</label>
-          <p>Detection by checking the MIME type of the media file. It's slower because the add-on needs to monitor
-            every
-            request and response, but it's more reliable as it doesn't rely on the URL. Try this if the media you're
-            looking for is not detected.</p>
-        </div>
-      </div>
-
-      <div role="radiogroup" id="download-method" class="settings-radio-group">
-        <md-elevation></md-elevation>
-        <h3>Download method</h3>
-        <div>
-          <md-radio id="browser-download" name="download-method" value="browser"></md-radio>
-          <label for="browser-download">Native browser download</label>
-          <p>Download the media using the browser's download API. Only works on some browsers (Firefox PC), and not on
-            all websites, but is fast and handles disconnects very well.</p>
-        </div>
-        <div>
-          <md-radio id="fetch-download" name="download-method" value="fetch"></md-radio>
-          <label for="fetch-download">Fetch</label>
-          <p>Download the media using the Fetch API. It's slower than the native download, but it's more reliable and
-            works on more websites.</p>
-        </div>
-      </div>
-
-      <div role="radiogroup" id="stream-download" class="settings-radio-group">
-        <md-elevation></md-elevation>
-        <h3>Stream download preference</h3>
-        <div>
-          <md-radio id="stream-file-download" name="stream-download" value="stream"></md-radio>
-          <label for="browser-download">Download .m3u8 stream file</label>
-          <p>Download the .m3u8 file directly. Open it with VLC to request the stream from the server. Very fast to
-            download, but requires you to be online and a workig server to play the file.</p>
-        </div>
-        <div>
-          <md-radio id="offline-download" name="stream-download" value="offline"></md-radio>
-          <label for="offline-download">Download offline .ts video file</label>
-          <p>Convert the .m3u8 file into a .ts file and download it to view offline. Can take a long time, and
-            disconnects are not properly handled.</p>
-        </div>
-      </div>
-
-      <div role="radiogroup" id="open-preference" class="settings-radio-group">
-        <md-elevation></md-elevation>
-        <h3>Add-on opening preference</h3>
-        <div>
-          <md-radio id="new-tab" name="open-preference" value="tab"></md-radio>
-          <label for="new-tab">Open in new tab</label>
-          <p>Open the add-on in a new tab. If you are on mobile, it will open in a new full-screen window.</p>
-        </div>
-        <div>
-          <md-radio id="new-window" name="open-preference" value="window"></md-radio>
-          <label for="new-window">Open in new window</label>
-          <p>⚠️ This option is not compatible with Firefox for Android and some other mobile browsers, and might cause this add-on to stop opening! If this occurs, reinstall the add-on.</p>
-        </div>
-      </div>
-
-      <div id="color-picker">
-        <md-elevation></md-elevation>
-        <h3>Interface color</h3>
-        <input type="color" id="color-picker-input">
-      </div>
-    </div>
+  <div id="loading">
+    <mdui-circular-progress></mdui-circular-progress>
   </div>
 </body>
 
