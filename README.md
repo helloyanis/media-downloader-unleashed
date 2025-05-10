@@ -21,10 +21,6 @@ It's not on these stores because :
 
 > Note: Some sites may not work with the add-on due to DRM or other restrictions. If you encounter any issues, please report them on the [GitHub page](https://github.com/helloyanis/media-downloader-unleashed/issues)
 
-#### Screenshots
-
-![image](https://github.com/user-attachments/assets/8fd28749-a1fa-4ca2-bcdd-c32acad89cfc)![image](https://github.com/user-attachments/assets/8e2619ca-d064-4705-9999-bf862f5379c8)
-
 #### What this add-on does
 
 You can download audios, videos and streams to view offline, from most websites!
@@ -36,7 +32,8 @@ You can download audios, videos and streams to view offline, from most websites!
 - Media preview in the browser!
 - Spoof headers and referrer to play and download videos from sites with protections!
 - Completely free and open-source! Nothing to pay at all! (Except for donations, which are optional and does not unlock any features)
-![image](https://github.com/user-attachments/assets/78b73edd-9c40-4b62-9c24-203fd1311b8f)
+
+![image](https://github.com/user-attachments/assets/8fd28749-a1fa-4ca2-bcdd-c32acad89cfc)![image](https://github.com/user-attachments/assets/8e2619ca-d064-4705-9999-bf862f5379c8)
 
 #### Third party libraries used :
 
