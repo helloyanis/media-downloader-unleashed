@@ -10,13 +10,10 @@ This add-on is a powerful tool that allows you to download files from the web to
 It's easy! 
 
 ## FAQ
-### ❓ The download icon is crossed off!
-
-The add-on has not detected any files on the page. It may be incompatible with the website you are trying to download from.
 
 ### ❓ There are multiple files, which one do I pick?
 
-The add-on will list all the files it has detected on the page. Usually, the file you want to download will have the largest size (for example if it's a video or a music file)
+The files are sorted chronologically, so the first file is the oldest, and the last file is the most recent. If you just started the media playback, one of the last files is usually the one you want (often `master.m3u8` for streams, or `filename.mp4` for videos).
 
 ### ❓ There is a bug, how do I report it?
 

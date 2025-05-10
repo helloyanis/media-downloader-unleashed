@@ -178,7 +178,8 @@ function loadMediaList() {
             actionsDiv.style.justifyContent = 'space-between';
             actionsDiv.style.alignItems = 'center';
             actionsDiv.style.flexWrap = 'wrap';
-            actionsDiv.style.width = '90vw';
+            actionsDiv.style.width = '100%';
+            actionsDiv.style.margin = '5px';
             mediaDiv.appendChild(actionsDiv);
             // Create a div to put the buttons in
             const segmentedButtonGroup = document.createElement('mdui-segmented-button-group');
@@ -190,6 +191,7 @@ function loadMediaList() {
             sizeSelect.label = 'Size';
             sizeSelect.style.width = 'auto';
             sizeSelect.id = url;
+            sizeSelect.classList.add('media-size-select');
 
             // Add options for the media sizes
             let isFirstElement = true;
