@@ -1,7 +1,5 @@
 <a href="https://addons.mozilla.org/addon/media-downloader-unleashed/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
-![image](https://github.com/user-attachments/assets/e35041d2-b320-4019-8178-ff153243a322)
-
 ### How to install on Chrome, Edge, Chromium, etc...
 1. Get the `addon.xpi` file from the [releases page](https://github.com/helloyanis/media-downloader-unleashed/releases) (scroll down for a bit to see it)
 2. Rename it to `addon.zip`
@@ -22,6 +20,10 @@ It's not on these stores because :
 - Can change settings to show all requests without filtering if your media is not detected by default.
 
 > Note: Some sites may not work with the add-on due to DRM or other restrictions. If you encounter any issues, please report them on the [GitHub page](https://github.com/helloyanis/media-downloader-unleashed/issues)
+
+#### Screenshots
+
+![image](https://github.com/user-attachments/assets/8fd28749-a1fa-4ca2-bcdd-c32acad89cfc)![image](https://github.com/user-attachments/assets/8e2619ca-d064-4705-9999-bf862f5379c8)
 
 #### What this add-on does
 
