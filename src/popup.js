@@ -175,10 +175,8 @@ function loadMediaList() {
             // Create a div to put actions at the end of the media item
             const actionsDiv = document.createElement('div');
             actionsDiv.style.display = 'flex';
-            actionsDiv.style.justifyContent = 'space-between';
             actionsDiv.style.alignItems = 'center';
             actionsDiv.style.flexWrap = 'wrap';
-            actionsDiv.style.width = '100%';
             actionsDiv.style.margin = '5px';
             mediaDiv.appendChild(actionsDiv);
             // Create a div to put the buttons in

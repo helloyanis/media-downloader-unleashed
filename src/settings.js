@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeSettings() {
+    let isInitialized = false;
     // Check for detectionMethod setting in localStorage
     if (localStorage.getItem('detection-method')) {
         checkAndMigrateLegacyDetectionMethod();;
@@ -16,11 +17,6 @@ async function initializeSettings() {
 
     let mimeDetection = localStorage.getItem('mime-detection') || '1';
     localStorage.setItem('mime-detection', mimeDetection);
-
-    // Uncheck all the checkboxes, the saved data will check the correct one later
-    document.querySelectorAll('mdui-checkbox').forEach(checkbox => {
-        checkbox.removeAttribute('checked');
-    });
 
     // Select the current detectionMethod
     let detectionCheckbox = document.querySelector(`mdui-checkbox[name="detection-method"][value="url"]`);
@@ -32,18 +28,14 @@ async function initializeSettings() {
         detectionCheckbox.setAttribute('checked', true);
     }
 
-    // Uncheck all the radio buttons, the saved data will check the correct ones later
-    document.querySelectorAll('mdui-radio').forEach(radio => {
-        radio.removeAttribute('checked');
-    });
     // Check for downloadMethod setting in localStorage
     let downloadMethod = localStorage.getItem('download-method') || 'fetch';
     localStorage.setItem('download-method', downloadMethod);
 
     // Select the current downloadMethod
-    let downloadRadio = document.querySelector(`mdui-radio[value="${downloadMethod}"]`);
-    if (downloadRadio) {
-        downloadRadio.setAttribute('checked', true);
+    let downloadRadioGroup = document.querySelector(`mdui-radio-group[name="download-method"]`);
+    if (downloadRadioGroup) {
+        downloadRadioGroup.value = downloadMethod;
     }
 
     // Check for streamDownload setting in localStorage
@@ -51,9 +43,9 @@ async function initializeSettings() {
     localStorage.setItem('stream-download', streamDownload);
 
     // Select the current downloadMethod
-    let streamRadio = document.querySelector(`mdui-radio[value="${streamDownload}"]`);
-    if (streamRadio) {
-        streamRadio.setAttribute('checked', true);
+    let streamRadioGroup = document.querySelector(`mdui-radio-group[name="stream-download"]`);
+    if (streamRadioGroup) {
+        streamRadioGroup.value = streamDownload;
     }
 
     // Check for the opening preference in localStorage
@@ -61,18 +53,18 @@ async function initializeSettings() {
     localStorage.setItem('open-preference', openPreference);
 
     // Select the current opening preference
-    let openRadio = document.querySelector(`mdui-radio[value="${openPreference}"]`);
-    if (openRadio) {
-        openRadio.setAttribute('checked', true);
+    let openRadioGroup = document.querySelector(`mdui-radio-group[name="open-preference"]`);
+    if (openRadioGroup) {
+        openRadioGroup.value = openPreference;
     }
 
     // Check for the stream quality preference in localStorage
     let streamQuality = localStorage.getItem('stream-quality') || 'ask';
     localStorage.setItem('stream-quality', streamQuality);
     // Select the current stream quality preference
-    let qualityRadio = document.querySelector(`mdui-radio[value="${streamQuality}"]`);
-    if (qualityRadio) {
-        qualityRadio.setAttribute('checked', true);
+    let qualityRadioGroup = document.querySelector(`mdui-radio-group[name="stream-quality"]`);
+    if (qualityRadioGroup) {
+        qualityRadioGroup.value = streamQuality;
     }
 
     // Add event listeners to the radio buttons
@@ -80,7 +72,7 @@ async function initializeSettings() {
         radio.addEventListener('change', (event) => {
             let setting = event.target.name;
             let value = event.target.value;
-            if(value === 'window' || value === 'browser') {
+            if((value === 'window' || value === 'browser') && isInitialized) {
                 document.querySelector('.mobile-incompatible-warning').open = true;
             }
             localStorage.setItem(setting, value);
@@ -115,6 +107,7 @@ async function initializeSettings() {
     }
     document.getElementById('loading').setAttribute("style", "display: none;");
     document.getElementById('content').removeAttribute("style");
+    isInitialized = true;
 }
 
 async function checkAndMigrateLegacyDetectionMethod() {
