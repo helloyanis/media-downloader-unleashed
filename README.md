@@ -35,6 +35,14 @@ You can download audios, videos and streams to view offline, from most websites!
 
 ![image](https://github.com/user-attachments/assets/8fd28749-a1fa-4ca2-bcdd-c32acad89cfc)![image](https://github.com/user-attachments/assets/8e2619ca-d064-4705-9999-bf862f5379c8)
 
+<a href="https://www.star-history.com/#helloyanis/media-downloader-unleashed&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
+ </picture>
+</a>
+
 #### Third party libraries used :
 
 - [MDUI](https://www.mdui.org/en/) - Material Design UI framework (MIT License)
