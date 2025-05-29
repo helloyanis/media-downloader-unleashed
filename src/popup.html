@@ -11,7 +11,9 @@
 
 <body>
   <script src="popup.js"></script>
+  <script src="offlineStreamConvert.js"></script> <!--Functions to convert streams into offline video files-->
   <script type="module" src="libraries/mdui.global.js"></script> <!-- MDUI -->
+  <script src="libraries/jszip.min.js"></script> <!-- JSZip -->
 
   <!-- tabs -->
   <div id="content" style="display: none;">
@@ -159,6 +161,10 @@
                 <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality">Always lowest quality</mdui-radio>
               </mdui-tooltip>
             </mdui-radio-group>
+            <br/>
+            <mdui-tooltip content="When downloading .mpd streams, this option will edit the .mpd file to only include the video quality requested by you. This is recommended to avoid VLC and other media players breaking by trying to play a quality that isn't downloaded." placement="top-start">
+              <mdui-checkbox id="stream-quality-ask" name="mpd-fix" value="ask">Fix MPD files (recommended)</mdui-checkbox>
+            </mdui-tooltip>
           </mdui-card>
 
           <!-- Add-on opening preference -->

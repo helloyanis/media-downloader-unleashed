@@ -28,6 +28,17 @@ async function initializeSettings() {
         detectionCheckbox.setAttribute('checked', true);
     }
 
+    let mpdFix = localStorage.getItem('mpd-fix') || '1';
+    localStorage.setItem('mpd-fix', mpdFix);
+
+    // Select the current mpdFix
+    let mpdCheckbox = document.querySelector(`mdui-checkbox[name="mpd-fix"]`);
+    if (mpdCheckbox) {
+        if (mpdFix === '1') {
+            mpdCheckbox.setAttribute('checked', true);
+        }
+    }
+
     // Check for downloadMethod setting in localStorage
     let downloadMethod = localStorage.getItem('download-method') || 'fetch';
     localStorage.setItem('download-method', downloadMethod);
@@ -39,7 +50,7 @@ async function initializeSettings() {
     }
 
     // Check for streamDownload setting in localStorage
-    let streamDownload = localStorage.getItem('stream-download') || 'stream';
+    let streamDownload = localStorage.getItem('stream-download') || 'offline';
     localStorage.setItem('stream-download', streamDownload);
 
     // Select the current downloadMethod

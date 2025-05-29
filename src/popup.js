@@ -19,9 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
         clearMediaList();
     });
 });
+
+/**
+ * Show a dialog with a message and an optional title.
+ * This function creates a dialog element, adds a title and message to it, and provides buttons for reporting an issue or closing the dialog. Used when an error occurs or when the user needs to be informed about something.
+ * @param {String} message The message to display in the dialog
+ * @param {String} [title=null] The title of the dialog, if not provided a random error title will be used
+ * @returns {void} Does not return anything, but creates a dialog element in the DOM
+*/
 function showDialog(message, title=null) {
-    const dialog = document.createElement('mdui-dialog');
-    dialog.setAttribute('open', true);
+    const dialog = document.createElement('mdui-dialog');;
     //Add the title to the dialog
     const titleElement = document.createElement('div');
     titleElement.setAttribute('slot', 'headline');
@@ -62,10 +69,15 @@ function showDialog(message, title=null) {
     dialog.appendChild(okButton);
 
     document.body.appendChild(dialog);
+    dialog.setAttribute('open', true)
 }
 
 
-
+/**
+ * Load the media list from the background script and display it in the window.
+ * This function retrieves media requests from the background script, filters them based on MIME types and file extensions, and displays them in a list format.
+ * It's a chunky bit of code, but it does what it's supposed to so it's staying there ヾ(⌐■_■)ノ♪
+ */
 function loadMediaList() {
     // Display a loading spinner while the media requests are being retrieved
     const mediaContainer = document.getElementById('media-list');
@@ -272,7 +284,7 @@ function loadMediaList() {
             const downloadButton = document.createElement('mdui-segmented-button');
             downloadButton.textContent = 'Download';
             downloadButton.addEventListener('click', () => {
-                downloadFile(url, sizeSelect, mediaDiv);
+                downloadFile(url, mediaDiv);
             });
             downloadButton.id = 'download-button';
 
@@ -314,17 +326,25 @@ function loadMediaList() {
     });
 }
 
+/**
+ * Clear the media list from the local storage and refresh the display of the media list
+ * @returns {null} Does not return anything, but throws on error
+ */
 function clearMediaList() {
-    // Clear the media list in the local storage
     browser.runtime.sendMessage({ action: 'clearStorage' }).then(() => {    
         console.log('Media list cleared');
-        loadMediaList();
+        loadMediaList(); //Refresh the display
     }).catch((error) => {
         console.error('Error clearing media list:', error);
         showDialog('Error clearing media list. Here\'s what went wrong: ' + error);
     });
 }
 
+/**
+ * Get the file name from the URL, limiting it to 20 characters. This is what's displayed in the media list.
+ * @param {String} url The URL of the media file
+ * @returns {String} The file name extracted from the URL, limited to 20 characters
+*/
 function getFileName(url) {
     try {
         let parsedUrl = new URL(url);
@@ -347,6 +367,11 @@ function getFileName(url) {
     }
 }
 
+/**
+ * Convert size in bytes to a human-readable format
+ * @param {Number} size Size in bytes (like 1024, 2048, etc.)
+ * @returns {String} Human-readable size (e.g. "1.00 Kb", "2.00 Mb", etc.)
+ */
 function getHumanReadableSize(size) {
     const units = ['b', 'Kb', 'Mb', 'Gb', 'Tb'];
     if (isNaN(size)) {
@@ -361,19 +386,33 @@ function getHumanReadableSize(size) {
     return `${sizeInBytes.toFixed(2)} ${units[unitIndex]}`;
 }
 
-async function downloadFile(url, sizeSelect, mediaDiv) {
+/**
+* Download the media file using the selected size and method
+* @param {String} url The URL of the media file to download
+* @param {HTMLElement} mediaDiv The div element of the list item to be downloaded, used to get the selected size, show the loading bar and change the button state
+* @returns {Promise<void>} A promise that resolves when the download is complete or fails
+*/
+async function downloadFile(url, mediaDiv) {
     console.log('Downloading media file:', url);
+    const sizeSelect = mediaDiv.querySelector('.media-size-select');
     try {
-        const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url });
+        const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
         const forbiddenHeaders = [
             "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
             "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
             "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
-        ];
+        ]; // List of headers that should not be sent with the download request because fetch doesn't accept them
         const selectedValue = sizeSelect.value;
         const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
-        const selectedSizeIndex = menuItems.findIndex(item => item.value === selectedValue);
+        let selectedSizeIndex = menuItems.findIndex(item => item.value === selectedValue);
 
+        // If no size is selected, default to index 0
+        if (selectedSizeIndex === -1) {
+            console.warn('No size selected, defaulting to index 0');
+            selectedSizeIndex = 0;
+        }
+
+        // Set the request headers for the download to the same headers that were used to fetch the media file on the site, to reproduce the same request, without the headers forbidden by the fetch api.
         const headers = requests[url][selectedSizeIndex].requestHeaders.filter(header =>
             !forbiddenHeaders.includes(header.name) &&
             !header.name.startsWith('Sec-') &&
@@ -383,25 +422,40 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
         const downloadMethod = localStorage.getItem('download-method');
         const streamDownload = localStorage.getItem('stream-download');
         const loadingBar = document.createElement('mdui-linear-progress');
+
+        // Change the UI to indicate that the download is in progress
         mediaDiv.querySelector("#download-button").loading=true
         mediaDiv.querySelector("#download-button").disabled=true
         loadingBar.style.width = '100%';
         loadingBar.setAttribute('indeterminate', 'true');
         mediaDiv.appendChild(loadingBar);
 
-        if (streamDownload === 'offline' &&
-            (getFileName(url).endsWith('.m3u8') ||
-                requests[url][selectedSizeIndex].responseHeaders.find(header => header.name.toLowerCase() === 'content-type').value.startsWith('application/') // Check if the response is a stream
-            )) {
-            console.log('M3U8 stream detected, converting to offline format...');
-            await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-            mediaDiv.removeChild(loadingBar);
-            mediaDiv.querySelector("#download-button").loading=false
-            mediaDiv.querySelector("#download-button").disabled=false
-            return;
+        const lowerPath = new URL(url).pathname.toLowerCase();
+        const isM3U8 = lowerPath.endsWith('.m3u8');
+        const isMPD  = lowerPath.endsWith('.mpd');
+
+        if (streamDownload === 'offline' && isM3U8) {
+        console.log('M3U8 detected → downloadM3U8Offline()');
+        await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+        mediaDiv.removeChild(loadingBar);
+        mediaDiv.querySelector("#download-button").loading = false;
+        mediaDiv.querySelector("#download-button").disabled = false;
+        return;
         }
 
+        if (streamDownload === 'offline' && isMPD) {
+        console.log('MPD detected → downloadMPDOffline()');
+        await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+        mediaDiv.removeChild(loadingBar);
+        mediaDiv.querySelector("#download-button").loading = false;
+        mediaDiv.querySelector("#download-button").disabled = false;
+        return;
+        }
+
+
+        //At this point the media is not a stream or should not be treated as such, so initiate a regular download
         if (downloadMethod === 'browser') {
+            // Use the browser.downloads API to download the file
             const fileName = getFileName(url) || 'media';
 
             browser.downloads.download({
@@ -423,11 +477,14 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
             });
 
         } else {
+            // Use fetch to download the file
+            // Get the request headers as an object to spoof the request
             const headersObject = {};
             headers.forEach(header => {
                 headersObject[header.name] = header.value;
             });
 
+            // Send the request by fetching the URL with the appropriate method and headers (referrer can't be set in headers but can be set as a fetch option) so servers will think the request is coming from the same site
             const response = await fetch(url, {
                 method: requests[url][selectedSizeIndex].method,
                 headers: headersObject,
@@ -438,6 +495,7 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
                 throw new Error(`Error downloading media file with fetch: ${response.status}`);
             }
 
+            // Create a blob from the response and trigger a download
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -461,291 +519,5 @@ async function downloadFile(url, sizeSelect, mediaDiv) {
     }
 }
 
-/**
- * Downloads and converts an M3U8 stream to an MP4 file for offline use.
- * Uses either browser.downloads API or fetch depending on the download method.
- */
-async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
-    const getText = async (url) => {
-        const res = await fetch(url, {
-            headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-            referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-            method: request.method
-        });
-        return res.text();
-    };
 
-    const m3u8Text = await getText(m3u8Url);
-    const isMasterPlaylist = m3u8Text.includes("#EXT-X-STREAM-INF");
 
-    let videoUrl = m3u8Url;
-    let audioUrl = null;
-
-    if (isMasterPlaylist) {
-        const lines = m3u8Text.split("\n");
-        const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
-
-        const selectedVariant = await selectStreamVariant(lines, base);
-        videoUrl = selectedVariant.uri;
-
-        const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
-        if (audioLine) {
-            const uriMatch = audioLine.match(/URI="([^"]+)"/);
-            if (uriMatch) {
-                const audioUri = uriMatch[1];
-                audioUrl = audioUri.startsWith("http") ? audioUri : base + audioUri;
-            }
-        }
-    }
-    if (audioUrl) {
-        // Display a snackbar message informing the user about the separate audio stream
-        const snackbar = document.createElement('mdui-snackbar');
-        snackbar.setAttribute('open', true);
-        snackbar.setAttribute('timeout', 10000);
-        snackbar.textContent = 'Separate audio stream detected. Downloading video and audio separately (There will be 2 downloads).'
-        document.body.appendChild(snackbar);
-        snackbar.addEventListener('close', () => {
-            snackbar.remove();
-        });
-    }
-
-    async function downloadSegments(playlistUrl, isAudio = false) {
-        let totalSegments = 0;
-        let downloadedSegments = 0;
-        const playlistText = await getText(playlistUrl);
-        const base = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1);
-
-        const lines = playlistText.split("\n");
-
-        let keyUri = null;
-        let ivHex = null;
-        let keyBuffer = null;
-
-        // Find key line
-        for (const line of lines) {
-            if (line.startsWith("#EXT-X-KEY")) {
-                const uriMatch = line.match(/URI="([^"]+)"/);
-                const ivMatch = line.match(/IV=0x([0-9a-fA-F]+)/);
-                if (uriMatch) keyUri = uriMatch[1];
-                if (ivMatch) ivHex = ivMatch[1];
-                break;
-            }
-        }
-
-        // Fetch key if present
-        if (keyUri) {
-            const fullKeyUri = new URL(keyUri, playlistUrl).href;
-            const keyRes = await fetch(fullKeyUri, {
-                headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-                referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-                method: request.method
-            });
-            keyBuffer = await keyRes.arrayBuffer();
-        }
-
-        const tsUrls = lines
-            .filter(line => line && !line.startsWith("#"))
-            .map(line => new URL(line, playlistUrl).href);
-
-        totalSegments += tsUrls.length;
-
-        const segmentBuffers = [];
-
-        for (let i = 0; i < tsUrls.length; i++) {
-            const res = await fetch(tsUrls[i], {
-                headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-                referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-                method: request.method
-            });
-
-            let data = new Uint8Array(await res.arrayBuffer());
-
-            if (keyBuffer) {
-                const iv = ivHex
-                    ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
-                    : (() => {
-                        const iv = new Uint8Array(16);
-                        const view = new DataView(iv.buffer);
-                        view.setUint32(12, i); // segment index as IV
-                        return iv;
-                    })();
-
-                data = await decryptSegment(data, keyBuffer, iv);
-            }
-
-            segmentBuffers.push(data);
-
-            downloadedSegments++;
-            loadingBar.removeAttribute('indeterminate');
-            loadingBar.setAttribute("value", downloadedSegments / totalSegments);
-        }
-
-        const finalTsBlob = new Blob(segmentBuffers, { type: "video/MP2T" });
-        return finalTsBlob;
-    }
-    async function decryptSegment(encryptedBuffer, keyBuffer, iv) {
-        const cryptoKey = await crypto.subtle.importKey(
-            "raw",
-            keyBuffer,
-            { name: "AES-CBC" },
-            false,
-            ["decrypt"]
-        );
-
-        const decryptedBuffer = await crypto.subtle.decrypt(
-            {
-                name: "AES-CBC",
-                iv
-            },
-            cryptoKey,
-            encryptedBuffer
-        );
-
-        return new Uint8Array(decryptedBuffer);
-    }
-
-    const videoBlob = await downloadSegments(videoUrl, false);
-
-    const baseFileName = getFileName(m3u8Url);
-    if (audioUrl) {
-        loadingBar.setAttribute('aria-label', 'Downloading audio stream...');
-        const snackbar = document.createElement('mdui-snackbar');
-        snackbar.setAttribute('open', true);
-        snackbar.setAttribute('timeout', 10000);
-        snackbar.textContent = 'Downloading audio stream...'
-        document.body.appendChild(snackbar);
-        snackbar.addEventListener('close', () => {
-            snackbar.remove();
-        });
-        const audioBlob = await downloadSegments(audioUrl, true);
-
-        // Save both blobs separately
-        const videoBlobUrl = URL.createObjectURL(videoBlob);
-        const audioBlobUrl = URL.createObjectURL(audioBlob);
-
-        if (downloadMethod === "browser") {
-            await browser.downloads.download({
-                url: videoBlobUrl,
-                filename: `${baseFileName}_video.ts`
-            });
-            await browser.downloads.download({
-                url: audioBlobUrl,
-                filename: `${baseFileName}_audio.ts`
-            });
-        } else {
-            const videoAnchor = document.createElement("a");
-            videoAnchor.href = videoBlobUrl;
-            videoAnchor.download = `${baseFileName}_video.ts`;
-            document.body.appendChild(videoAnchor);
-            videoAnchor.click();
-            document.body.removeChild(videoAnchor);
-
-            const audioAnchor = document.createElement("a");
-            audioAnchor.href = audioBlobUrl;
-            audioAnchor.download = `${baseFileName}_audio.ts`;
-            document.body.appendChild(audioAnchor);
-            audioAnchor.click();
-            document.body.removeChild(audioAnchor);
-        }
-        showDialog(`Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i ${baseFileName}_video.ts -i ${baseFileName}_audio.ts -c copy final_video.mp4`,"Downloaded separated audio and video streams");
-        URL.revokeObjectURL(videoBlobUrl);
-        URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
-        return;
-    } else {
-        const videoBlobUrl = URL.createObjectURL(videoBlob);
-
-        if (downloadMethod === "browser") {
-            await browser.downloads.download({
-                url: videoBlobUrl,
-                filename: `${baseFileName}.ts`
-            });
-        } else {
-            const videoAnchor = document.createElement("a");
-            videoAnchor.href = videoBlobUrl;
-            videoAnchor.download = `${baseFileName}.ts`;
-            document.body.appendChild(videoAnchor);
-            videoAnchor.click();
-            document.body.removeChild(videoAnchor);
-        }
-    }
-}
-
-async function selectStreamVariant(playlistLines, baseUrl) {
-    const variants = [];
-
-    for (let i = 0; i < playlistLines.length; i++) {
-        if (playlistLines[i].startsWith("#EXT-X-STREAM-INF")) {
-            const bwMatch = playlistLines[i].match(/BANDWIDTH=(\d+)/);
-            const resMatch = playlistLines[i].match(/RESOLUTION=(\d+x\d+)/);
-            const bandwidth = bwMatch ? parseInt(bwMatch[1]) : 0;
-            const resolution = resMatch ? resMatch[1] : "unknown";
-            const uri = playlistLines[i + 1];
-            variants.push({
-                bandwidth,
-                resolution,
-                uri: uri.startsWith("http") ? uri : baseUrl + uri
-            });
-        }
-    }
-
-    if (variants.length === 1) {
-        // Only one variant available, no need to ask the user
-        return variants[0];
-    }
-    const preference = localStorage.getItem("stream-quality");
-
-    if (preference === "highest") {
-        return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
-    } else if (preference === "lowest") {
-        return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
-    }
-
-    // Build the UI dynamically using createElement
-    return new Promise((resolve) => {
-        const dialog = document.createElement("mdui-dialog");
-        dialog.headline="Select Stream Quality";
-
-        const content = document.createElement("div");
-        content.className = "mdui-dialog-content";
-        dialog.appendChild(content);
-
-        const label = document.createElement("label");
-        label.setAttribute("for", "stream-quality-select");
-        label.textContent = "Quality:";
-        content.appendChild(label);
-
-        const select = document.createElement("mdui-select");
-        select.setAttribute("variant", "outlined");
-        select.setAttribute("id", "stream-quality-select");
-        select.value = "0"; // Default to the first option
-
-        variants.forEach((v, index) => {
-            const option = document.createElement("mdui-menu-item");
-            option.setAttribute("value", index);
-            option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps)`;
-            select.appendChild(option);
-        });
-
-        content.appendChild(select);
-
-        const actions = document.createElement("div");
-        actions.className = "mdui-dialog-actions";
-
-        const confirmBtn = document.createElement("mdui-button");
-        confirmBtn.textContent = "OK";
-        confirmBtn.setAttribute("variant", "text");
-        confirmBtn.addEventListener("click", () => {
-            const selectedIndex = select.value || 0;
-            document.body.removeChild(dialog);
-            resolve(variants[selectedIndex]);
-        });
-
-        actions.appendChild(confirmBtn);
-        dialog.appendChild(actions);
-
-        document.body.appendChild(dialog);
-
-        // Trigger the dialog
-        requestAnimationFrame(() => dialog.open = true);
-    });
-}
