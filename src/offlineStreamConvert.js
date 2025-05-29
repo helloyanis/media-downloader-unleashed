@@ -310,13 +310,27 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     if (repNodes.length === 0) {
       throw new Error("AdaptationSet has no Representation children. This might mean it’s not a valid MPD (or gets detected as an MPD but isn't).");
     }
-    const representations = repNodes.map((rNode) => ({
-      id:        rNode.getAttribute("id"),
-      bandwidth: parseInt(rNode.getAttribute("bandwidth") || "0", 10),
-      width:     parseInt(rNode.getAttribute("width")     || "0", 10),
-      height:    parseInt(rNode.getAttribute("height")    || "0", 10),
-      // codecs, frameRate, etc. are also available if needed
-    }));
+    const representations = repNodes.map((rNode) => {
+      const st = rNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+      if (!st) {
+        throw new Error(`Representation ${rNode.getAttribute("id")} is missing a SegmentTemplate`);
+      }
+
+      return {
+        id:        rNode.getAttribute("id"),
+        bandwidth: parseInt(rNode.getAttribute("bandwidth") || "0", 10),
+        width:     parseInt(rNode.getAttribute("width")     || "0", 10),
+        height:    parseInt(rNode.getAttribute("height")    || "0", 10),
+        segmentTemplate: {
+          media: st.getAttribute("media"),
+          initialization: st.getAttribute("initialization"),
+          duration: parseInt(st.getAttribute("duration") || "0", 10),
+          timescale: parseInt(st.getAttribute("timescale") || "1", 10),
+          startNumber: parseInt(st.getAttribute("startNumber") || "1", 10),
+        }
+      };
+    });
+
 
     return {
       contentType,
@@ -342,8 +356,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   console.log("Chosen audio Representation:", chosenAudioRep);
 
   // 9) Build “initialization” URL + array of “media segment” URLs for the chosen rep
-  function buildSegmentUrls(rep, adaptationInfo) {
-    const tmpl    = adaptationInfo.segmentTemplate;
+  function buildSegmentUrls(rep) {
+    const tmpl = rep.segmentTemplate;
     const baseUrl = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
 
     // 9a) initialization URL & relative path
@@ -536,6 +550,7 @@ if (localStorage.getItem("mpd-fix") === "1") {
   a.remove();
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
+  showDialog(`The MPD stream has been downloaded as a ZIP file. You can extract it and play the ${baseName}.mpd video with VLC or any other compatible player.`, "MPD Download Complete");
 }
 
 /**
