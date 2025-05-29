@@ -47,4 +47,4 @@ You can download audios, videos and streams to view offline, from most websites!
 
 - [MDUI](https://www.mdui.org/en/) - Material Design UI framework (MIT License)
 - [HLS.js](https://github.com/video-dev/hls.js/) - HLS.js library to play media in the browser (Apache License 2.0) 
-- [JSZIP](https://github.com/Stuk/jszip) - Download zip files when getting mpd streams
+- [JSZIP](https://github.com/Stuk/jszip) - Download zip files when getting mpd streams (Dual license, MIT and GPL v3)
