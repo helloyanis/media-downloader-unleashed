@@ -206,6 +206,93 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
   }
 }
 
+/*
+  * Selects a stream variant from an m3u8 manifest.
+  * If only one variant is available, it returns that variant.
+  * If multiple variants are available, it prompts the user to select one based on their preference (highest, lowest, or manual selection).
+  * @param {Array<String>} playlistLines - The lines of the m3u8 playlist.
+  * @param {String} baseUrl - The base URL for relative URIs in the playlist.
+  * @return {Promise<Object>} - A promise that resolves to the selected stream variant object containing bandwidth, resolution, and URI.
+*/
+async function selectStreamVariant(playlistLines, baseUrl) {
+    const variants = [];
+
+    for (let i = 0; i < playlistLines.length; i++) {
+        if (playlistLines[i].startsWith("#EXT-X-STREAM-INF")) {
+            const bwMatch = playlistLines[i].match(/BANDWIDTH=(\d+)/);
+            const resMatch = playlistLines[i].match(/RESOLUTION=(\d+x\d+)/);
+            const bandwidth = bwMatch ? parseInt(bwMatch[1]) : 0;
+            const resolution = resMatch ? resMatch[1] : "unknown";
+            const uri = playlistLines[i + 1];
+            variants.push({
+                bandwidth,
+                resolution,
+                uri: uri.startsWith("http") ? uri : baseUrl + uri
+            });
+        }
+    }
+
+    if (variants.length === 1) {
+        // Only one variant available, no need to ask the user
+        return variants[0];
+    }
+    const preference = localStorage.getItem("stream-quality");
+
+    if (preference === "highest") {
+        return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
+    } else if (preference === "lowest") {
+        return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
+    }
+
+    // Build the UI dynamically using createElement
+    return new Promise((resolve) => {
+        const dialog = document.createElement("mdui-dialog");
+        dialog.headline="Select Stream Quality";
+
+        const content = document.createElement("div");
+        content.className = "mdui-dialog-content";
+        dialog.appendChild(content);
+
+        const label = document.createElement("label");
+        label.setAttribute("for", "stream-quality-select");
+        label.textContent = "Quality:";
+        content.appendChild(label);
+
+        const select = document.createElement("mdui-select");
+        select.setAttribute("variant", "outlined");
+        select.setAttribute("id", "stream-quality-select");
+        select.value = "0"; // Default to the first option
+
+        variants.forEach((v, index) => {
+            const option = document.createElement("mdui-menu-item");
+            option.setAttribute("value", index);
+            option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps)`;
+            select.appendChild(option);
+        });
+
+        content.appendChild(select);
+
+        const actions = document.createElement("div");
+        actions.className = "mdui-dialog-actions";
+
+        const confirmBtn = document.createElement("mdui-button");
+        confirmBtn.textContent = "OK";
+        confirmBtn.setAttribute("variant", "text");
+        confirmBtn.addEventListener("click", () => {
+            const selectedIndex = select.value || 0;
+            document.body.removeChild(dialog);
+            resolve(variants[selectedIndex]);
+        });
+
+        actions.appendChild(confirmBtn);
+        dialog.appendChild(actions);
+
+        document.body.appendChild(dialog);
+
+        // Trigger the dialog
+        requestAnimationFrame(() => dialog.open = true);
+    });
+}
 
 /**
  * Download a DASH (.mpd) stream offline + all segments (audio + one chosen video),
