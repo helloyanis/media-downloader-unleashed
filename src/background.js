@@ -26,7 +26,7 @@ let urlList = [];
 let headersSentListener, headersReceivedListener;
 
 function initListener() {
-    browser.storage.local.get('url-detection', function(result) {
+    browser.storage.local.get('url-detection', function (result) {
         if (result['url-detection'] !== '1') {
             urlList = ["<all_urls>"];   //We filter it in popup.js because there are many filter options that can be selected
             // urlList = [
@@ -42,7 +42,7 @@ function initListener() {
             //     "*://*/*.ogg*",
             //     "*://*/*.wma*",
             //     "*://*/*.m3u8*",
-            
+
             //     "*://*/*.3g2*",
             //     "*://*/*.3gp*",
             //     "*://*/*.asx*",
@@ -135,7 +135,7 @@ function initListener() {
                     size: null // Placeholder for media size
                 };
 
-                browser.storage.session.get(details.url, function(result) {
+                browser.storage.session.get(details.url, function (result) {
                     let existingRequests = result[details.url] || [];
                     existingRequests.push(mediaRequest);
                     let requestsObj = {};
@@ -158,7 +158,7 @@ function initListener() {
         // Add media size and response headers when response headers are received
         headersReceivedListener = browser.webRequest.onHeadersReceived.addListener(
             (details) => {
-                browser.storage.session.get(details.url, function(result) {
+                browser.storage.session.get(details.url, function (result) {
                     let existingRequests = result[details.url] || [];
 
                     let mediaSizeHeader = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length');
@@ -190,7 +190,7 @@ function initListener() {
 // Send media request data to the popup (session storage is not shared between background and popup scripts)
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'getMediaRequests') {
-        browser.storage.session.get(null, function(items) {
+        browser.storage.session.get(null, function (items) {
             sendResponse(items);
         });
         return true; // Indicate that the response will be sent asynchronously
@@ -216,14 +216,14 @@ browser.runtime.onMessage.addListener((message) => {
 
 // This is used to open the popup.html file when the add-on icon is clicked, and to open the installed.md and when the add-on is installed.
 browser.action.onClicked.addListener((tab) => {
-    browser.storage.local.get('open-preference', function(result) {
+    browser.storage.local.get('open-preference', function (result) {
         console.log('Open preference:', result['open-preference']);
         if (result['open-preference'] !== 'window') {
             // Open the popup in a new tab
             browser.tabs.create({
                 url: browser.runtime.getURL(`popup.html`),
             });
-        }else{
+        } else {
             // Open the popup in a new window
             browser.windows.create({
                 url: browser.runtime.getURL(`popup.html`),

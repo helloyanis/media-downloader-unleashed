@@ -4,208 +4,206 @@
  * Most of the code here is chatGPT so good luck finding out what it does lol (ㆆ_ㆆ)
  */
 async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
-    const getText = async (url) => {
-        const res = await fetch(url, {
-            headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-            referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-            method: request.method
-        });
-        return res.text();
-    };
+  const getText = async (url) => {
+    const res = await fetch(url, {
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+      method: request.method
+    });
+    return res.text();
+  };
 
-    const m3u8Text = await getText(m3u8Url);
-    const isMasterPlaylist = m3u8Text.includes("#EXT-X-STREAM-INF");
+  const m3u8Text = await getText(m3u8Url);
+  const isMasterPlaylist = m3u8Text.includes("#EXT-X-STREAM-INF");
 
-    let videoUrl = m3u8Url;
-    let audioUrl = null;
+  let videoUrl = m3u8Url;
+  let audioUrl = null;
 
-    if (isMasterPlaylist) {
-        const lines = m3u8Text.split("\n");
-        const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
+  if (isMasterPlaylist) {
+    const lines = m3u8Text.split("\n");
+    const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
 
-        const selectedVariant = await selectStreamVariant(lines, base);
-        videoUrl = selectedVariant.uri;
+    const selectedVariant = await selectStreamVariant(lines, base);
+    videoUrl = selectedVariant.uri;
 
-        const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
-        if (audioLine) {
-            const uriMatch = audioLine.match(/URI="([^"]+)"/);
-            if (uriMatch) {
-                const audioUri = uriMatch[1];
-                audioUrl = audioUri.startsWith("http") ? audioUri : base + audioUri;
-            }
-        }
+    const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
+    if (audioLine) {
+      const uriMatch = audioLine.match(/URI="([^"]+)"/);
+      if (uriMatch) {
+        const audioUri = uriMatch[1];
+        audioUrl = audioUri.startsWith("http") ? audioUri : base + audioUri;
+      }
     }
-    if (audioUrl) {
-        // Display a snackbar message informing the user about the separate audio stream
-        const snackbar = document.createElement('mdui-snackbar');
-        snackbar.setAttribute('open', true);
-        snackbar.setAttribute('timeout', 10000);
-        snackbar.textContent = 'Separate audio stream detected. Downloading video and audio separately (There will be 2 downloads).'
-        document.body.appendChild(snackbar);
-        snackbar.addEventListener('close', () => {
-            snackbar.remove();
-        });
-    }
+  }
+  if (audioUrl) {
+    // Display a snackbar message informing the user about the separate audio stream
+    const snackbar = document.createElement('mdui-snackbar');
+    snackbar.setAttribute('open', true);
+    snackbar.setAttribute('timeout', 10000);
+    snackbar.textContent = 'Separate audio stream detected. Downloading video and audio separately (There will be 2 downloads).'
+    document.body.appendChild(snackbar);
+    snackbar.addEventListener('close', () => {
+      snackbar.remove();
+    });
+  }
 
-    async function downloadSegments(playlistUrl, isAudio = false) {
-        let totalSegments = 0;
-        let downloadedSegments = 0;
-        const playlistText = await getText(playlistUrl);
-        const base = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1);
+  async function downloadSegments(playlistUrl) {
+    let totalSegments = 0;
+    let downloadedSegments = 0;
+    const playlistText = await getText(playlistUrl);
+    const lines = playlistText.split("\n");
 
-        const lines = playlistText.split("\n");
+    let keyUri = null;
+    let ivHex = null;
+    let keyBuffer = null;
 
-        let keyUri = null;
-        let ivHex = null;
-        let keyBuffer = null;
-
-        // Find key line
-        for (const line of lines) {
-            if (line.startsWith("#EXT-X-KEY")) {
-                const uriMatch = line.match(/URI="([^"]+)"/);
-                const ivMatch = line.match(/IV=0x([0-9a-fA-F]+)/);
-                if (uriMatch) keyUri = uriMatch[1];
-                if (ivMatch) ivHex = ivMatch[1];
-                break;
-            }
-        }
-
-        // Fetch key if present
-        if (keyUri) {
-            const fullKeyUri = new URL(keyUri, playlistUrl).href;
-            const keyRes = await fetch(fullKeyUri, {
-                headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-                referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-                method: request.method
-            });
-            keyBuffer = await keyRes.arrayBuffer();
-        }
-
-        const tsUrls = lines
-            .filter(line => line && !line.startsWith("#"))
-            .map(line => new URL(line, playlistUrl).href);
-
-        totalSegments += tsUrls.length;
-
-        const segmentBuffers = [];
-
-        for (let i = 0; i < tsUrls.length; i++) {
-            const res = await fetch(tsUrls[i], {
-                headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-                referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-                method: request.method
-            });
-
-            let data = new Uint8Array(await res.arrayBuffer());
-
-            if (keyBuffer) {
-                const iv = ivHex
-                    ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
-                    : (() => {
-                        const iv = new Uint8Array(16);
-                        const view = new DataView(iv.buffer);
-                        view.setUint32(12, i); // segment index as IV
-                        return iv;
-                    })();
-
-                data = await decryptSegment(data, keyBuffer, iv);
-            }
-
-            segmentBuffers.push(data);
-
-            downloadedSegments++;
-            loadingBar.removeAttribute('indeterminate');
-            loadingBar.setAttribute("value", downloadedSegments / totalSegments);
-        }
-
-        const finalTsBlob = new Blob(segmentBuffers, { type: "video/MP2T" });
-        return finalTsBlob;
-    }
-    async function decryptSegment(encryptedBuffer, keyBuffer, iv) {
-        const cryptoKey = await crypto.subtle.importKey(
-            "raw",
-            keyBuffer,
-            { name: "AES-CBC" },
-            false,
-            ["decrypt"]
-        );
-
-        const decryptedBuffer = await crypto.subtle.decrypt(
-            {
-                name: "AES-CBC",
-                iv
-            },
-            cryptoKey,
-            encryptedBuffer
-        );
-
-        return new Uint8Array(decryptedBuffer);
+    // Find key line
+    for (const line of lines) {
+      if (line.startsWith("#EXT-X-KEY")) {
+        const uriMatch = line.match(/URI="([^"]+)"/);
+        const ivMatch = line.match(/IV=0x([0-9a-fA-F]+)/);
+        if (uriMatch) keyUri = uriMatch[1];
+        if (ivMatch) ivHex = ivMatch[1];
+        break;
+      }
     }
 
-    const videoBlob = await downloadSegments(videoUrl, false);
+    // Fetch key if present
+    if (keyUri) {
+      const fullKeyUri = new URL(keyUri, playlistUrl).href;
+      const keyRes = await fetch(fullKeyUri, {
+        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+        method: request.method
+      });
+      keyBuffer = await keyRes.arrayBuffer();
+    }
 
-    const baseFileName = getFileName(m3u8Url);
-    if (audioUrl) {
-        loadingBar.setAttribute('aria-label', 'Downloading audio stream...');
-        const snackbar = document.createElement('mdui-snackbar');
-        snackbar.setAttribute('open', true);
-        snackbar.setAttribute('timeout', 10000);
-        snackbar.textContent = 'Downloading audio stream...'
-        document.body.appendChild(snackbar);
-        snackbar.addEventListener('close', () => {
-            snackbar.remove();
-        });
-        const audioBlob = await downloadSegments(audioUrl, true);
+    const tsUrls = lines
+      .filter(line => line && !line.startsWith("#"))
+      .map(line => new URL(line, playlistUrl).href);
 
-        // Save both blobs separately
-        const videoBlobUrl = URL.createObjectURL(videoBlob);
-        const audioBlobUrl = URL.createObjectURL(audioBlob);
+    totalSegments += tsUrls.length;
 
-        if (downloadMethod === "browser") {
-            await browser.downloads.download({
-                url: videoBlobUrl,
-                filename: `${baseFileName}_video.ts`
-            });
-            await browser.downloads.download({
-                url: audioBlobUrl,
-                filename: `${baseFileName}_audio.ts`
-            });
-        } else {
-            const videoAnchor = document.createElement("a");
-            videoAnchor.href = videoBlobUrl;
-            videoAnchor.download = `${baseFileName}_video.ts`;
-            document.body.appendChild(videoAnchor);
-            videoAnchor.click();
-            document.body.removeChild(videoAnchor);
+    const segmentBuffers = [];
 
-            const audioAnchor = document.createElement("a");
-            audioAnchor.href = audioBlobUrl;
-            audioAnchor.download = `${baseFileName}_audio.ts`;
-            document.body.appendChild(audioAnchor);
-            audioAnchor.click();
-            document.body.removeChild(audioAnchor);
-        }
-        showDialog(`Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i ${baseFileName}_video.ts -i ${baseFileName}_audio.ts -c copy final_video.mp4`,"Downloaded separated audio and video streams");
-        URL.revokeObjectURL(videoBlobUrl);
-        URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
-        return;
+    for (let i = 0; i < tsUrls.length; i++) {
+      const res = await fetch(tsUrls[i], {
+        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+        method: request.method
+      });
+
+      let data = new Uint8Array(await res.arrayBuffer());
+
+      if (keyBuffer) {
+        const iv = ivHex
+          ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
+          : (() => {
+            const iv = new Uint8Array(16);
+            const view = new DataView(iv.buffer);
+            view.setUint32(12, i); // segment index as IV
+            return iv;
+          })();
+
+        data = await decryptSegment(data, keyBuffer, iv);
+      }
+
+      segmentBuffers.push(data);
+
+      downloadedSegments++;
+      loadingBar.removeAttribute('indeterminate');
+      loadingBar.setAttribute("value", downloadedSegments / totalSegments);
+    }
+
+    const finalTsBlob = new Blob(segmentBuffers, { type: "video/MP2T" });
+    return finalTsBlob;
+  }
+  async function decryptSegment(encryptedBuffer, keyBuffer, iv) {
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyBuffer,
+      { name: "AES-CBC" },
+      false,
+      ["decrypt"]
+    );
+
+    const decryptedBuffer = await crypto.subtle.decrypt(
+      {
+        name: "AES-CBC",
+        iv
+      },
+      cryptoKey,
+      encryptedBuffer
+    );
+
+    return new Uint8Array(decryptedBuffer);
+  }
+
+  const videoBlob = await downloadSegments(videoUrl, false);
+
+  const baseFileName = getFileName(m3u8Url);
+  if (audioUrl) {
+    loadingBar.setAttribute('aria-label', 'Downloading audio stream...');
+    const snackbar = document.createElement('mdui-snackbar');
+    snackbar.setAttribute('open', true);
+    snackbar.setAttribute('timeout', 10000);
+    snackbar.textContent = 'Downloading audio stream...'
+    document.body.appendChild(snackbar);
+    snackbar.addEventListener('close', () => {
+      snackbar.remove();
+    });
+    const audioBlob = await downloadSegments(audioUrl, true);
+
+    // Save both blobs separately
+    const videoBlobUrl = URL.createObjectURL(videoBlob);
+    const audioBlobUrl = URL.createObjectURL(audioBlob);
+
+    if (downloadMethod === "browser") {
+      await browser.downloads.download({
+        url: videoBlobUrl,
+        filename: `${baseFileName}_video.ts`
+      });
+      await browser.downloads.download({
+        url: audioBlobUrl,
+        filename: `${baseFileName}_audio.ts`
+      });
     } else {
-        const videoBlobUrl = URL.createObjectURL(videoBlob);
+      const videoAnchor = document.createElement("a");
+      videoAnchor.href = videoBlobUrl;
+      videoAnchor.download = `${baseFileName}_video.ts`;
+      document.body.appendChild(videoAnchor);
+      videoAnchor.click();
+      document.body.removeChild(videoAnchor);
 
-        if (downloadMethod === "browser") {
-            await browser.downloads.download({
-                url: videoBlobUrl,
-                filename: `${baseFileName}.ts`
-            });
-        } else {
-            const videoAnchor = document.createElement("a");
-            videoAnchor.href = videoBlobUrl;
-            videoAnchor.download = `${baseFileName}.ts`;
-            document.body.appendChild(videoAnchor);
-            videoAnchor.click();
-            document.body.removeChild(videoAnchor);
-        }
+      const audioAnchor = document.createElement("a");
+      audioAnchor.href = audioBlobUrl;
+      audioAnchor.download = `${baseFileName}_audio.ts`;
+      document.body.appendChild(audioAnchor);
+      audioAnchor.click();
+      document.body.removeChild(audioAnchor);
     }
+    showDialog(`Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i ${baseFileName}_video.ts -i ${baseFileName}_audio.ts -c copy final_video.mp4`, "Downloaded separated audio and video streams");
+    URL.revokeObjectURL(videoBlobUrl);
+    URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
+    return;
+  } else {
+    const videoBlobUrl = URL.createObjectURL(videoBlob);
+
+    if (downloadMethod === "browser") {
+      await browser.downloads.download({
+        url: videoBlobUrl,
+        filename: `${baseFileName}.ts`
+      });
+    } else {
+      const videoAnchor = document.createElement("a");
+      videoAnchor.href = videoBlobUrl;
+      videoAnchor.download = `${baseFileName}.ts`;
+      document.body.appendChild(videoAnchor);
+      videoAnchor.click();
+      document.body.removeChild(videoAnchor);
+    }
+  }
 }
 
 
@@ -224,14 +222,14 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
  */
 async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, request) {
   // Display a snackbar message informing the user about the separate audio stream
-        const snackbar = document.createElement('mdui-snackbar');
-        snackbar.setAttribute('open', true);
-        snackbar.setAttribute('timeout', 10000);
-        snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
-        document.body.appendChild(snackbar);
-        snackbar.addEventListener('close', () => {
-            snackbar.remove();
-        });
+  const snackbar = document.createElement('mdui-snackbar');
+  snackbar.setAttribute('open', true);
+  snackbar.setAttribute('timeout', 10000);
+  snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
+  document.body.appendChild(snackbar);
+  snackbar.addEventListener('close', () => {
+    snackbar.remove();
+  });
   // 1) Fetch the MPD manifest text
   const resp = await fetch(mpdUrl, {
     method: request.method,
@@ -296,15 +294,15 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     const st = stList[0];
 
     // Grab attributes from SegmentTemplate
-    const mediaTmpl      = st.getAttribute("media");            // e.g. "video/250kbit/segment_$Number$.m4s"
-    const initTmpl       = st.getAttribute("initialization");   // e.g. "video/250kbit/init.mp4"
-    const duration       = parseInt(st.getAttribute("duration") || "0", 10);
-    const timescale      = parseInt(st.getAttribute("timescale") || "1", 10);
+    const mediaTmpl = st.getAttribute("media");            // e.g. "video/250kbit/segment_$Number$.m4s"
+    const initTmpl = st.getAttribute("initialization");   // e.g. "video/250kbit/init.mp4"
+    const duration = parseInt(st.getAttribute("duration") || "0", 10);
+    const timescale = parseInt(st.getAttribute("timescale") || "1", 10);
     const startNumberRaw = st.getAttribute("startNumber");
-    const startNumber    = startNumberRaw !== null ? parseInt(startNumberRaw, 10) : 1;
+    const startNumber = startNumberRaw !== null ? parseInt(startNumberRaw, 10) : 1;
 
     const segmentTemplate = {
-      media:          mediaTmpl,
+      media: mediaTmpl,
       initialization: initTmpl,
       duration,
       timescale,
@@ -326,10 +324,10 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       }
 
       return {
-        id:        rNode.getAttribute("id"),
+        id: rNode.getAttribute("id"),
         bandwidth: parseInt(rNode.getAttribute("bandwidth") || "0", 10),
-        width:     parseInt(rNode.getAttribute("width")     || "0", 10),
-        height:    parseInt(rNode.getAttribute("height")    || "0", 10),
+        width: parseInt(rNode.getAttribute("width") || "0", 10),
+        height: parseInt(rNode.getAttribute("height") || "0", 10),
         segmentTemplate: {
           media: st.getAttribute("media"),
           initialization: st.getAttribute("initialization"),
@@ -372,22 +370,22 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     // 9a) initialization URL & relative path
     const initPath = tmpl.initialization
       .replace(/\$RepresentationID\$/g, rep.id)
-      .replace(/\$Bandwidth\$/g,       rep.bandwidth);
-    const initUrl  = new URL(initPath, baseUrl).href;
+      .replace(/\$Bandwidth\$/g, rep.bandwidth);
+    const initUrl = new URL(initPath, baseUrl).href;
 
     // 9b) compute how many segments (no <SegmentTimeline> present)
-    const mpdRoot          = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
+    const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
     const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
     const parseISODuration = d => {
       // Supports “P…T…H…M…S” (e.g. “P0Y0M0DT0H3M30.000S”)
       const m = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(d);
       if (!m) return 0;
-      const years   = parseFloat(m[1]||"0");
-      const months  = parseFloat(m[2]||"0");
-      const days    = parseFloat(m[3]||"0");
-      const hours   = parseFloat(m[4]||"0");
-      const minutes = parseFloat(m[5]||"0");
-      const secs    = parseFloat(m[6]||"0");
+      const years = parseFloat(m[1] || "0");
+      const months = parseFloat(m[2] || "0");
+      const days = parseFloat(m[3] || "0");
+      const hours = parseFloat(m[4] || "0");
+      const minutes = parseFloat(m[5] || "0");
+      const secs = parseFloat(m[6] || "0");
       return (
         years * 365 * 24 * 3600 +
         months * 30 * 24 * 3600 +
@@ -397,19 +395,19 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
         secs
       );
     };
-    const totalSec   = parseISODuration(totalDurationISO);
-    const segLenSec  = tmpl.duration / tmpl.timescale; // e.g. 2000 / 1000 = 2 sec/segment
+    const totalSec = parseISODuration(totalDurationISO);
+    const segLenSec = tmpl.duration / tmpl.timescale; // e.g. 2000 / 1000 = 2 sec/segment
     const segmentCount = Math.ceil(totalSec / segLenSec);
 
     // 9c) build each media segment URL & relative path
-    const segmentUrls  = [];
-    const mediaPaths   = [];
-    const firstIndex   = tmpl.startNumber;
+    const segmentUrls = [];
+    const mediaPaths = [];
+    const firstIndex = tmpl.startNumber;
     for (let n = firstIndex; n < firstIndex + segmentCount; n++) {
       const mediaPath = tmpl.media
         .replace(/\$RepresentationID\$/g, rep.id)
-        .replace(/\$Bandwidth\$/g,       rep.bandwidth)
-        .replace(/\$Number\$/g,          n);
+        .replace(/\$Bandwidth\$/g, rep.bandwidth)
+        .replace(/\$Number\$/g, n);
       mediaPaths.push(mediaPath);
       segmentUrls.push(new URL(mediaPath, baseUrl).href);
     }
@@ -425,49 +423,49 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
 
   // 10) Build URLs (and relative paths) for the chosen vídeo & audio
   const videoInfo = buildSegmentUrls(chosenVideoRep, videoAdaptation);
-  let audioInfo   = null;
+  let audioInfo = null;
   if (chosenAudioRep) {
     audioInfo = buildSegmentUrls(chosenAudioRep, audioAdaptation);
   }
 
   // 10.5) If mpd fix mode is on, strip unused <Representation> entries
-if (localStorage.getItem("mpd-fix") === "1") {
-  console.log("✂️ Stripping unused representations for 'mpd fix' mode...");
+  if (localStorage.getItem("mpd-fix") === "1") {
+    console.log("✂️ Stripping unused representations for 'mpd fix' mode...");
 
-  // Helper to remove unselected representations
-  const keepOnlyRepresentation = (adaptationNode, chosenRepId) => {
-    const reps = adaptationNode.getElementsByTagNameNS(NS, "Representation");
-    for (let i = reps.length - 1; i >= 0; i--) {
-      const rep = reps[i];
-      if (rep.getAttribute("id") !== chosenRepId) {
-        adaptationNode.removeChild(rep);
+    // Helper to remove unselected representations
+    const keepOnlyRepresentation = (adaptationNode, chosenRepId) => {
+      const reps = adaptationNode.getElementsByTagNameNS(NS, "Representation");
+      for (let i = reps.length - 1; i >= 0; i--) {
+        const rep = reps[i];
+        if (rep.getAttribute("id") !== chosenRepId) {
+          adaptationNode.removeChild(rep);
+        }
       }
+    };
+
+    // Strip unused video representations
+    const videoSet = allSets.find(asNode => {
+      const mimeType = asNode.getAttribute("mimeType") || "";
+      return mimeType.startsWith("video/");
+    });
+    if (videoSet) {
+      keepOnlyRepresentation(videoSet, chosenVideoRep.id);
     }
-  };
 
-  // Strip unused video representations
-  const videoSet = allSets.find(asNode => {
-    const mimeType = asNode.getAttribute("mimeType") || "";
-    return mimeType.startsWith("video/");
-  });
-  if (videoSet) {
-    keepOnlyRepresentation(videoSet, chosenVideoRep.id);
+    // Strip unused audio representations
+    const audioSet = allSets.find(asNode => {
+      const mimeType = asNode.getAttribute("mimeType") || "";
+      return mimeType.startsWith("audio/");
+    });
+    if (audioSet && chosenAudioRep) {
+      keepOnlyRepresentation(audioSet, chosenAudioRep.id);
+    }
+
+    // Update the XML string to only include the kept elements
+    const serializer = new XMLSerializer();
+    const strippedMPD = serializer.serializeToString(xmlDoc);
+    mpdXmlText = strippedMPD;  // override the variable used when adding to ZIP
   }
-
-  // Strip unused audio representations
-  const audioSet = allSets.find(asNode => {
-    const mimeType = asNode.getAttribute("mimeType") || "";
-    return mimeType.startsWith("audio/");
-  });
-  if (audioSet && chosenAudioRep) {
-    keepOnlyRepresentation(audioSet, chosenAudioRep.id);
-  }
-
-  // Update the XML string to only include the kept elements
-  const serializer = new XMLSerializer();
-  const strippedMPD = serializer.serializeToString(xmlDoc);
-  mpdXmlText = strippedMPD;  // override the variable used when adding to ZIP
-}
 
 
   // 11) Create a new JSZip instance
@@ -492,7 +490,7 @@ if (localStorage.getItem("mpd-fix") === "1") {
   // Helper to fetch a URL → ArrayBuffer
   async function fetchArrayBuffer(url) {
     const r = await fetch(url, {
-      method:  request.method,
+      method: request.method,
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer:
         request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || ""
@@ -522,7 +520,7 @@ if (localStorage.getItem("mpd-fix") === "1") {
 
   // 16) Download all video media segments
   for (let i = 0; i < videoInfo.segmentUrls.length; i++) {
-    const segUrl  = videoInfo.segmentUrls[i];
+    const segUrl = videoInfo.segmentUrls[i];
     const segPath = videoInfo.mediaPaths[i];
     console.log(`>>> Fetching video segment #${i + 1}:`, segUrl);
     const buf = await fetchArrayBuffer(segUrl);
@@ -534,7 +532,7 @@ if (localStorage.getItem("mpd-fix") === "1") {
   // 17) Download all audio media segments (if any)
   if (audioInfo) {
     for (let i = 0; i < audioInfo.segmentUrls.length; i++) {
-      const segUrl  = audioInfo.segmentUrls[i];
+      const segUrl = audioInfo.segmentUrls[i];
       const segPath = audioInfo.mediaPaths[i];
       console.log(`>>> Fetching audio segment #${i + 1}:`, segUrl);
       const buf = await fetchArrayBuffer(segUrl);
@@ -549,7 +547,7 @@ if (localStorage.getItem("mpd-fix") === "1") {
   // 18) Generate the ZIP Blob and trigger download
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const baseName = mpdFilename.replace(/\.mpd$/i, "");
-  const zipName  = `${baseName}.zip`;
+  const zipName = `${baseName}.zip`;
 
   const a = document.createElement("a");
   a.href = URL.createObjectURL(zipBlob);

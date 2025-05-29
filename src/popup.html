@@ -44,11 +44,12 @@
         <mdui-linear-progress id="loading-media-list"></mdui-linear-progress>
         <mdui-list id="media-list"></mdui-list>
         <div class="bottom-right">
-            <mdui-fab id="clear-list" extended>
+          <mdui-fab id="clear-list" extended>
             <mdui-icon slot="icon">
               <!-- refresh SVG -->
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="20px">
-                <path d="M600-230v-60h145v60H600Zm0-368v-60h280v60H600Zm0 184v-60h235v60H600ZM125-675H80v-60h170v-45h135v45h170v60h-45v415q0 24-18 42t-42 18H185q-24 0-42-18t-18-42v-415Zm60 0v415h265v-415H185Zm0 0v415-415Z"/>
+                <path
+                  d="M600-230v-60h145v60H600Zm0-368v-60h280v60H600Zm0 184v-60h235v60H600ZM125-675H80v-60h170v-45h135v45h170v60h-45v415q0 24-18 42t-42 18H185q-24 0-42-18t-18-42v-415Zm60 0v415h265v-415H185Zm0 0v415-415Z" />
               </svg>
             </mdui-icon>
             Clear list
@@ -64,7 +65,7 @@
             Refresh list
           </mdui-fab>
         </div>
-        
+
 
         <mdui-tooltip content="Source code">
           <mdui-button-icon variant="tonal" href="https://github.com/helloyanis/media-downloader-unleashed"
@@ -130,8 +131,10 @@
               name="stream-download">
               <h3>Stream download preference</h3>
 
-              <mdui-tooltip content="Download the .m3u8 file directly. Open it with VLC to request the stream from the server. Very fast to
-        download, but requires you to be online and a working server to play the file. Can also fail to play if the resfer serving the media has protections." placement="top-start">
+              <mdui-tooltip
+                content="Download the .m3u8 file directly. Open it with VLC to request the stream from the server. Very fast to
+        download, but requires you to be online and a working server to play the file. Can also fail to play if the resfer serving the media has protections."
+                placement="top-start">
                 <mdui-radio id="stream-file-download" value="stream" name="stream-download">Download stream
                   manifest</mdui-radio>
               </mdui-tooltip>
@@ -146,24 +149,33 @@
 
           <!-- Stream quality -->
           <mdui-card variant="filled">
-            <mdui-radio-group id="stream-quality" class="mdui-shadow-1 mdui-p-a-2" value="stream"
-              name="stream-quality">
+            <mdui-radio-group id="stream-quality" class="mdui-shadow-1 mdui-p-a-2" value="stream" name="stream-quality">
               <h3>Stream quality preference</h3>
 
-              <mdui-tooltip content="Will show a popup when multiple qualities are available for a stream." placement="top-start">
+              <mdui-tooltip content="Will show a popup when multiple qualities are available for a stream."
+                placement="top-start">
                 <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality">Always ask me</mdui-radio>
               </mdui-tooltip>
 
-              <mdui-tooltip content="Always download the highest available quality for a stream. Can take a lot of storage and more time to download." placement="top-start">
-                <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality">Always highest quality</mdui-radio>
+              <mdui-tooltip
+                content="Always download the highest available quality for a stream. Can take a lot of storage and more time to download."
+                placement="top-start">
+                <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality">Always highest
+                  quality</mdui-radio>
               </mdui-tooltip>
-              <mdui-tooltip content="Always download the lowest available quality for a stream. Lighter storage, faster downloads but can be hard to watch." placement="top-start">
-                <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality">Always lowest quality</mdui-radio>
+              <mdui-tooltip
+                content="Always download the lowest available quality for a stream. Lighter storage, faster downloads but can be hard to watch."
+                placement="top-start">
+                <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality">Always lowest
+                  quality</mdui-radio>
               </mdui-tooltip>
             </mdui-radio-group>
-            <br/>
-            <mdui-tooltip content="When downloading .mpd streams, this option will edit the .mpd file to only include the video quality requested by you. This is recommended to avoid VLC and other media players breaking by trying to play a quality that isn't downloaded." placement="top-start">
-              <mdui-checkbox id="stream-quality-ask" name="mpd-fix" value="ask">Fix MPD files (recommended)</mdui-checkbox>
+            <br />
+            <mdui-tooltip
+              content="When downloading .mpd streams, this option will edit the .mpd file to only include the video quality requested by you. This is recommended to avoid VLC and other media players breaking by trying to play a quality that isn't downloaded."
+              placement="top-start">
+              <mdui-checkbox id="stream-quality-ask" name="mpd-fix" value="ask">Fix MPD files
+                (recommended)</mdui-checkbox>
             </mdui-tooltip>
           </mdui-card>
 

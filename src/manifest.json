@@ -17,11 +17,13 @@
   "homepage_url": "https://github.com/helloyanis/live-stream-downloader-unleashed",
   "background": {
     "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "icons": {
-      "96": "icons/file_save.svg",
-      "128": "icons/file_save.svg"
+    "96": "icons/file_save.svg",
+    "128": "icons/file_save.svg"
   },
   "action": {
     "default_title": "Download media"
