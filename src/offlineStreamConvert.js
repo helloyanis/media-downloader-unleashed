@@ -223,6 +223,15 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
  * @param {Object} request          – the single request object (requests[url][selectedSizeIndex])
  */
 async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, request) {
+  // Display a snackbar message informing the user about the separate audio stream
+        const snackbar = document.createElement('mdui-snackbar');
+        snackbar.setAttribute('open', true);
+        snackbar.setAttribute('timeout', 10000);
+        snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
+        document.body.appendChild(snackbar);
+        snackbar.addEventListener('close', () => {
+            snackbar.remove();
+        });
   // 1) Fetch the MPD manifest text
   const resp = await fetch(mpdUrl, {
     method: request.method,
