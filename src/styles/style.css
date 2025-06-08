@@ -72,3 +72,8 @@ body {
     width: unset !important;
     /*This button seemed to bug with MDUI putting it at 0 width*/
 }
+
+mdui-select::part(menu) {
+  height: 300px;
+  overflow: auto;
+}

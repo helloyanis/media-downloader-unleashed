@@ -261,9 +261,13 @@ function loadMediaList() {
         const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
         const selectedSizeIndex = menuItems.findIndex(item => item.value === selectedValue);
 
-        const isStream = streamExtensions.some(ext =>
+        let isStream = streamExtensions.some(ext =>
           new URL(url).pathname.toLowerCase().endsWith(ext)
         );
+        if( isStream && new URL(url).pathname.toLowerCase().endsWith('.mpd')) {
+          // For MPD no need to handle stream differently, just pass the URL
+          isStream = '';
+        }
         browser.tabs.create({
           url: browser.runtime.getURL(`/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${selectedSizeIndex}&isStream=${isStream}`),
         });

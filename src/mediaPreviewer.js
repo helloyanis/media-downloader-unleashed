@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         video.style.maxHeight = '100%';
         document.body.appendChild(video);
 
-        if (streamExtensions.includes(mediaExtension) || isStream === '1') {
+        if (isStream === '1') {
             if (Hls.isSupported()) {
                 // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API
                 let config = {}

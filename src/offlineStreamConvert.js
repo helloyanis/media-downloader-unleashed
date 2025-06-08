@@ -299,7 +299,7 @@ async function selectStreamVariant(playlistLines, baseUrl) {
  * packaged into a ZIP so VLC can play it locally from the unzipped folder.
  *
  * Dependencies:
- *   - JSZip (https://stuk.github.io/jszip/) must be loaded in advance.
+ *   - Client-zip (https://github.com/Touffy/client-zip) must be loaded in advance.
  *
  * @param {String} mpdUrl
  * @param {Array<{name:string,value:string}>} headers
@@ -373,62 +373,60 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       contentType = mimeType.startsWith("video/") ? "video" : "audio";
     }
 
-    // Exactly one <SegmentTemplate> per AdaptationSet (else error)
-    const stList = asNode.getElementsByTagNameNS(NS, "SegmentTemplate");
-    if (!stList || stList.length === 0) {
-      throw new Error("AdaptationSet missing SegmentTemplate. This might mean it’s not a valid MPD (or gets detected as an MPD but isn't).");
+    // Grab the SegmentTemplate from the AdaptationSet:
+    const setSt = asNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+    if (!setSt) {
+      throw new Error("AdaptationSet missing SegmentTemplate. This isn’t a valid MPD.");
     }
-    const st = stList[0];
-
-    // Grab attributes from SegmentTemplate
-    const mediaTmpl = st.getAttribute("media");            // e.g. "video/250kbit/segment_$Number$.m4s"
-    const initTmpl = st.getAttribute("initialization");   // e.g. "video/250kbit/init.mp4"
-    const duration = parseInt(st.getAttribute("duration") || "0", 10);
-    const timescale = parseInt(st.getAttribute("timescale") || "1", 10);
-    const startNumberRaw = st.getAttribute("startNumber");
-    const startNumber = startNumberRaw !== null ? parseInt(startNumberRaw, 10) : 1;
-
-    const segmentTemplate = {
-      media: mediaTmpl,
-      initialization: initTmpl,
-      duration,
-      timescale,
-      startNumber,
-      segmentTimeline: null // (we assume no inline <SegmentTimeline>)
+    // Build a “base” segmentTemplate object from the AdaptationSet
+    const baseSegTmpl = {
+      media: setSt.getAttribute("media"),
+      initialization: setSt.getAttribute("initialization"),
+      duration: parseInt(setSt.getAttribute("duration") || "0", 10),
+      timescale: parseInt(setSt.getAttribute("timescale") || "1", 10),
+      startNumber: setSt.getAttribute("startNumber") !== null
+        ? parseInt(setSt.getAttribute("startNumber"), 10)
+        : 1,
+      // (We assume no inline <SegmentTimeline>, so we don’t handle that here.)
     };
 
-    // Gather all <Representation> children
+    // Now gather all <Representation> children
     const repNodes = Array.from(
       asNode.getElementsByTagNameNS(NS, "Representation")
     );
     if (repNodes.length === 0) {
-      throw new Error("AdaptationSet has no Representation children. This might mean it’s not a valid MPD (or gets detected as an MPD but isn't).");
+      throw new Error("AdaptationSet has no Representation elements.");
     }
+
     const representations = repNodes.map((rNode) => {
-      const st = rNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
-      if (!st) {
-        throw new Error(`Representation ${rNode.getAttribute("id")} is missing a SegmentTemplate`);
-      }
+      // See if this particular <Representation> has its own <SegmentTemplate>
+      const repSt = rNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+
+      // If it does, override fields; otherwise, use the set‐level template
+      const tmplNode = repSt || setSt;
+      const segTmpl = {
+        media: tmplNode.getAttribute("media"),
+        initialization: tmplNode.getAttribute("initialization"),
+        duration: parseInt(tmplNode.getAttribute("duration") || baseSegTmpl.duration.toString(), 10),
+        timescale: parseInt(tmplNode.getAttribute("timescale") || baseSegTmpl.timescale.toString(), 10),
+        startNumber: tmplNode.getAttribute("startNumber") !== null
+          ? parseInt(tmplNode.getAttribute("startNumber"), 10)
+          : baseSegTmpl.startNumber,
+      };
 
       return {
         id: rNode.getAttribute("id"),
         bandwidth: parseInt(rNode.getAttribute("bandwidth") || "0", 10),
         width: parseInt(rNode.getAttribute("width") || "0", 10),
         height: parseInt(rNode.getAttribute("height") || "0", 10),
-        segmentTemplate: {
-          media: st.getAttribute("media"),
-          initialization: st.getAttribute("initialization"),
-          duration: parseInt(st.getAttribute("duration") || "0", 10),
-          timescale: parseInt(st.getAttribute("timescale") || "1", 10),
-          startNumber: parseInt(st.getAttribute("startNumber") || "1", 10),
-        }
+        segmentTemplate: segTmpl
       };
     });
 
-
+    // Return one object per AdaptationSet
     return {
-      contentType,
-      segmentTemplate,
+      contentType,            // as you already determine it
+      segmentTemplate: baseSegTmpl,
       representations
     };
   });
@@ -555,12 +553,15 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
 
-  // 11) Create a new JSZip instance
-  const zip = new JSZip();
+  // 11) Create the zip entries
+  const zipEntries = [];
 
   // 12) Add the original MPD text as “<whatever>.mpd”
   const mpdFilename = mpdUrl.substring(mpdUrl.lastIndexOf("/") + 1); // e.g. "sintel.mpd"
-  zip.file(mpdFilename, mpdXmlText);
+  zipEntries.push({
+    name: mpdFilename,
+    data: new TextEncoder().encode(mpdXmlText), // client-zip accepts ArrayBuffer/Uint8Array
+  });
 
   // 13) Prepare to fetch + add every init + media segment to the ZIP.
   //     Count how many files total so we can show progress in `loadingBar`.
@@ -591,7 +592,10 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   // 14) Download Video Init + add to ZIP under its relative path
   console.log(">>> Fetching video init:", videoInfo.initUrl);
   const vInitBuf = await fetchArrayBuffer(videoInfo.initUrl);
-  zip.file(videoInfo.initPath, vInitBuf);
+  zipEntries.push({
+    name: videoInfo.initPath, // e.g. "video/6000kbit/init.mp4"
+    data: vInitBuf, // ArrayBuffer
+  });
   downloadedCount++;
   loadingBar.setAttribute("value", downloadedCount);
 
@@ -600,7 +604,10 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   if (audioInfo) {
     console.log(">>> Fetching audio init:", audioInfo.initUrl);
     aInitBuf = await fetchArrayBuffer(audioInfo.initUrl);
-    zip.file(audioInfo.initPath, aInitBuf);
+    zipEntries.push({
+      name: audioInfo.initPath, // e.g. "audio/480kbit/init.mp4"
+      data: aInitBuf,
+    });
     downloadedCount++;
     loadingBar.setAttribute("value", downloadedCount);
   }
@@ -611,7 +618,10 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     const segPath = videoInfo.mediaPaths[i];
     console.log(`>>> Fetching video segment #${i + 1}:`, segUrl);
     const buf = await fetchArrayBuffer(segUrl);
-    zip.file(segPath, buf);
+    zipEntries.push({
+      name: segPath,
+      data: buf,
+    });
     downloadedCount++;
     loadingBar.setAttribute("value", downloadedCount);
   }
@@ -623,7 +633,10 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       const segPath = audioInfo.mediaPaths[i];
       console.log(`>>> Fetching audio segment #${i + 1}:`, segUrl);
       const buf = await fetchArrayBuffer(segUrl);
-      zip.file(segPath, buf);
+      zipEntries.push({
+        name: segPath,
+        data: buf,
+      });
       downloadedCount++;
       loadingBar.setAttribute("value", downloadedCount);
     }
@@ -632,7 +645,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   console.log("▶️ All segments fetched; generating ZIP…");
 
   // 18) Generate the ZIP Blob and trigger download
-  const zipBlob = await zip.generateAsync({ type: "blob" });
+  const zipBlob = await downloadZip(zipEntries).blob();
   const baseName = mpdFilename.replace(/\.mpd$/i, "");
   const zipName = `${baseName}.zip`;
 

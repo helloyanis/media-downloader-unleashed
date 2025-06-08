@@ -1,8 +1,13 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Download videos, music and live streams to your device!",
+  "author": "🦊 helloyanis",
+  "developer": {
+    "name": "🦊 helloyanis",
+    "url": "https://🦊💻.ws"
+  },
   "permissions": [
     "storage",
     "downloads",
