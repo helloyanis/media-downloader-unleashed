@@ -649,12 +649,22 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   const baseName = mpdFilename.replace(/\.mpd$/i, "");
   const zipName = `${baseName}.zip`;
 
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(zipBlob);
-  a.download = zipName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  if (downloadMethod === "browser") {
+    // Use browser.downloads API to download the ZIP
+    await browser.downloads.download({
+      url: URL.createObjectURL(zipBlob),
+      filename: zipName
+    });
+  } else {
+    // Use a temporary <a> element to trigger download
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = zipName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href); // Clean up the blob URL
+  }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
   showDialog(`The MPD stream has been downloaded as a ZIP file. You can extract it and play the ${baseName}.mpd video with VLC or any other compatible player.`, "MPD Download Complete");
