@@ -398,6 +398,14 @@ function getHumanReadableSize(size) {
 */
 async function downloadFile(url, mediaDiv) {
   console.log('Downloading media file:', url);
+  let wakeLock = null
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    console.log("Wake Lock is active!");
+  } catch (err) {
+    // The Wake Lock request has failed - usually system related, such as battery.
+    console.warn(`Could not activate wake lock due to error ${err.name}, ${err.message}`);
+  }
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
   try {
     const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
@@ -444,12 +452,18 @@ async function downloadFile(url, mediaDiv) {
       mediaDiv.removeChild(loadingBar);
       mediaDiv.querySelector("#download-button").loading = false;
       mediaDiv.querySelector("#download-button").disabled = false;
+      wakeLock.release().then(() => {
+        wakeLock = null;
+      });
       return;
     }
 
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+      wakeLock.release().then(() => {
+        wakeLock = null;
+      });
       mediaDiv.removeChild(loadingBar);
       mediaDiv.querySelector("#download-button").loading = false;
       mediaDiv.querySelector("#download-button").disabled = false;
@@ -468,11 +482,17 @@ async function downloadFile(url, mediaDiv) {
         headers: headers,
         method: requests[url][selectedSizeIndex].method
       }).then((downloadId) => {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+        });
         console.log('Media file downloaded:', downloadId);
         mediaDiv.removeChild(loadingBar);
         mediaDiv.querySelector("#download-button").loading = false
         mediaDiv.querySelector("#download-button").disabled = false
       }).catch((error) => {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+        });
         mediaDiv.removeChild(loadingBar);
         mediaDiv.querySelector("#download-button").loading = false
         mediaDiv.querySelector("#download-button").disabled = false
@@ -509,6 +529,9 @@ async function downloadFile(url, mediaDiv) {
       a.click();
       document.body.removeChild(a);
       console.log('Media file downloaded:', blobUrl);
+      wakeLock.release().then(() => {
+        wakeLock = null;
+      });
       mediaDiv.removeChild(loadingBar);
       mediaDiv.querySelector("#download-button").loading = false
       mediaDiv.querySelector("#download-button").disabled = false
@@ -516,6 +539,9 @@ async function downloadFile(url, mediaDiv) {
     }
   } catch (error) {
     console.error('Error downloading media file:', error);
+    wakeLock.release().then(() => {
+      wakeLock = null;
+    });
     showDialog(browser.i18n.getMessage("downloadError", [error.message]));
     mediaDiv.removeChild(loadingBar);
     mediaDiv.querySelector("#download-button").loading = false
