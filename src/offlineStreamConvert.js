@@ -232,41 +232,53 @@ async function selectStreamVariant(playlistLines, baseUrl) {
         }
     }
 
-    if (variants.length === 1) {
-        // Only one variant available, no need to ask the user
-        return variants[0];
-    }
+    // Fetch duration for each variant to estimate size
+    await Promise.all(variants.map(async (variant) => {
+        try {
+            const res = await fetch(variant.uri);
+            const text = await res.text();
+            const duration = text.split('\n')
+                .filter(line => line.startsWith("#EXTINF:"))
+                .map(line => parseFloat(line.replace("#EXTINF:", "")))
+                .reduce((sum, dur) => sum + dur, 0); // total seconds
+
+            const estimatedSize = (variant.bandwidth * duration) / 8; // bytes
+            variant.estimatedSize = estimatedSize;
+            variant.duration = duration;
+        } catch (e) {
+            console.warn("Could not fetch duration for", variant.uri);
+            variant.estimatedSize = null;
+        }
+    }));
+
+    // If only one variant, return it
+    if (variants.length === 1) return variants[0];
+
     const preference = localStorage.getItem("stream-quality");
+    if (preference === "highest") return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
+    if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
 
-    if (preference === "highest") {
-        return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
-    } else if (preference === "lowest") {
-        return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
-    }
-
-    // Build the UI dynamically using createElement
     return new Promise((resolve) => {
         const dialog = document.createElement("mdui-dialog");
-        dialog.headline="Select Stream Quality";
+        dialog.headline = "Select Stream Quality";
 
         const content = document.createElement("div");
         content.className = "mdui-dialog-content";
         dialog.appendChild(content);
 
         const label = document.createElement("label");
-        label.setAttribute("for", "stream-quality-select");
         label.textContent = "Quality:";
         content.appendChild(label);
 
         const select = document.createElement("mdui-select");
         select.setAttribute("variant", "outlined");
-        select.setAttribute("id", "stream-quality-select");
-        select.value = "0"; // Default to the first option
 
         variants.forEach((v, index) => {
             const option = document.createElement("mdui-menu-item");
             option.setAttribute("value", index);
-            option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps)`;
+
+            const sizeMB = v.estimatedSize ? (v.estimatedSize / (1024 * 1024)).toFixed(2) + " MB" : "Size N/A";
+            option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps, ${sizeMB})`;
             select.appendChild(option);
         });
 
@@ -288,11 +300,10 @@ async function selectStreamVariant(playlistLines, baseUrl) {
         dialog.appendChild(actions);
 
         document.body.appendChild(dialog);
-
-        // Trigger the dialog
         requestAnimationFrame(() => dialog.open = true);
     });
 }
+
 
 /**
  * Download a DASH (.mpd) stream offline + all segments (audio + one chosen video),

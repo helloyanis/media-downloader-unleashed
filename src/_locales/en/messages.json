@@ -1,0 +1,122 @@
+{
+    "actionTitle": {
+        "message": "Download media",
+        "description": "The contents of the context menu when hovering over the extension icon."
+    },
+    "extensionDescription": {
+        "message": "Download videos, music and live streams to your device!",
+        "description": "The description of the extension shown in the browser's settings page."
+    },
+    "errorTitle1": {
+        "message": "Something went wrong!",
+        "description": "The 1st title of the error popup, randomly selects one of the titles when there is an error."
+    },
+    "errorTitle2": {
+        "message": "Oops!",
+        "description": "The 2nd title of the error popup."
+    },
+    "errorTitle3": {
+        "message": "Uh oh!",
+        "description": "The 3rd title of the error popup."
+    },
+    "errorTitle4": {
+        "message": "Error!",
+        "description": "The 4th title of the error popup."
+    },
+    "errorTitle5": {
+        "message": "Annnd it broke!",
+        "description": "The 5th title of the error popup."
+    },
+    "errorTitle6": {
+        "message": "Oh no!",
+        "description": "The 6th title of the error popup."
+    },
+    "reportIssue": {
+        "message": "Report issue",
+        "description": "The text of the link to report an issue in the error popup."
+    },
+    "okButton": {
+        "message": "OK",
+        "description": "The text of the OK button in the error popup."
+    },
+    "requestText": {
+        "message": "$METHOD$ request from $SOURCE$",
+        "description": "The text showing which type of request is being made to load the media.",
+        "placeholders": {
+            "METHOD": {
+                "content": "$1",
+                "example": "GET"
+            },
+            "SOURCE": {
+                "content": "$2",
+                "example": "https://example.com/video.mp4"
+            }
+        }
+    },
+    "requestMethodUnknown": {
+        "message": "Unknown",
+        "description": "The text shown when the request method is not recognized."
+    },
+    "requestSourceUnknown": {
+        "message": "an unknown source",
+        "description": "The text shown when the request source is not recognized."
+    },
+    "sizeText": {
+        "message": "Size",
+        "description": "The text above the size selector in the media list."
+    },
+    "copyURL": {
+        "message": "Copy URL",
+        "description": "The text of the button to copy the media URL to clipboard."
+    },
+    "URLCopyError": {
+        "message": "Failed to copy URL to clipboard",
+        "description": "The error message shown when the URL copy operation fails."
+    },
+    "previewMedia": {
+        "message": "Preview",
+        "description": "The text of the preview button in the media list."
+    },
+    "downloadMedia": {
+        "message": "Download",
+        "description": "The text of the download button in the media list."
+    },
+    "endOfMediaList": {
+        "message": "End of media list",
+        "description": "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings."
+    },
+    "listLoadError": {
+        "message": "Error retrieving media requests. Here's what went wrong: $ERROR$",
+        "description": "The error message shown when the media list fails to load.",
+        "placeholders": {
+            "ERROR": {
+                "content": "$1",
+                "example": "Network error"
+            }
+        }
+    },
+    "listClearError": {
+        "message": "Error clearing media list. Here's what went wrong: $ERROR$",
+        "description": "The error message shown when the media list fails to clear.",
+        "placeholders": {
+            "ERROR": {
+                "content": "$1",
+                "example": "Network error"
+            }
+        }
+    },
+    "unknownSize": {
+        "message": "Unknown size",
+        "description": "The text shown when the size of the media can't be parsed."
+    },
+    "downloadError": {
+        "message": "Error downloading media. Here's what went wrong: $ERROR$",
+        "description": "The error message shown when the media download fails.",
+        "placeholders": {
+            "ERROR": {
+                "content": "$1",
+                "example": "Network error"
+            }
+        }
+    }
+}

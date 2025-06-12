@@ -32,7 +32,7 @@ function showDialog(message, title = null) {
   //Add the title to the dialog
   const titleElement = document.createElement('div');
   titleElement.setAttribute('slot', 'headline');
-  errorTitles = ["Something went wrong!", "Oops!", "Uh oh!", "Error!", "Annnd it broke!", "Oh no!"];
+  errorTitles = [browser.i18n.getMessage("errorTitle1"), browser.i18n.getMessage("errorTitle2"), browser.i18n.getMessage("errorTitle3"), browser.i18n.getMessage("errorTitle4"), browser.i18n.getMessage("errorTitle5"),browser.i18n.getMessage("errorTitle6")];
   if (title) {
     titleElement.textContent = title;
   } else {
@@ -50,7 +50,7 @@ function showDialog(message, title = null) {
   //Add an buttons to the dialog
   const reportButton = document.createElement('mdui-button');
   reportButton.variant = "text"
-  reportButton.textContent = 'Report Issue';
+  reportButton.textContent = browser.i18n.getMessage("reportIssue");
   reportButton.slot = 'action';
   reportButton.addEventListener('click', () => {
     browser.tabs.create({
@@ -61,7 +61,7 @@ function showDialog(message, title = null) {
 
   const okButton = document.createElement('mdui-button');
   okButton.variant = "text"
-  okButton.textContent = 'OK';
+  okButton.textContent = browser.i18n.getMessage("okButton");
   okButton.slot = 'action';
   okButton.addEventListener('click', () => {
     dialog.removeAttribute('open');
@@ -181,7 +181,7 @@ function loadMediaList() {
       //Display request method and referrer
       const descriptionDiv = document.createElement('div');
       console.log(requests)
-      descriptionDiv.textContent = `${requests[0]?.method ?? "Unknown"} request from ${requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value ?? "an unknown source"}`;
+      descriptionDiv.textContent = browser.i18n.getMessage("requestText",[requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value ?? browser.i18n.getMessage("requestSourceUnknown")]);
       mediaDiv.appendChild(descriptionDiv);
 
       // Create a div to put actions at the end of the media item
@@ -198,7 +198,7 @@ function loadMediaList() {
       // Create a select for the media sizes
       const sizeSelect = document.createElement('mdui-select');
       sizeSelect.variant = 'outlined';
-      sizeSelect.label = 'Size';
+      sizeSelect.label = browser.i18n.getMessage('size');
       sizeSelect.style.width = 'auto';
       sizeSelect.id = url;
       sizeSelect.classList.add('media-size-select');
@@ -221,8 +221,8 @@ function loadMediaList() {
         const selectedSize = sizeSelect.value;
         const request = requests.find(request => request.size === selectedSize);
         const refererHeader = request?.requestHeaders.find(h => h.name.toLowerCase() === "referer");
-        const referer = refererHeader?.value || "an unknown source";
-        descriptionDiv.textContent = `${request?.method || 'Unknown'} request from ${referer}`;
+        const referer = refererHeader?.value || browser.i18n.getMessage("requestSourceUnknown");
+        descriptionDiv.textContent = browser.i18n.getMessage("requestText", [request?.method || browser.i18n.getMessage("requestMethodUnknown"), referer]);
       });
 
       actionsDiv.appendChild(sizeSelect);
@@ -231,13 +231,13 @@ function loadMediaList() {
 
       // Add a button to copy the selected media URL to the clipboard
       const copyButton = document.createElement('mdui-segmented-button');
-      copyButton.textContent = 'Copy URL';
+      copyButton.textContent = browser.i18n.getMessage("copyURL");
       copyButton.addEventListener('click', () => {
         navigator.clipboard.writeText(url).then(() => {
           console.log('URL copied to clipboard:', url);
         }).catch((error) => {
           console.error('Error copying URL to clipboard:', error);
-          showDialog('Error copying URL to clipboard. Please try again.');
+          showDialog(browser.i18n.getMessage("URLCopyError"));
         });
       });
 
@@ -255,7 +255,7 @@ function loadMediaList() {
 
       // Add a button to preview the selected media file
       const previewButton = document.createElement('mdui-segmented-button');
-      previewButton.textContent = 'Preview';
+      previewButton.textContent = browser.i18n.getMessage("previewMedia");
       previewButton.addEventListener('click', () => {
         const selectedValue = sizeSelect.value;
         const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
@@ -286,7 +286,7 @@ function loadMediaList() {
 
       // Add a button to download the selected media file
       const downloadButton = document.createElement('mdui-segmented-button');
-      downloadButton.textContent = 'Download';
+      downloadButton.textContent = browser.i18n.getMessage("downloadMedia");
       downloadButton.addEventListener('click', () => {
         downloadFile(url, mediaDiv);
       });
@@ -326,7 +326,7 @@ function loadMediaList() {
     mediaContainer.appendChild(endOfMediaList);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
-    showDialog('Error retrieving media requests. Here\'s what went wrong: ' + error);
+    showDialog(browser.i18n.getMessage("listLoadError", [error]));
   });
 }
 
@@ -340,7 +340,7 @@ function clearMediaList() {
     loadMediaList(); //Refresh the display
   }).catch((error) => {
     console.error('Error clearing media list:', error);
-    showDialog('Error clearing media list. Here\'s what went wrong: ' + error);
+    showDialog(browser.i18n.getMessage("listClearError", [error]));
   });
 }
 
@@ -379,7 +379,7 @@ function getFileName(url) {
 function getHumanReadableSize(size) {
   const units = ['b', 'Kb', 'Mb', 'Gb', 'Tb'];
   if (isNaN(size)) {
-    return "Unknown size";
+    return browser.i18n.getMessage("unknownSize"); // Return a message if size is not a number
   }
   let unitIndex = 0;
   let sizeInBytes = parseInt(size);
@@ -516,7 +516,7 @@ async function downloadFile(url, mediaDiv) {
     }
   } catch (error) {
     console.error('Error downloading media file:', error);
-    showDialog('Error downloading media file. Here\'s what went wrong: ' + error);
+    showDialog(browser.i18n.getMessage("downloadError", [error.message]));
     mediaDiv.removeChild(loadingBar);
     mediaDiv.querySelector("#download-button").loading = false
     mediaDiv.querySelector("#download-button").disabled = false
