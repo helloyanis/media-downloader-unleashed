@@ -10,11 +10,12 @@
   },
   "permissions": [
     "storage",
-    "downloads",
     "contextMenus",
     "webRequest",
-    "scripting",
     "unlimitedStorage"
+  ],
+  "optional_permissions": [
+    "downloads"
   ],
   "host_permissions": [
     "*://*/*"

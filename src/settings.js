@@ -80,16 +80,41 @@ async function initializeSettings() {
 
     // Add event listeners to the radio buttons
     document.querySelectorAll('mdui-radio-group').forEach(radio => {
-        radio.addEventListener('change', (event) => {
+        radio.addEventListener('change', async (event) => {
             let setting = event.target.name;
             let value = event.target.value;
             if ((value === 'window' || value === 'browser') && isInitialized) {
                 document.querySelector('.mobile-incompatible-warning').open = true;
             }
-            localStorage.setItem(setting, value);
-            browser.storage.local.set({ [setting]: value });
+            if(value !== 'browser') {
+                localStorage.setItem(setting, value);
+                browser.storage.local.set({ [setting]: value });
+            }
+            else{
+                await browser.permissions.request({
+                    permissions: ["downloads"]
+                }).then((granted) => {
+                    if (granted) {
+                        localStorage.setItem(setting, value);
+                        browser.storage.local.set({ [setting]: value });
+                    }
+                    
+                })
+            }
+            
         });
     });
+
+    browser.permissions.onRemoved.addListener((removedPermissions) => {
+        // Check if the 'downloads' permission was removed
+        if (removedPermissions.permissions.includes("downloads")) {
+            // Revert the download method to 'fetch'
+            let downloadMethod = 'fetch';
+            localStorage.setItem('download-method', downloadMethod);
+            browser.storage.local.set({ 'download-method': downloadMethod });
+            document.querySelector(`mdui-radio-group[name="download-method"]`).value = downloadMethod;
+        }
+    })
 
     // Add event listeners to the checkboxes
     document.querySelectorAll('mdui-checkbox').forEach(checkbox => {
