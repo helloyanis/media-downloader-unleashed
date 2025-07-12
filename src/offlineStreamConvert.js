@@ -183,7 +183,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(`Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i ${baseFileName}_video.ts -i ${baseFileName}_audio.ts -c copy final_video.mp4`, "Downloaded separated audio and video streams");
+    showDialog(`Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i ${baseFileName}_video.ts -i ${baseFileName}_audio.mp3 -c copy ${baseFileName}.mp4</code>`, "Downloaded separated audio and video streams");
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;

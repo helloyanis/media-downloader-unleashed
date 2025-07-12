@@ -360,6 +360,9 @@ function getFileName(url) {
     // Remove query string from file name
     fileName = fileName.split('?')[0];
 
+    // Replace < and > characters with underscores (to avoid xss attacks on popups)
+    fileName = fileName.replace(/<|>/g, '_');
+
     //Limit to 20 characters, but still show the extension
     if (fileName.length > 20) {
       fileName = fileName.substring(0, 20) + '…' + fileName.substring(fileName.lastIndexOf('.'));
