@@ -1,6 +1,6 @@
 ## Click the button below to install on Firefox!
 
-<a href="https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=github"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
+<a href="https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=github-readme"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
 ### How to install on Chrome, Edge, Chromium, etc...
 1. Get the `addon.xpi` file from the [releases page](https://github.com/helloyanis/media-downloader-unleashed/releases) (scroll down for a bit to see it)
