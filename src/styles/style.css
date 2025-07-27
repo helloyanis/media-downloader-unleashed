@@ -21,15 +21,6 @@
     left: 16px;
 }
 
-.settings-radio-group,
-#color-picker {
-    --md-elevation-level: 3;
-    margin: 10px;
-    padding: 10px;
-    position: relative;
-    border-radius: 16px;
-}
-
 .media-item {
     display: flex;
     flex-wrap: wrap;
@@ -50,7 +41,8 @@
 }
 
 #settings-container>* {
-    max-width: 500px;
+    margin: 10px;
+    padding: 10px;
     flex-grow: 1;
 }
 

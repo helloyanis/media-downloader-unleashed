@@ -4,6 +4,30 @@ if (typeof browser === 'undefined') {
 }
 document.addEventListener('DOMContentLoaded', () => {
     initializeSettings();
+
+    // Share button functionality
+    document.querySelector('#share-button').addEventListener('click', async () => {
+        if (!navigator.share) {
+            console.error('Web Share API is not supported in this browser.');
+            mdui.alert({
+                description: 'Web Share API is not supported in this browser. On Firefox, you can enable it by navigating to about:config and setting the preference "dom.webshare.enabled" to true.',
+                headline: 'Share Not Supported'
+            });
+            return;
+        }
+        const shareData = {
+            title: 'Check out Live Stream Downloader Unleashed!!',
+            text: 'Check out Media Downloader Unleashed, a free and #opensource browser extension to download videos, audios and live streams from many websites!',
+            url: 'https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=inapp-share'
+        };
+
+        try {
+            await navigator.share(shareData);
+            console.log('Share was successful.');
+        } catch (error) {
+            console.error('Sharing failed:', error);
+        }
+    });
 });
 
 async function initializeSettings() {
@@ -86,11 +110,11 @@ async function initializeSettings() {
             if ((value === 'window' || value === 'browser') && isInitialized) {
                 document.querySelector('.mobile-incompatible-warning').open = true;
             }
-            if(value !== 'browser') {
+            if (value !== 'browser') {
                 localStorage.setItem(setting, value);
                 browser.storage.local.set({ [setting]: value });
             }
-            else{
+            else {
                 await browser.permissions.request({
                     permissions: ["downloads"]
                 }).then((granted) => {
@@ -98,10 +122,10 @@ async function initializeSettings() {
                         localStorage.setItem(setting, value);
                         browser.storage.local.set({ [setting]: value });
                     }
-                    
+
                 })
             }
-            
+
         });
     });
 
