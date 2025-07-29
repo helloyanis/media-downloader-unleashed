@@ -37,9 +37,6 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "{dab9a10d-f9c5-4e8d-9351-67531e85b508}",
-      "data_collection_permissions": {
-        "required": ["none"]
-      }
     }
   },
   "default_locale": "en"
