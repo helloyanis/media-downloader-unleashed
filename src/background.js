@@ -235,10 +235,12 @@ browser.action.onClicked.addListener((tab) => {
     });
 });
 
-browser.runtime.onInstalled.addListener(() => {
-    browser.tabs.create({
-        url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md#thank-you-for-installing-the-file-downloader-unleashed-add-on`,
-    });
+browser.runtime.onInstalled.addListener((details) => {
+    if( details.reason === 'install') {
+        browser.tabs.create({
+            url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md#thank-you-for-installing-the-file-downloader-unleashed-add-on`,
+        });
+    }
 });
 
 browser.runtime.setUninstallURL(`https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/uninstalled.md`);

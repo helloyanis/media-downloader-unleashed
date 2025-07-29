@@ -2,7 +2,7 @@
 if (typeof browser === 'undefined') {
     var browser = chrome;
 }
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initializeSettings();
 
     // Share button functionality
@@ -129,6 +129,11 @@ async function initializeSettings() {
         });
     });
 
+    // Check is the extension has permissions to access all URLs
+    if( !await browser.permissions.contains({ origins: ["<all_urls>"] })) {
+        requestOriginsPermission();
+    }
+
     browser.permissions.onRemoved.addListener((removedPermissions) => {
         // Check if the 'downloads' permission was removed
         if (removedPermissions.permissions.includes("downloads")) {
@@ -137,6 +142,10 @@ async function initializeSettings() {
             localStorage.setItem('download-method', downloadMethod);
             browser.storage.local.set({ 'download-method': downloadMethod });
             document.querySelector(`mdui-radio-group[name="download-method"]`).value = downloadMethod;
+        }
+        // Check if the 'all_urls' permission was removed
+        if (removedPermissions.origins.includes("<all_urls>")) {
+            requestOriginsPermission();
         }
     })
 
@@ -213,4 +222,37 @@ async function checkAndMigrateLegacyDetectionMethod() {
 
         document.body.appendChild(dialog);
     }
+}
+
+async function requestOriginsPermission() {
+    // Request permissions to access all URLs
+    if (localStorage.getItem('originPermissionDismissed') === '1') {
+        return; // If the user has dismissed the permission request, do not show it again
+    }
+    mdui.confirm({
+        headline: 'Permission Required',
+        description: 'The extension needs permission to access all URLs to function properly. This is in order to detect media from all websites. Your browsing data is only stored on your device, and not shared with anyone. Please grant the permission, or if you know what you are doing and want scoped storage, you can dismiss this warning.',
+        confirmText: 'Grant Permission',
+        cancelText: "Don't remind me",
+        onConfirm: async () => {
+            const granted = await browser.permissions.request({ origins: ["<all_urls>"] });
+            if (granted) {
+                mdui.snackbar({
+                    message: 'Permission granted successfully.',
+                    closeable: true,
+                });
+            } else {
+                mdui.snackbar({
+                    message: 'Permission denied. The extension may not work as expected.',
+                    closeable: true,
+                });
+            }
+        },
+        onCancel: () => {
+            localStorage.setItem('originPermissionDismissed', '1');
+            mdui.snackbar({
+                message: 'Permission not granted. The extension may not work as expected.',
+            });
+        }
+    });
 }
