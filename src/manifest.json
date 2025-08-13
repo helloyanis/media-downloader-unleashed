@@ -1,12 +1,12 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "version": "3.2.7",
+  "version": "3.2.8",
   "description": "__MSG_extensionDescription__",
   "author": "🦊 helloyanis",
   "developer": {
     "name": "🦊 helloyanis",
-    "url": "https://github.com/helloyanis/live-stream-downloader-unleashed"
+    "url": "https://github.com/helloyanis/"
   },
   "permissions": [
     "storage",
@@ -20,7 +20,7 @@
   "host_permissions": [
     "<all_urls>"
   ],
-  "homepage_url": "https://github.com/helloyanis/live-stream-downloader-unleashed",
+  "homepage_url": "https://github.com/helloyanis/media-downloader-unleashed",
   "background": {
     "service_worker": "background.js",
     "scripts": [
