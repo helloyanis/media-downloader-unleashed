@@ -409,7 +409,12 @@ async function downloadFile(url, mediaDiv) {
     // The Wake Lock request has failed - usually system related, such as battery.
     console.warn(`Could not activate wake lock due to error ${err.name}, ${err.message}`);
   }
+
+  // Add confirmation to leave the page while downloading
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
+  const loadingBar = document.createElement('mdui-linear-progress');
   try {
     const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
     const forbiddenHeaders = [
@@ -436,7 +441,6 @@ async function downloadFile(url, mediaDiv) {
 
     const downloadMethod = localStorage.getItem('download-method');
     const streamDownload = localStorage.getItem('stream-download');
-    const loadingBar = document.createElement('mdui-linear-progress');
 
     // Change the UI to indicate that the download is in progress
     mediaDiv.querySelector("#download-button").loading = true
@@ -452,24 +456,12 @@ async function downloadFile(url, mediaDiv) {
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
       await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      mediaDiv.removeChild(loadingBar);
-      mediaDiv.querySelector("#download-button").loading = false;
-      mediaDiv.querySelector("#download-button").disabled = false;
-      wakeLock.release().then(() => {
-        wakeLock = null;
-      });
       return;
     }
 
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      wakeLock.release().then(() => {
-        wakeLock = null;
-      });
-      mediaDiv.removeChild(loadingBar);
-      mediaDiv.querySelector("#download-button").loading = false;
-      mediaDiv.querySelector("#download-button").disabled = false;
       return;
     }
 
@@ -485,22 +477,9 @@ async function downloadFile(url, mediaDiv) {
         headers: headers,
         method: requests[url][selectedSizeIndex].method
       }).then((downloadId) => {
-        wakeLock.release().then(() => {
-          wakeLock = null;
-        });
         console.log('Media file downloaded:', downloadId);
-        mediaDiv.removeChild(loadingBar);
-        mediaDiv.querySelector("#download-button").loading = false
-        mediaDiv.querySelector("#download-button").disabled = false
       }).catch((error) => {
-        wakeLock.release().then(() => {
-          wakeLock = null;
-        });
-        mediaDiv.removeChild(loadingBar);
-        mediaDiv.querySelector("#download-button").loading = false
-        mediaDiv.querySelector("#download-button").disabled = false
         throw new Error('Error downloading media file with browser download method:', error);
-
       });
 
     } else {
@@ -532,25 +511,28 @@ async function downloadFile(url, mediaDiv) {
       a.click();
       document.body.removeChild(a);
       console.log('Media file downloaded:', blobUrl);
-      wakeLock.release().then(() => {
-        wakeLock = null;
-      });
-      mediaDiv.removeChild(loadingBar);
-      mediaDiv.querySelector("#download-button").loading = false
-      mediaDiv.querySelector("#download-button").disabled = false
       URL.revokeObjectURL(blobUrl); // Clean up the blob URL
     }
   } catch (error) {
     console.error('Error downloading media file:', error);
-    wakeLock.release().then(() => {
-      wakeLock = null;
-    });
     showDialog(browser.i18n.getMessage("downloadError", [error.message]));
+  }
+  finally {
+    if (wakeLock) {
+      wakeLock.release().then(() => {
+        wakeLock = null;
+      });
+    }
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
     mediaDiv.removeChild(loadingBar);
     mediaDiv.querySelector("#download-button").loading = false
     mediaDiv.querySelector("#download-button").disabled = false
   }
 }
 
-
-
+/** * Warn the user if they try to leave the page while a download is in progress
+ * @param {Event} event The beforeunload event
+ */
+const beforeUnloadHandler = (event) => {
+  event.preventDefault();
+};

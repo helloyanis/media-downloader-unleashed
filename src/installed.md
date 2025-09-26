@@ -1,4 +1,4 @@
-# Thank you for installing the File Downloader Unleashed add-on!
+# Thank you for installing the Media Downloader Unleashed add-on!
 
 This add-on is a powerful tool that allows you to download files from the web to your device.
 
@@ -7,7 +7,9 @@ This add-on is a powerful tool that allows you to download files from the web to
 1. Open the web page that contains the file you want to download. The add-on icon should turn into a download icon when a file is detected on the page.
 2. Click the add-on icon to open the download menu, and start the download!
 
-It's easy! 
+It's easy!
+
+> 💡 Note : Sometimes, the browser does not initialize the add-on before you click on it. If nothing appears in the list, then first open a tab with the add-on, then load your media on the page by refreshing it and re-starting playback, and go back to the add-on page and click "Refresh list"
 
 ## FAQ
 
