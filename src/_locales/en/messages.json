@@ -4,7 +4,7 @@
         "description": "The contents of the context menu when hovering over the extension icon."
     },
     "extensionDescription": {
-        "message": "Download videos, music and live streams to your device!",
+        "message": "Download videos, music and live streams!",
         "description": "The description of the extension shown in the browser's settings page."
     },
     "errorTitle1": {
@@ -82,11 +82,11 @@
         "description": "The text of the download button in the media list."
     },
     "endOfMediaList": {
-        "message": "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings.",
+        "message": "If you don't see the media you're looking for, try play the media then refreshing the list. If you still don't see it, change media detection method in the settings.",
         "description": "The text shown at the end of the media list in the popup."
     },
     "listLoadError": {
-        "message": "Error retrieving media requests. Here's what went wrong: $ERROR$",
+        "message": "Error retrieving media requests: $ERROR$",
         "description": "The error message shown when the media list fails to load.",
         "placeholders": {
             "ERROR": {
@@ -96,7 +96,7 @@
         }
     },
     "listClearError": {
-        "message": "Error clearing media list. Here's what went wrong: $ERROR$",
+        "message": "Error clearing media list: $ERROR$",
         "description": "The error message shown when the media list fails to clear.",
         "placeholders": {
             "ERROR": {
@@ -110,7 +110,7 @@
         "description": "The text shown when the size of the media can't be parsed."
     },
     "downloadError": {
-        "message": "Error downloading media. Here's what went wrong: $ERROR$",
+        "message": "Error downloading media: $ERROR$",
         "description": "The error message shown when the media download fails.",
         "placeholders": {
             "ERROR": {
@@ -128,11 +128,11 @@
         "description": "The name of the settings tab in the popup."
     },
     "clearListButton": {
-        "message": "Clear list",
+        "message": "Clear",
         "description": "The label of the button to clear the media list."
     },
     "refreshListButton": {
-        "message": "Refresh list",
+        "message": "Refresh",
         "description": "The label of the button to refresh the media list."
     },
     "detectionMethodTitle": {
@@ -140,11 +140,11 @@
         "description": "The title of the detection method section in the settings tab."
     },
     "needToRefreshListWarning": {
-        "message": "⚠️ After changing this, click on \"Refresh list\" to see the changes!",
+        "message": "⚠️ After changing this, click on «Refresh list» to see the changes!",
         "description": "The warning shown below the detection method title in the settings tab."
     },
     "urlDetectionExplain": {
-        "message": "Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some sites don't serve medias through these kind of URLs, so it might not detect everything.",
+        "message": "Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). This is fast, but may not work on some sites.",
         "description": "The explanation of URL-based detection method shown in a tooltip."
     },
     "urlDetectionCheckbox": {
@@ -152,11 +152,11 @@
         "description": "The label of the checkbox to enable URL-based detection method."
     },
     "mimeDetectionExplain": {
-        "message": "Detection by checking the server's MIME response (for example video/mp4, application/vnd.apple.mpegurl). It's slower than URL detection as the add-on needs to monitor every request and response, but more reliable.",
+        "message": "Detection by checking the server's MIME response (for example video/mp4, application/vnd.apple.mpegurl). It's slower than URL detection, but more reliable.",
         "description": "The explanation of MIME-based detection method shown in a tooltip."
     },
     "mimeDetectionCheckbox": {
-        "message": "Detection via server's MIME response",
+        "message": "Detection via MIME",
         "description": "The label of the checkbox to enable MIME-based detection method."
     },
     "downloadMethodTitle": {
@@ -164,7 +164,7 @@
         "description": "The title of the download method section in the settings tab."
     },
     "browserDownloadExplain": {
-        "message": "Download the media using the browser's native download manager. Fast and handles disconnects, but only works on some sites and on some browsers (Firefox for PC).",
+        "message": "Download the media using the browser's native download manager. Fast and handles disconnects, but only works on some sites and on some browsers.",
         "description": "The explanation of native browser download method shown in a tooltip."
     },
     "browserDownloadCheckbox": {
@@ -184,11 +184,11 @@
         "description": "The title of the stream download preference section in the settings tab."
     },
     "streamFileDownloadExplain": {
-        "message": "Download the stream manifest file (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view them. Lighter downloads, but you will need to be online with a working server to play the file. Some servers also block playback this way.",
+        "message": "Download the stream manifest file (.m3u8, .mpd). You will need a media player that supports these formats (like VLC) to view them. Lighter downloads, but you will need to be online to play the file. Some servers also block playback this way.",
         "description": "The explanation of stream manifest download method shown in a tooltip."
     },
     "streamFileDownloadCheckbox": {
-        "message": "Download stream manifest",
+        "message": "Download manifest only",
         "description": "The label of the checkbox to enable stream manifest download method."
     },
     "offlineDownloadExplain": {
@@ -200,7 +200,7 @@
         "description": "The label of the checkbox to enable offline video file download method."
     },
     "streamQualityTitle": {
-        "message": "Stream quality preference",
+        "message": "Stream quality",
         "description": "The title of the stream quality preference section in the settings tab."
     },
     "askStreamQualityExplain": {
@@ -208,7 +208,7 @@
         "description": "The explanation of 'Always ask' stream quality preference shown in a tooltip."
     },
     "askStreamQualityCheckbox": {
-        "message": "Always ask me",
+        "message": "Ask me",
         "description": "The label of the radio button to enable 'Always ask' stream quality preference."
     },
     "highestStreamQualityExplain": {
@@ -216,7 +216,7 @@
         "description": "The explanation of 'Always highest' stream quality preference shown in a tooltip."
     },
     "highestStreamQualityCheckbox": {
-        "message": "Always highest quality",
+        "message": "Highest quality",
         "description": "The label of the radio button to enable 'Always highest' stream quality preference."
     },
     "lowestStreamQualityExplain": {
@@ -224,7 +224,7 @@
         "description": "The explanation of 'Always lowest' stream quality preference shown in a tooltip."
     },
     "lowestStreamQualityCheckbox": {
-        "message": "Always lowest quality",
+        "message": "Lowest quality",
         "description": "The label of the radio button to enable 'Always lowest' stream quality preference."
     },
     "mpdFixExplain": {
@@ -236,7 +236,7 @@
         "description": "The label of the checkbox to enable the MPD fix option."
     },
     "openPreference": {
-        "message": "Add-on opening preference",
+        "message": "Add-on opening",
         "description": "The title of the add-on opening preference section in the settings tab."
     },
     "openPreferenceExplain": {
@@ -244,11 +244,11 @@
         "description": "The explanation of the add-on opening preference."
     },
     "newTabCheckbox": {
-        "message": "Open in new tab",
+        "message": "In new tab",
         "description": "The label of the radio button to open the add-on in a new tab."
     },
     "newWindowCheckbox": {
-        "message": "Open in new window",
+        "message": "In new window",
         "description": "The label of the radio button to open the add-on in a new window."
     },
     "colorPickerTitle": {
@@ -260,7 +260,7 @@
         "description": "The title of the credits section in the settings tab."
     },
     "creditsDescription1": {
-        "message": "Media Downloader Unleashed!! is a ",
+        "message": "Media Downloader Unleashed is a ",
         "description": "The first part of the credits description."
     },
     "creditsDescription2": {
