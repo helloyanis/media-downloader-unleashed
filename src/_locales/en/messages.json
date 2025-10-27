@@ -82,8 +82,8 @@
         "description": "The text of the download button in the media list."
     },
     "endOfMediaList": {
-        "message": "End of media list",
-        "description": "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings."
+        "message": "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings.",
+        "description": "The text shown at the end of the media list in the popup."
     },
     "listLoadError": {
         "message": "Error retrieving media requests. Here's what went wrong: $ERROR$",

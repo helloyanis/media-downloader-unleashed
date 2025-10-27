@@ -1,18 +1,18 @@
 {
     "actionTitle": {
-        "message": "Download media",
+        "message": "Baixar mídia",
         "description": "The contents of the context menu when hovering over the extension icon."
     },
     "extensionDescription": {
-        "message": "Download videos, music and live streams to your device!",
+        "message": "Baixe vídeos, músicas e transmissões ao vivo no seu dispositivo!",
         "description": "The description of the extension shown in the browser's settings page."
     },
     "errorTitle1": {
-        "message": "Something went wrong!",
+        "message": "Algo deu errado!",
         "description": "The 1st title of the error popup, randomly selects one of the titles when there is an error."
     },
     "errorTitle2": {
-        "message": "Oops!",
+        "message": "Ups!",
         "description": "The 2nd title of the error popup."
     },
     "errorTitle3": {
@@ -20,19 +20,19 @@
         "description": "The 3rd title of the error popup."
     },
     "errorTitle4": {
-        "message": "Error!",
+        "message": "Erro!",
         "description": "The 4th title of the error popup."
     },
     "errorTitle5": {
-        "message": "Annnd it broke!",
+        "message": "Eee quebrou!",
         "description": "The 5th title of the error popup."
     },
     "errorTitle6": {
-        "message": "Oh no!",
+        "message": "Essa não!",
         "description": "The 6th title of the error popup."
     },
     "reportIssue": {
-        "message": "Report issue",
+        "message": "Relatar problema",
         "description": "The text of the link to report an issue in the error popup."
     },
     "okButton": {
@@ -40,7 +40,7 @@
         "description": "The text of the OK button in the error popup."
     },
     "requestText": {
-        "message": "$METHOD$ request from $SOURCE$",
+        "message": "Solicitação $METHOD$ de $SOURCE$",
         "description": "The text showing which type of request is being made to load the media.",
         "placeholders": {
             "METHOD": {
@@ -54,39 +54,39 @@
         }
     },
     "requestMethodUnknown": {
-        "message": "Unknown",
+        "message": "Desconhecido",
         "description": "The text shown when the request method is not recognized."
     },
     "requestSourceUnknown": {
-        "message": "an unknown source",
+        "message": "fonte desconhecida",
         "description": "The text shown when the request source is not recognized."
     },
     "sizeText": {
-        "message": "Size",
+        "message": "Tamanho",
         "description": "The text above the size selector in the media list."
     },
     "copyURL": {
-        "message": "Copy URL",
+        "message": "Copiar URL",
         "description": "The text of the button to copy the media URL to clipboard."
     },
     "URLCopyError": {
-        "message": "Failed to copy URL to clipboard",
+        "message": "Falha ao copiar URL para a área de transferência",
         "description": "The error message shown when the URL copy operation fails."
     },
     "previewMedia": {
-        "message": "Preview",
+        "message": "Pré-visualizar",
         "description": "The text of the preview button in the media list."
     },
     "downloadMedia": {
-        "message": "Download",
+        "message": "Baixar",
         "description": "The text of the download button in the media list."
     },
     "endOfMediaList": {
-        "message": "End of media list",
-        "description": "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings."
+        "message": "Foi tudo o que conseguimos encontrar! Se você não encontrar a mídia que procura, tente iniciá-la e atualizar a lista. Se ainda assim não a encontrar, altere o método de detecção de mídia nas configurações.",
+        "description": "The text shown at the end of the media list in the popup."
     },
     "listLoadError": {
-        "message": "Error retrieving media requests. Here's what went wrong: $ERROR$",
+        "message": "Erro ao recuperar solicitações de mídia. Aqui está o que deu errado: $ERROR$",
         "description": "The error message shown when the media list fails to load.",
         "placeholders": {
             "ERROR": {
@@ -96,7 +96,7 @@
         }
     },
     "listClearError": {
-        "message": "Error clearing media list. Here's what went wrong: $ERROR$",
+        "message": "Erro ao limpar a lista de mídia. Aqui está o que deu errado: $ERROR$",
         "description": "The error message shown when the media list fails to clear.",
         "placeholders": {
             "ERROR": {
@@ -106,11 +106,11 @@
         }
     },
     "unknownSize": {
-        "message": "Unknown size",
+        "message": "Tamanho desconhecido",
         "description": "The text shown when the size of the media can't be parsed."
     },
     "downloadError": {
-        "message": "Error downloading media. Here's what went wrong: $ERROR$",
+        "message": "Erro ao baixar a mídia. Aqui está o que deu errado: $ERROR$",
         "description": "The error message shown when the media download fails.",
         "placeholders": {
             "ERROR": {
@@ -120,59 +120,59 @@
         }
     },
     "homeTab": {
-        "message": "Home",
+        "message": "Inicial",
         "description": "The name of the home tab in the popup."
     },
     "settingsTab": {
-        "message": "Settings",
+        "message": "Configurações",
         "description": "The name of the settings tab in the popup."
     },
     "clearListButton": {
-        "message": "Clear list",
+        "message": "Limpar lista",
         "description": "The label of the button to clear the media list."
     },
     "refreshListButton": {
-        "message": "Refresh list",
+        "message": "Atualizar lista",
         "description": "The label of the button to refresh the media list."
     },
     "detectionMethodTitle": {
-        "message": "Detection method",
+        "message": "Método de detecção",
         "description": "The title of the detection method section in the settings tab."
     },
     "needToRefreshListWarning": {
-        "message": "⚠️ After changing this, click on \"Refresh list\" to see the changes!",
+        "message": "⚠️ Após alterar isso, clique em \"Atualizar lista\" para ver as alterações!",
         "description": "The warning shown below the detection method title in the settings tab."
     },
     "urlDetectionExplain": {
-        "message": "Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some sites don't serve medias through these kind of URLs, so it might not detect everything.",
+        "message": "Detecção por verificar se a URL contém um tipo de mídia conhecido (por exemplo, .mp4, .m3u8). É rápido, mas alguns sites não disponibilizam mídias por meio desse tipo de URL, então pode não detectar tudo.",
         "description": "The explanation of URL-based detection method shown in a tooltip."
     },
     "urlDetectionCheckbox": {
-        "message": "Detection via URL",
+        "message": "Detecção via URL",
         "description": "The label of the checkbox to enable URL-based detection method."
     },
     "mimeDetectionExplain": {
-        "message": "Detection by checking the server's MIME response (for example video/mp4, application/vnd.apple.mpegurl). It's slower than URL detection as the add-on needs to monitor every request and response, but more reliable.",
+        "message": "Detecção por verificar a resposta MIME do servidor (por exemplo, video/mp4, aplicativo/vnd.apple.mpegurl). É mais lento que a detecção de URL, pois o add-on precisa monitorar cada solicitação e resposta, mas é mais confiável.",
         "description": "The explanation of MIME-based detection method shown in a tooltip."
     },
     "mimeDetectionCheckbox": {
-        "message": "Detection via server's MIME response",
+        "message": "Detecção via resposta MIME do servidor",
         "description": "The label of the checkbox to enable MIME-based detection method."
     },
     "downloadMethodTitle": {
-        "message": "Download method",
+        "message": "Método de download",
         "description": "The title of the download method section in the settings tab."
     },
     "browserDownloadExplain": {
-        "message": "Download the media using the browser's native download manager. Fast and handles disconnects, but only works on some sites and on some browsers (Firefox for PC).",
+        "message": "Baixe a mídia usando o gerenciador de downloads nativo do navegador. Rápido e lida com desconexões, mas só funciona em alguns sites e em alguns navegadores (Firefox para PC).",
         "description": "The explanation of native browser download method shown in a tooltip."
     },
     "browserDownloadCheckbox": {
-        "message": "Native browser download",
+        "message": "Download do navegador nativo",
         "description": "The label of the checkbox to enable native browser download method."
     },
     "fetchDownloadExplain": {
-        "message": "Download the media using the Fetch API. Works on most sites and browsers, but can be slower and doesn't handle disconnects well.",
+        "message": "Baixe a mídia usando a Fetch API. Funciona na maioria dos sites e navegadores, mas pode ser mais lento e não lida bem com desconexões.",
         "description": "The explanation of Fetch API download method shown in a tooltip."
     },
     "fetchDownloadCheckbox": {
@@ -180,95 +180,95 @@
         "description": "The label of the checkbox to enable Fetch API download method."
     },
     "streamDownloadTitle": {
-        "message": "Stream download preference",
+        "message": "Preferência de download da stream",
         "description": "The title of the stream download preference section in the settings tab."
     },
     "streamFileDownloadExplain": {
-        "message": "Download the stream manifest file (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view them. Lighter downloads, but you will need to be online with a working server to play the file. Some servers also block playback this way.",
+        "message": "Baixe o arquivo de manifesto da stream (.m3u8, .mpd) diretamente. Você precisará de um reprodutor de mídia compatível com esses formatos (como o VLC) para visualizá-los. Downloads mais leves, mas você precisará estar online com um servidor funcionando para reproduzir o arquivo. Alguns servidores também bloqueiam a reprodução dessa forma.",
         "description": "The explanation of stream manifest download method shown in a tooltip."
     },
     "streamFileDownloadCheckbox": {
-        "message": "Download stream manifest",
+        "message": "Baixar manifesto da stream",
         "description": "The label of the checkbox to enable stream manifest download method."
     },
     "offlineDownloadExplain": {
-        "message": "Convert the stream into a single offline video file (.ts or .zip) after downloading. This takes more time and storage, but the resulting file can be watched offline.",
+        "message": "Converta a stream em um único arquivo de vídeo offline (.ts ou .zip) após o download. Isso exige mais tempo e espaço de armazenamento, mas o arquivo resultante pode ser assistido offline.",
         "description": "The explanation of offline video file download method shown in a tooltip."
     },
     "offlineDownloadChecbox": {
-        "message": "Convert to offline video file",
+        "message": "Converter para arquivo de vídeo offline",
         "description": "The label of the checkbox to enable offline video file download method."
     },
     "streamQualityTitle": {
-        "message": "Stream quality preference",
+        "message": "Preferência de qualidade da stream",
         "description": "The title of the stream quality preference section in the settings tab."
     },
     "askStreamQualityExplain": {
-        "message": "Always ask which quality to download when downloading a stream.",
+        "message": "Sempre pergunte qual qualidade baixar ao baixar uma stream.",
         "description": "The explanation of 'Always ask' stream quality preference shown in a tooltip."
     },
     "askStreamQualityCheckbox": {
-        "message": "Always ask me",
+        "message": "Sempre me pergunte",
         "description": "The label of the radio button to enable 'Always ask' stream quality preference."
     },
     "highestStreamQualityExplain": {
-        "message": "Always download the highest available quality for a stream. Better quality but larger files and slower downloads.",
+        "message": "Sempre baixe a melhor qualidade disponível para uma stream. Qualidade melhor, mas arquivos maiores e downloads mais lentos.",
         "description": "The explanation of 'Always highest' stream quality preference shown in a tooltip."
     },
     "highestStreamQualityCheckbox": {
-        "message": "Always highest quality",
+        "message": "Sempre a mais alta qualidade",
         "description": "The label of the radio button to enable 'Always highest' stream quality preference."
     },
     "lowestStreamQualityExplain": {
-        "message": "Always download the lowest available quality for a stream. Lower quality but smaller files and faster downloads.",
+        "message": "Sempre baixe a qualidade mais baixa disponível para uma stream. Qualidade mais baixa, mas arquivos menores e downloads mais rápidos.",
         "description": "The explanation of 'Always lowest' stream quality preference shown in a tooltip."
     },
     "lowestStreamQualityCheckbox": {
-        "message": "Always lowest quality",
+        "message": "Sempre a mais baixa qualidade",
         "description": "The label of the radio button to enable 'Always lowest' stream quality preference."
     },
     "mpdFixExplain": {
-        "message": "This will modify the .mpd file you download to only include the quality you download. Otherwise, players like VLC will not play the file because it will try to request a quality you don't have downloaded.",
+        "message": "Isso modificará o arquivo .mpd que você baixa para incluir apenas a qualidade que você baixa. Caso contrário, players como o VLC não reproduzirão o arquivo porque tentarão solicitar uma qualidade que você não baixou.",
         "description": "The explanation of the MPD fix option shown in a tooltip."
     },
     "mpdFixCheckbox": {
-        "message": "Fix MPD files (recommended)",
+        "message": "Corrigir arquivos MPD (recomendado)",
         "description": "The label of the checkbox to enable the MPD fix option."
     },
     "openPreference": {
-        "message": "Add-on opening preference",
+        "message": "Preferência de abertura de add-on",
         "description": "The title of the add-on opening preference section in the settings tab."
     },
     "openPreferenceExplain": {
-        "message": "Choose how the add-on opens when you click on the icon.",
+        "message": "Escolha como o add-on será aberto quando você clicar no ícone.",
         "description": "The explanation of the add-on opening preference."
     },
     "newTabCheckbox": {
-        "message": "Open in new tab",
+        "message": "Abrir em nova aba",
         "description": "The label of the radio button to open the add-on in a new tab."
     },
     "newWindowCheckbox": {
-        "message": "Open in new window",
+        "message": "Abrir em nova janela",
         "description": "The label of the radio button to open the add-on in a new window."
     },
     "colorPickerTitle": {
-        "message": "Interface color",
+        "message": "Cor da interface",
         "description": "The title of the interface color section in the settings tab."
     },
     "creditsTitle": {
-        "message": "Credits",
+        "message": "Créditos",
         "description": "The title of the credits section in the settings tab."
     },
     "creditsDescription1": {
-        "message": "Media Downloader Unleashed!! is a ",
+        "message": "Media Downloader Unleashed!! é um ",
         "description": "The first part of the credits description."
     },
     "creditsDescription2": {
-        "message": "free and open-source project",
+        "message": "projeto livre e de código aberto",
         "description": "The second part of the credits description."
     },
     "creditsDescription3": {
-        "message": " made by ",
+        "message": " feito por ",
         "description": "The third part of the credits description."
     },
     "creditsDescription4": {
@@ -280,23 +280,23 @@
         "description": "The fifth part of the credits description."
     },
     "rateButton": {
-        "message": "Rate",
+        "message": "Avaliar",
         "description": "The label of the button to rate the extension."
     },
     "shareButton": {
-        "message": "Share",
+        "message": "Compartilhar",
         "description": "The label of the button to share the extension."
     },
     "donateButton": {
-        "message": "Donate",
+        "message": "Doar",
         "description": "The label of the button to donate to the developer."
     },
     "contactTitle": {
-        "message": "Contact me",
+        "message": "Entre em contato comigo",
         "description": "The title of the contact section in the settings tab."
     },
     "contactDescription": {
-        "message": "If you have any questions, suggestions or issues, feel free to contact me!",
+        "message": "Caso tenha alguma dúvida, sugestão ou problema, fique à vontade para entrar em contato comigo!",
         "description": "The description of the contact section in the settings tab."
     },
     "emailButton": {
@@ -308,35 +308,35 @@
         "description": "The label of the button to contact the developer via Mastodon."
     },
     "mobileIncompatibleWarning": {
-        "message": "⚠️ This option is not compatible for some browsers, like Firefox for Android. If you are using this browser, then change the option back.",
+        "message": "⚠️ Esta opção não é compatível com alguns navegadores, como o Firefox para Android. Se você estiver usando este navegador, alterar a opção devolta.",
         "description": "The warning shown when the user enables an option that is not compatible with mobile browsers."
     },
     "permissionRequestTitle": {
-        "message": "Permission Required",
+        "message": "Permissão necessária",
         "description": "The headline of the permission request popup."
     },
     "permissionRequestDescription": {
-        "message": "The extension needs permission to access all URLs to function properly. This is in order to detect media from all websites. Your browsing data is only stored on your device, and not shared with anyone. Please grant the permission, or if you know what you are doing and want scoped storage, you can dismiss this warning.",
+        "message": "A extensão precisa de permissão para acessar todas as URLs para funcionar corretamente. Isso serve para detectar mídia de todos os sites. Seus dados de navegação são armazenados apenas no seu dispositivo e não são compartilhados com ninguém. Conceda a permissão ou, se você souber o que está fazendo e desejar armazenamento com escopo definido, pode ignorar este aviso.",
         "description": "The description of the permission request popup."
     },
     "grantPermissionButton": {
-        "message": "Grant Permission",
+        "message": "Conceder permissão",
         "description": "The label of the button to grant the requested permission."
     },
     "denyPermissionButton": {
-        "message": "Don't remind me",
+        "message": "Não me lembre",
         "description": "The label of the button to deny the requested permission."
     },
     "permissionGrantedMessage": {
-        "message": "Permission granted successfully.",
+        "message": "Permissão concedida com sucesso.",
         "description": "The message shown when the permission is granted successfully."
     },
     "permissionDeniedMessage": {
-        "message": "Permission denied. The extension may not work as expected.",
+        "message": "Permissão negada. A extensão pode não funcionar como esperado.",
         "description": "The message shown when the permission is denied."
     },
     "permissionGrantFailedMessage": {
-        "message": "Failed to grant permission. The extension may not work as expected.",
+        "message": "Falha ao conceder permissão. A extensão pode não funcionar como esperado.",
         "description": "The message shown when the permission grant operation fails."
     }
 }
