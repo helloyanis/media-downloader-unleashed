@@ -2,6 +2,9 @@
 if (typeof browser === 'undefined') {
   var browser = chrome;
 }
+
+let downloadingCount = 0;
+
 document.addEventListener('DOMContentLoaded', () => {
   loadMediaList();
   document.getElementById('navbar').addEventListener('change', (event) => {
@@ -19,6 +22,25 @@ document.addEventListener('DOMContentLoaded', () => {
     clearMediaList();
   });
 });
+
+/**
+ * Update the downloading count and change the title accordingly
+ * @param {Number} change The change in downloading count (positive or negative)
+ * @returns {void} Does not return anything, but updates the title and button states
+ * */
+function updateDownloadingCount(change) {
+  downloadingCount += change;
+  if (downloadingCount < 0) downloadingCount = 0; // Prevent negative count (should not happen but we never know ¯\_(ツ)_/¯)
+  if(downloadingCount === 0) {
+    document.title = "Media Downloader Unleashed!!";
+    document.querySelector("#clear-list").disabled = false; //Enable clear list button when not downloading
+    document.querySelector("#refresh-list").disabled = false; //Enable refresh list button when not downloading
+  } else {
+    document.title = `(${downloadingCount} ⏳) Media Downloader Unleashed!!`;
+    document.querySelector("#clear-list").disabled = true; //Disable clear list button while downloading
+    document.querySelector("#refresh-list").disabled = true; //Disable refresh list button while downloading
+  }
+}
 
 /**
  * Show a dialog with a message and an optional title.
@@ -320,7 +342,7 @@ function loadMediaList() {
     }
     endOfMediaList = document.createElement('div');
     endOfMediaList.setAttribute("id", "end-of-media-list");
-    endOfMediaList.textContent = "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings.";
+    endOfMediaList.textContent = browser.i18n.getMessage("endOfMediaList");
     endOfMediaList.style.textAlign = 'center';
     loadingSpinner.style.display = 'none'; // Hide the loading spinner
     mediaContainer.appendChild(endOfMediaList);
@@ -412,6 +434,7 @@ async function downloadFile(url, mediaDiv) {
 
   // Add confirmation to leave the page while downloading
   window.addEventListener('beforeunload', beforeUnloadHandler);
+  updateDownloadingCount(1);
 
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
   const loadingBar = document.createElement('mdui-linear-progress');
@@ -524,6 +547,7 @@ async function downloadFile(url, mediaDiv) {
       });
     }
     window.removeEventListener('beforeunload', beforeUnloadHandler);
+    updateDownloadingCount(-1);
     mediaDiv.removeChild(loadingBar);
     mediaDiv.querySelector("#download-button").loading = false
     mediaDiv.querySelector("#download-button").disabled = false

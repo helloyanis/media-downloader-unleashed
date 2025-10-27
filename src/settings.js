@@ -199,7 +199,7 @@ async function checkAndMigrateLegacyDetectionMethod() {
         //Add the message to the dialog
         const messageElement = document.createElement('div');
         messageElement.setAttribute('slot', 'content');
-        messageElement.textContent = "There has been an update to how the detection method works You can now enable multiple detection methods at the same time. Your previous detection method settings were updated. Please check the settings to ensure everything is set up correctly.";
+        messageElement.textContent = "There has been an update to how the detection method works. You can now enable multiple detection methods at the same time. Your previous detection method settings were updated. Please check the settings to ensure everything is set up correctly.";
         dialog.appendChild(messageElement);
         // Add the action buttons to the dialog
         const actionsSlot = document.createElement('div');
@@ -230,20 +230,20 @@ async function requestOriginsPermission() {
         return; // If the user has dismissed the permission request, do not show it again
     }
     mdui.confirm({
-        headline: 'Permission Required',
-        description: 'The extension needs permission to access all URLs to function properly. This is in order to detect media from all websites. Your browsing data is only stored on your device, and not shared with anyone. Please grant the permission, or if you know what you are doing and want scoped storage, you can dismiss this warning.',
-        confirmText: 'Grant Permission',
-        cancelText: "Don't remind me",
+        headline: browser.i18n.getMessage('permissionRequestTitle'),
+        description: browser.i18n.getMessage('permissionRequestDescription'),
+        confirmText: browser.i18n.getMessage('grantPermissionButton'),
+        cancelText: browser.i18n.getMessage('denyPermissionButton'),
         onConfirm: async () => {
             const granted = await browser.permissions.request({ origins: ["<all_urls>"] });
             if (granted) {
                 mdui.snackbar({
-                    message: 'Permission granted successfully.',
+                    message: browser.i18n.getMessage('permissionGrantedMessage'),
                     closeable: true,
                 });
             } else {
                 mdui.snackbar({
-                    message: 'Permission denied. The extension may not work as expected.',
+                    message: browser.i18n.getMessage('permissionGrantFailedMessage'),
                     closeable: true,
                 });
             }
@@ -251,7 +251,7 @@ async function requestOriginsPermission() {
         onCancel: () => {
             localStorage.setItem('originPermissionDismissed', '1');
             mdui.snackbar({
-                message: 'Permission not granted. The extension may not work as expected.',
+                message: browser.i18n.getMessage('permissionDeniedMessage'),
             });
         }
     });

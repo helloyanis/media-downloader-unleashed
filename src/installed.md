@@ -9,7 +9,7 @@ This add-on is a powerful tool that allows you to download files from the web to
 
 It's easy!
 
-> 💡 Note : Sometimes, the browser does not initialize the add-on before you click on it. If nothing appears in the list, then first open a tab with the add-on, then load your media on the page by refreshing it and re-starting playback, and go back to the add-on page and click "Refresh list"
+> 💡 Note : Sometimes, the browser does not initialize the add-on before you click on it. If nothing appears in the list, then first open a tab with the add-on, then load your media on the page by refreshing it and re-starting playback, and go back to the add-on page and click "Refresh list".
 
 ## FAQ
 

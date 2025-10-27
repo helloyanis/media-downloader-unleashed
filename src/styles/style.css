@@ -47,7 +47,7 @@
 }
 
 #end-of-media-list {
-    margin-bottom: 100px;
+    margin-bottom: 200px;
 }
 
 mdui-card {
@@ -70,4 +70,8 @@ mdui-select::part(menu) {
   max-height: 300px;
   overflow: auto;
   width: 100%;
+}
+
+mdui-card {
+    overflow-x: scroll;
 }
