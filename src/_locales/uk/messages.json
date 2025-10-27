@@ -1,0 +1,342 @@
+{
+    "actionTitle": {
+        "message": "Завантажити",
+        "description": "The contents of the context menu when hovering over the extension icon."
+    },
+    "extensionDescription": {
+        "message": "Завантаження відео, музики та прямих трансляцій!",
+        "description": "The description of the extension shown in the browser's settings page."
+    },
+    "errorTitle1": {
+        "message": "Щось пішло не так! 🤔",
+        "description": "The 1st title of the error popup, randomly selects one of the titles when there is an error."
+    },
+    "errorTitle2": {
+        "message": "Дідько! 👿",
+        "description": "The 2nd title of the error popup."
+    },
+    "errorTitle3": {
+        "message": "Хай йому грець! 😡",
+        "description": "The 3rd title of the error popup."
+    },
+    "errorTitle4": {
+        "message": "Помилка! 😵",
+        "description": "The 4th title of the error popup."
+    },
+    "errorTitle5": {
+        "message": "От халепа! 😱",
+        "description": "The 5th title of the error popup."
+    },
+    "errorTitle6": {
+        "message": "От халепа, щось пішло не так! 🥲",
+        "description": "The 6th title of the error popup."
+    },
+    "reportIssue": {
+        "message": "Повідомити про помилку",
+        "description": "The text of the link to report an issue in the error popup."
+    },
+    "okButton": {
+        "message": "OK",
+        "description": "The text of the OK button in the error popup."
+    },
+    "requestText": {
+        "message": "[$METHOD$] $SOURCE$",
+        "description": "The text showing which type of request is being made to load the media.",
+        "placeholders": {
+            "METHOD": {
+                "content": "$1",
+                "example": "GET"
+            },
+            "SOURCE": {
+                "content": "$2",
+                "example": "https://example.com/video.mp4"
+            }
+        }
+    },
+    "requestMethodUnknown": {
+        "message": "???",
+        "description": "The text shown when the request method is not recognized."
+    },
+    "requestSourceUnknown": {
+        "message": "невідоме джерело",
+        "description": "The text shown when the request source is not recognized."
+    },
+    "sizeText": {
+        "message": "Розмір",
+        "description": "The text above the size selector in the media list."
+    },
+    "copyURL": {
+        "message": "Копіювати URL",
+        "description": "The text of the button to copy the media URL to clipboard."
+    },
+    "URLCopyError": {
+        "message": "Не вдалося скопіювати посилання",
+        "description": "The error message shown when the URL copy operation fails."
+    },
+    "previewMedia": {
+        "message": "Переглянути",
+        "description": "The text of the preview button in the media list."
+    },
+    "downloadMedia": {
+        "message": "Завантажити",
+        "description": "The text of the download button in the media list."
+    },
+    "endOfMediaList": {
+        "message": "Якщо ви не бачите потрібний медіафайл, спробуйте відтворити його, а потім оновити список. Якщо ви все ще не бачите його, змініть метод виявлення медіафайлів у налаштуваннях.",
+        "description": "The text shown at the end of the media list in the popup."
+    },
+    "listLoadError": {
+        "message": "Помилка отримання списку медіафайлів: $ERROR$",
+        "description": "The error message shown when the media list fails to load.",
+        "placeholders": {
+            "ERROR": {
+                "content": "$1",
+                "example": "Network error"
+            }
+        }
+    },
+    "listClearError": {
+        "message": "Помилка очищення списку медіафайлів: $ERROR$",
+        "description": "The error message shown when the media list fails to clear.",
+        "placeholders": {
+            "ERROR": {
+                "content": "$1",
+                "example": "Network error"
+            }
+        }
+    },
+    "unknownSize": {
+        "message": "Невідомий розмір",
+        "description": "The text shown when the size of the media can't be parsed."
+    },
+    "downloadError": {
+        "message": "Помилка завантаження медіафайлів: $ERROR$",
+        "description": "The error message shown when the media download fails.",
+        "placeholders": {
+            "ERROR": {
+                "content": "$1",
+                "example": "Network error"
+            }
+        }
+    },
+    "homeTab": {
+        "message": "Головна",
+        "description": "The name of the home tab in the popup."
+    },
+    "settingsTab": {
+        "message": "Налаштування",
+        "description": "The name of the settings tab in the popup."
+    },
+    "clearListButton": {
+        "message": "Очистити",
+        "description": "The label of the button to clear the media list."
+    },
+    "refreshListButton": {
+        "message": "Оновити",
+        "description": "The label of the button to refresh the media list."
+    },
+    "detectionMethodTitle": {
+        "message": "Метод виявлення",
+        "description": "The title of the detection method section in the settings tab."
+    },
+    "needToRefreshListWarning": {
+        "message": "⚠️ Після внесення змін натисніть кнопку «Оновити список»!",
+        "description": "The warning shown below the detection method title in the settings tab."
+    },
+    "urlDetectionExplain": {
+        "message": "Виявлення шляхом перевірки типу файлу в URL. Це швидко, але на деяких сайтах може не працювати.",
+        "description": "The explanation of URL-based detection method shown in a tooltip."
+    },
+    "urlDetectionCheckbox": {
+        "message": "Виявлення через URL",
+        "description": "The label of the checkbox to enable URL-based detection method."
+    },
+    "mimeDetectionExplain": {
+        "message": "Виявлення шляхом перевірки типу файлу (MIME). Це повільніше, але надійніше.",
+        "description": "The explanation of MIME-based detection method shown in a tooltip."
+    },
+    "mimeDetectionCheckbox": {
+        "message": "Виявлення через MIME",
+        "description": "The label of the checkbox to enable MIME-based detection method."
+    },
+    "downloadMethodTitle": {
+        "message": "Спосіб завантаження",
+        "description": "The title of the download method section in the settings tab."
+    },
+    "browserDownloadExplain": {
+        "message": "Швидко та обробляє розриви з’єднання, але працює лише на деяких сайтах та в деяких браузерах.",
+        "description": "The explanation of native browser download method shown in a tooltip."
+    },
+    "browserDownloadCheckbox": {
+        "message": "Через браузер",
+        "description": "The label of the checkbox to enable native browser download method."
+    },
+    "fetchDownloadExplain": {
+        "message": "Працює на більшості сайтів, але може бути повільнішим і погано обробляє розриви з’єднання.",
+        "description": "The explanation of Fetch API download method shown in a tooltip."
+    },
+    "fetchDownloadCheckbox": {
+        "message": "Fetch API",
+        "description": "The label of the checkbox to enable Fetch API download method."
+    },
+    "streamDownloadTitle": {
+        "message": "Завантаження потоку",
+        "description": "The title of the stream download preference section in the settings tab."
+    },
+    "streamFileDownloadExplain": {
+        "message": "Завантажити тільки файл маніфесту (.m3u8). Для перегляду знадобиться медіаплеєр, який підтримує такий формат (наприклад VLC). Швидке завантаження, але для відтворення файлу необхідне підключення до Інтернету. Деякі сайти блокують відтворення таким чином.",
+        "description": "The explanation of stream manifest download method shown in a tooltip."
+    },
+    "streamFileDownloadCheckbox": {
+        "message": "Завантажити тільки маніфест",
+        "description": "The label of the checkbox to enable stream manifest download method."
+    },
+    "offlineDownloadExplain": {
+        "message": "Після завантаження конвертується в відеофайл (.ts або .zip). Займає більше часу та місця, але отриманий файл можна переглядати офлайн.",
+        "description": "The explanation of offline video file download method shown in a tooltip."
+    },
+    "offlineDownloadChecbox": {
+        "message": "Конвертувати в офлайн-відеофайл",
+        "description": "The label of the checkbox to enable offline video file download method."
+    },
+    "streamQualityTitle": {
+        "message": "Якість медіафайлу",
+        "description": "The title of the stream quality preference section in the settings tab."
+    },
+    "askStreamQualityExplain": {
+        "message": "Завжди запитувати, яку якість завантажувати.",
+        "description": "The explanation of 'Always ask' stream quality preference shown in a tooltip."
+    },
+    "askStreamQualityCheckbox": {
+        "message": "Завжди питати",
+        "description": "The label of the radio button to enable 'Always ask' stream quality preference."
+    },
+    "highestStreamQualityExplain": {
+        "message": "Завжди завантажувати у найвищій доступній якості. Краща якість, але більший розмір файлу та повільніше завантаження.",
+        "description": "The explanation of 'Always highest' stream quality preference shown in a tooltip."
+    },
+    "highestStreamQualityCheckbox": {
+        "message": "Висока якість",
+        "description": "The label of the radio button to enable 'Always highest' stream quality preference."
+    },
+    "lowestStreamQualityExplain": {
+        "message": "Завжди завантажувати найнижчу доступну якість. Низька якість, але менший розмір файлу та швидше завантаження.",
+        "description": "The explanation of 'Always lowest' stream quality preference shown in a tooltip."
+    },
+    "lowestStreamQualityCheckbox": {
+        "message": "Погана якість",
+        "description": "The label of the radio button to enable 'Always lowest' stream quality preference."
+    },
+    "mpdFixExplain": {
+        "message": "Це змінить завантажений вами файл .mpd так, щоб він включав лише завантажену якість. В іншому випадку, програвачі, такі як VLC, не відтворюватимуть файл, оскільки намагатимуться запросити якість, яку ви не завантажили.",
+        "description": "The explanation of the MPD fix option shown in a tooltip."
+    },
+    "mpdFixCheckbox": {
+        "message": "Виправляти MPD (рекомендовано)",
+        "description": "The label of the checkbox to enable the MPD fix option."
+    },
+    "openPreference": {
+        "message": "Відкривання додатку",
+        "description": "The title of the add-on opening preference section in the settings tab."
+    },
+    "openPreferenceExplain": {
+        "message": "Виберіть, як додаток відкриватиметься після натискання на значок.",
+        "description": "The explanation of the add-on opening preference."
+    },
+    "newTabCheckbox": {
+        "message": "В новій вкладці",
+        "description": "The label of the radio button to open the add-on in a new tab."
+    },
+    "newWindowCheckbox": {
+        "message": "В новому вікні",
+        "description": "The label of the radio button to open the add-on in a new window."
+    },
+    "colorPickerTitle": {
+        "message": "Колір інтерфейсу",
+        "description": "The title of the interface color section in the settings tab."
+    },
+    "creditsTitle": {
+        "message": "Про застосунок",
+        "description": "The title of the credits section in the settings tab."
+    },
+    "creditsDescription1": {
+        "message": "Media Downloader Unleashed це ",
+        "description": "The first part of the credits description."
+    },
+    "creditsDescription2": {
+        "message": "безкоштовний проект з відкритим кодом",
+        "description": "The second part of the credits description."
+    },
+    "creditsDescription3": {
+        "message": " зроблений ",
+        "description": "The third part of the credits description."
+    },
+    "creditsDescription4": {
+        "message": "🦊 helloyanis",
+        "description": "The fourth part of the credits description."
+    },
+    "creditsDescription5": {
+        "message": ".",
+        "description": "The fifth part of the credits description."
+    },
+    "rateButton": {
+        "message": "Оцінити",
+        "description": "The label of the button to rate the extension."
+    },
+    "shareButton": {
+        "message": "Поділитися",
+        "description": "The label of the button to share the extension."
+    },
+    "donateButton": {
+        "message": "Підтримати",
+        "description": "The label of the button to donate to the developer."
+    },
+    "contactTitle": {
+        "message": "Контакти",
+        "description": "The title of the contact section in the settings tab."
+    },
+    "contactDescription": {
+        "message": "Якщо у вас є питання, пропозиції чи проблеми, не соромтеся звертатися до мене!",
+        "description": "The description of the contact section in the settings tab."
+    },
+    "emailButton": {
+        "message": "Пошта",
+        "description": "The label of the button to contact the developer via e-mail."
+    },
+    "mastodonButton": {
+        "message": "Mastodon",
+        "description": "The label of the button to contact the developer via Mastodon."
+    },
+    "mobileIncompatibleWarning": {
+        "message": "⚠️ Ця опція несумісна з деякими браузерами (наприклад Firefox для Android). Якщо ви використовуєте цей браузер, поверніть цю опцію назад.",
+        "description": "The warning shown when the user enables an option that is not compatible with mobile browsers."
+    },
+    "permissionRequestTitle": {
+        "message": "Потрібен дозвіл",
+        "description": "The headline of the permission request popup."
+    },
+    "permissionRequestDescription": {
+        "message": "Для належного функціонування розширення потрібен дозвіл на доступ до всіх URL-адрес. Це необхідно для виявлення медіафайлів з усіх веб-сайтів. Ваші дані перегляду зберігаються лише на вашому пристрої та нікому не передаються!",
+        "description": "The description of the permission request popup."
+    },
+    "grantPermissionButton": {
+        "message": "Надати дозвіл",
+        "description": "The label of the button to grant the requested permission."
+    },
+    "denyPermissionButton": {
+        "message": "Не нагадувати",
+        "description": "The label of the button to deny the requested permission."
+    },
+    "permissionGrantedMessage": {
+        "message": "Дозвіл надано успішно!",
+        "description": "The message shown when the permission is granted successfully."
+    },
+    "permissionDeniedMessage": {
+        "message": "Дозвіл відхилено! Розширення може працювати неналежним чином.",
+        "description": "The message shown when the permission is denied."
+    },
+    "permissionGrantFailedMessage": {
+        "message": "Не вдалося надати дозвіл! Розширення може працювати неналежним чином.",
+        "description": "The message shown when the permission grant operation fails."
+    }
+}
