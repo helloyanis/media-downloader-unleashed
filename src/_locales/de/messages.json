@@ -143,6 +143,10 @@
     "message": "⚠️ Bitte klicke auf \"Liste aktualisieren\", nachdem du diese Einstellung geändert hast, damit die Änderungen sichtbar werden!",
     "description": "Warning after setting change."
   },
+  "detectionDisabledExplanation": {
+    "message": "Wenn Sie beide Optionen deaktivieren, wird nichts gefiltert und es werden alle Anfragen (auch Nicht-Medienanfragen!) des Browsers angezeigt.",
+    "description": "The explanation on how disabling detection works, shown in the settings tab"
+  },
   "urlDetectionExplain": {
     "message": "Erkennung durch Überprüfung, ob die URL einen bekannten Medientyp enthält (z.B. .mp4, .m3u8). Schnell, aber einige Websites verwenden andere Methoden bei denen sich der Medientyp nicht direkt vorhersagen lässt und werden daher eventuell nicht erkannt.",
     "description": "URL detection explanation."
@@ -338,5 +342,73 @@
   "permissionGrantFailedMessage": {
     "message": "Berechtigung konnte nicht erteilt werden. Die Erweiterung funktioniert möglicherweise nicht wie erwartet.",
     "description": "Permission grant failed message."
+  },
+  "mpdDownloadCompleteTitle": {
+      "message": "MPD Download Complete",
+      "description": "The title of the notification shown when an MPD download is complete."
+  },
+  "mpdDownloadCompleteMessage": {
+      "message": "The MPD stream has been downloaded as a ZIP file. You can extract it and play the $BASENAME$.mpd video with VLC or any other compatible player.",
+      "description": "The message of the notification shown when an MPD download is complete.",
+      "placeholders": {
+          "BASENAME": {
+              "content": "$1",
+              "example": "video"
+          }
+      }
+  },
+  "splitDownloadWarningSnackbar": {
+      "message": "The audio and video streams are separated. Two files will be downloaded.",
+      "description": "The snackbar text that appears when an m3u8 stream with split audio and video starts to download"
+  },
+  "downloadingAudioSnackbar": {
+      "message": "Downloading audio stream...",
+      "description": "The snackbar text that appears when an m3u8 stream with split audio and video has the video portion downloaded and switches to downloading audio"
+  },
+  "splitAudioVideoDownloadCompleteTitle": {
+      "message": "Downloaded separated audio and video streams",
+      "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
+  },
+  "splitAudioVideoDownloadCompleteDescription": {
+      "message": "Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i $BASENAME$_video.ts -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
+      "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
+      "placeholders": {
+          "BASENAME": {
+              "content": "$1",
+              "example": "my_stream"
+          }
+      }
+  },
+  "videoQualityDialogTitle": {
+      "message": "Select video quality",
+      "description": "The title of the dialog to select video quality when downloading a stream for MPD streams."
+  },
+  "videoQualitySelectLabel": {
+      "message": "Video quality",
+      "description": "The label of the quality selection dropdown in the video quality dialog for MPD streams."
+  },
+  "audioQualityDialogTitle": {
+      "message": "Select audio quality",
+      "description": "The title of the dialog to select audio quality when downloading an stream for MPD streams."
+  },
+  "audioQualitySelectLabel": {
+      "message": "Audio quality",
+      "description": "The label of the quality selection dropdown in the audio quality dialog for MPD streams."
+  },
+  "streamQualityDialogTitle": {
+      "message": "Select stream quality",
+      "description": "The title of the dialog to select the stream quality when downloading an m3u8 stream."
+  },
+  "streamQualitySelectLabel": {
+      "message": "Stream quality",
+      "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
+  },
+  "mediaPreviewSnackbar": {
+      "message": "If video does not load, make sure the download method is set to \"Fetch\" in the add-on settings. It's slower but works with more sites.",
+      "description": "The snackbar shown when someone uses the preview mode for the first time."
+  },
+  "mediaPreviewDontRemindMe": {
+      "message": "Don't remind me",
+      "description": "The action in the snackbar from above which will make it no longer show up."
   }
 }
