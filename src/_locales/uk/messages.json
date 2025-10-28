@@ -8,27 +8,27 @@
         "description": "The description of the extension shown in the browser's settings page."
     },
     "errorTitle1": {
-        "message": "Щось пішло не так! 🤔",
+        "message": "Щось пішло не так!",
         "description": "The 1st title of the error popup, randomly selects one of the titles when there is an error."
     },
     "errorTitle2": {
-        "message": "Дідько! 👿",
+        "message": "Дідько!",
         "description": "The 2nd title of the error popup."
     },
     "errorTitle3": {
-        "message": "Хай йому грець! 😡",
+        "message": "Хай йому грець!",
         "description": "The 3rd title of the error popup."
     },
     "errorTitle4": {
-        "message": "Помилка! 😵",
+        "message": "Помилка!",
         "description": "The 4th title of the error popup."
     },
     "errorTitle5": {
-        "message": "От халепа! 😱",
+        "message": "От халепа!",
         "description": "The 5th title of the error popup."
     },
     "errorTitle6": {
-        "message": "От халепа, щось пішло не так! 🥲",
+        "message": "От халепа, щось пішло не так!",
         "description": "The 6th title of the error popup."
     },
     "reportIssue": {
@@ -128,11 +128,11 @@
         "description": "The name of the settings tab in the popup."
     },
     "clearListButton": {
-        "message": "Очистити",
+        "message": "Очистити список",
         "description": "The label of the button to clear the media list."
     },
     "refreshListButton": {
-        "message": "Оновити",
+        "message": "Оновити список",
         "description": "The label of the button to refresh the media list."
     },
     "detectionMethodTitle": {
