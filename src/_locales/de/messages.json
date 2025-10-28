@@ -1,0 +1,342 @@
+{
+  "actionTitle": {
+    "message": "Medien herunterladen",
+    "description": "The contents of the context menu when hovering over the extension icon."
+  },
+  "extensionDescription": {
+    "message": "Lade Videos, Musik und Live-Streams direkt auf dein Gerät herunter!",
+    "description": "The description of the extension shown in the browser's settings page."
+  },
+  "errorTitle1": {
+    "message": "Etwas ist schiefgelaufen!",
+    "description": "The 1st title of the error popup."
+  },
+  "errorTitle2": {
+    "message": "Oops!",
+    "description": "The 2nd title of the error popup."
+  },
+  "errorTitle3": {
+    "message": "Upsi!",
+    "description": "The 3rd title of the error popup."
+  },
+  "errorTitle4": {
+    "message": "Fehler!",
+    "description": "The 4th title of the error popup."
+  },
+  "errorTitle5": {
+    "message": "Oh je!",
+    "description": "The 5th title of the error popup."
+  },
+  "errorTitle6": {
+    "message": "Mist!",
+    "description": "The 6th title of the error popup."
+  },
+  "reportIssue": {
+    "message": "Problem melden",
+    "description": "Link to report an issue."
+  },
+  "okButton": {
+    "message": "OK",
+    "description": "OK button text."
+  },
+  "requestText": {
+    "message": "$METHOD$-Anfrage von $SOURCE$",
+    "description": "Request type text.",
+    "placeholders": {
+      "METHOD": {
+        "content": "$1",
+        "example": "GET"
+      },
+      "SOURCE": {
+        "content": "$2",
+        "example": "https://example.com/video.mp4"
+      }
+    }
+  },
+  "requestMethodUnknown": {
+    "message": "Unbekannte Methode",
+    "description": "Unknown request method."
+  },
+  "requestSourceUnknown": {
+    "message": "unbekannte Quelle",
+    "description": "Unknown request source."
+  },
+  "sizeText": {
+    "message": "Dateigröße",
+    "description": "Label for media size."
+  },
+  "copyURL": {
+    "message": "URL kopieren",
+    "description": "Copy URL button."
+  },
+  "URLCopyError": {
+    "message": "Die URL konnte nicht in die Zwischenablage kopiert werden.",
+    "description": "URL copy error."
+  },
+  "previewMedia": {
+    "message": "Vorschau",
+    "description": "Preview button."
+  },
+  "downloadMedia": {
+    "message": "Herunterladen",
+    "description": "Download button."
+  },
+  "endOfMediaList": {
+    "message": "Das ist alles, was gefunden wurde! Wenn der gewünschte Inhalt nicht angezeigt wird, starte die Wiedergabe und aktualisiere anschließend die Liste. Falls der Stream weiterhin nicht erscheint, versuche es mit einer anderen Erkennungsmethode in den Einstellungen.",
+    "description": "End of list text."
+  },
+  "listLoadError": {
+    "message": "Medienanfragen konnten nicht geladen werden. Details: $ERROR$",
+    "description": "List load error.",
+    "placeholders": {
+      "ERROR": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+  "listClearError": {
+    "message": "Medienliste konnte nicht geleert werden. Details: $ERROR$",
+    "description": "List clear error.",
+    "placeholders": {
+      "ERROR": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+  "unknownSize": {
+    "message": "Unbekannte Größe",
+    "description": "Unknown size text."
+  },
+  "downloadError": {
+    "message": "Medien konnten nicht heruntergeladen werden. Details: $ERROR$",
+    "description": "Download error.",
+    "placeholders": {
+      "ERROR": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+  "homeTab": {
+    "message": "Start",
+    "description": "Home tab name."
+  },
+  "settingsTab": {
+    "message": "Einstellungen",
+    "description": "Settings tab name."
+  },
+  "clearListButton": {
+    "message": "Liste leeren",
+    "description": "Clear list button."
+  },
+  "refreshListButton": {
+    "message": "Liste aktualisieren",
+    "description": "Refresh list button."
+  },
+  "detectionMethodTitle": {
+    "message": "Medienerkennung",
+    "description": "Detection method title."
+  },
+  "needToRefreshListWarning": {
+    "message": "⚠️ Bitte klicke auf \"Liste aktualisieren\", nachdem du diese Einstellung geändert hast, damit die Änderungen sichtbar werden!",
+    "description": "Warning after setting change."
+  },
+  "urlDetectionExplain": {
+    "message": "Erkennung durch Überprüfung, ob die URL einen bekannten Medientyp enthält (z.B. .mp4, .m3u8). Schnell, aber einige Websites verwenden andere Methoden bei denen sich der Medientyp nicht direkt vorhersagen lässt und werden daher eventuell nicht erkannt.",
+    "description": "URL detection explanation."
+  },
+  "urlDetectionCheckbox": {
+    "message": "Erkennung anhand der URL",
+    "description": "URL detection label."
+  },
+  "mimeDetectionExplain": {
+    "message": "Erkennung durch Analyse der MIME-Antwort des Servers (z.B. video/mp4, application/vnd.apple.mpegurl). Etwas langsamer, aber zuverlässiger als die URL-Erkennung.",
+    "description": "MIME detection explanation."
+  },
+  "mimeDetectionCheckbox": {
+    "message": "Erkennung über MIME-Antwort des Servers",
+    "description": "MIME detection label."
+  },
+  "downloadMethodTitle": {
+    "message": "Download-Methode",
+    "description": "Download method title."
+  },
+  "browserDownloadExplain": {
+    "message": "Lädt Medien über den nativen Download-Manager des Browsers herunter. Schnell und stabil bei Verbindungsabbrüchen, funktioniert jedoch nur auf bestimmten Websites und Browsern (z.B. Firefox am PC).",
+    "description": "Browser download explanation."
+  },
+  "browserDownloadCheckbox": {
+    "message": "Natives Herunterladen über den Browser",
+    "description": "Browser download label."
+  },
+  "fetchDownloadExplain": {
+    "message": "Lädt Medien mithilfe der Fetch-API herunter. Funktioniert auf den meisten Seiten, kann aber langsamer sein und reagiert empfindlich auf Verbindungsprobleme.",
+    "description": "Fetch download explanation."
+  },
+  "fetchDownloadCheckbox": {
+    "message": "Fetch API",
+    "description": "Fetch API label."
+  },
+  "streamDownloadTitle": {
+    "message": "Stream-Download Einstellungen",
+    "description": "Stream download title."
+  },
+  "streamFileDownloadExplain": {
+    "message": "Lädt die Stream-Manifestdatei (.m3u8, .mpd) direkt herunter. Zum Abspielen wird ein kompatibler Player wie z.B. der VLC-Media-Player von Videolan benötigt. Leichterer Download, jedoch nur online abspielbar.",
+    "description": "Stream manifest explanation."
+  },
+  "streamFileDownloadCheckbox": {
+    "message": "Stream-Manifest herunterladen",
+    "description": "Stream manifest checkbox."
+  },
+  "offlineDownloadExplain": {
+    "message": "Konvertiert den Stream nach dem Download in eine einzelne Offline-Videodatei (.ts oder .zip). Dauert länger und benötigt mehr Speicher, funktioniert aber komplett offline.",
+    "description": "Offline conversion explanation."
+  },
+  "offlineDownloadChecbox": {
+    "message": "In Offline-Videodatei umwandeln",
+    "description": "Offline conversion checkbox."
+  },
+  "streamQualityTitle": {
+    "message": "Bevorzugte Stream-Qualität",
+    "description": "Stream quality title."
+  },
+  "askStreamQualityExplain": {
+    "message": "Beim Herunterladen eines Streams immer nach der gewünschten Qualität fragen.",
+    "description": "Ask quality explanation."
+  },
+  "askStreamQualityCheckbox": {
+    "message": "Immer nachfragen",
+    "description": "Ask quality checkbox."
+  },
+  "highestStreamQualityExplain": {
+    "message": "Immer die höchste verfügbare Qualität herunterladen. Bessere Qualität, aber größere Dateien und längere Downloads.",
+    "description": "Highest quality explanation."
+  },
+  "highestStreamQualityCheckbox": {
+    "message": "Immer höchste Qualität",
+    "description": "Highest quality checkbox."
+  },
+  "lowestStreamQualityExplain": {
+    "message": "Immer die niedrigste verfügbare Qualität herunterladen. Kleinere Dateien und schnellere Downloads, aber geringere Qualität.",
+    "description": "Lowest quality explanation."
+  },
+  "lowestStreamQualityCheckbox": {
+    "message": "Immer niedrigste Qualität",
+    "description": "Lowest quality checkbox."
+  },
+  "mpdFixExplain": {
+    "message": "Passt die heruntergeladene .mpd-Datei an, damit sie nur die tatsächlich heruntergeladene Qualität enthält. Ohne diese Option können Player wie VLC versuchen, nicht vorhandene Qualitäten abzuspielen, was möglicherweise zu Abspielfehlern führt.",
+    "description": "MPD fix explanation."
+  },
+  "mpdFixCheckbox": {
+    "message": "MPD-Dateien korrigieren (empfohlen)",
+    "description": "MPD fix checkbox."
+  },
+  "openPreference": {
+    "message": "Add-on-Öffnungseinstellungen",
+    "description": "Open preference title."
+  },
+  "openPreferenceExplain": {
+    "message": "Wähle, wie das Add-on geöffnet werden soll, wenn du auf das Symbol klickst.",
+    "description": "Open preference explanation."
+  },
+  "newTabCheckbox": {
+    "message": "In neuem Tab öffnen",
+    "description": "New tab option."
+  },
+  "newWindowCheckbox": {
+    "message": "In neuem Fenster öffnen",
+    "description": "New window option."
+  },
+  "colorPickerTitle": {
+    "message": "Oberflächenfarbe",
+    "description": "Interface color title."
+  },
+  "creditsTitle": {
+    "message": "Danksagungen",
+    "description": "Credits title."
+  },
+  "creditsDescription1": {
+    "message": "Media Downloader Unleashed!! ist ein ",
+    "description": "Credits part 1."
+  },
+  "creditsDescription2": {
+    "message": "freies und quelloffenes Open-Source-Projekt",
+    "description": "Credits part 2."
+  },
+  "creditsDescription3": {
+    "message": " entwickelt von ",
+    "description": "Credits part 3."
+  },
+  "creditsDescription4": {
+    "message": "🦊 helloyanis",
+    "description": "Credits part 4."
+  },
+  "creditsDescription5": {
+    "message": ". Deutsche Übersetzung von @morihofi auf GitHub.",
+    "description": "Credits part 5."
+  },
+  "rateButton": {
+    "message": "Bewertung abgeben",
+    "description": "Rate button."
+  },
+  "shareButton": {
+    "message": "Teilen",
+    "description": "Share button."
+  },
+  "donateButton": {
+    "message": "Spenden",
+    "description": "Donate button."
+  },
+  "contactTitle": {
+    "message": "Kontakt",
+    "description": "Contact section title."
+  },
+  "contactDescription": {
+    "message": "Wenn du Fragen, Probleme oder Ideen hast, kannst du mich gerne kontaktieren (wenn möglich auf Englisch).",
+    "description": "Contact description."
+  },
+  "emailButton": {
+    "message": "E-Mail",
+    "description": "Email button."
+  },
+  "mastodonButton": {
+    "message": "Mastodon",
+    "description": "Mastodon button."
+  },
+  "mobileIncompatibleWarning": {
+    "message": "⚠️ Diese Option ist mit einigen Browsern, z.B. Firefox für Android, nicht kompatibel. Wenn du diesen Browser verwendest, ändere die Einstellung bitte zurück.",
+    "description": "Mobile warning."
+  },
+  "permissionRequestTitle": {
+    "message": "Berechtigung erforderlich",
+    "description": "Permission popup title."
+  },
+  "permissionRequestDescription": {
+    "message": "Die Erweiterung benötigt Zugriff auf alle URLs, um korrekt zu funktionieren. Dadurch kann sie Medien auf allen Websites erkennen. Deine Browserdaten werden nur lokal gespeichert und nicht weitergegeben. Bitte gewähre die Berechtigung oder lehne ab, wenn du eingeschränkten Zugriff bevorzugst.",
+    "description": "Permission popup description."
+  },
+  "grantPermissionButton": {
+    "message": "Berechtigung gewähren",
+    "description": "Grant permission button."
+  },
+  "denyPermissionButton": {
+    "message": "Nicht erneut erinnern",
+    "description": "Deny permission button."
+  },
+  "permissionGrantedMessage": {
+    "message": "Berechtigung erfolgreich erteilt.",
+    "description": "Permission granted message."
+  },
+  "permissionDeniedMessage": {
+    "message": "Berechtigung verweigert. Die Erweiterung funktioniert möglicherweise nicht wie erwartet.",
+    "description": "Permission denied message."
+  },
+  "permissionGrantFailedMessage": {
+    "message": "Berechtigung konnte nicht erteilt werden. Die Erweiterung funktioniert möglicherweise nicht wie erwartet.",
+    "description": "Permission grant failed message."
+  }
+}
