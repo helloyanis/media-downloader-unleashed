@@ -35,7 +35,7 @@
 
 #settings-container {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: wrap;
     justify-content: space-around;
 }
@@ -70,8 +70,4 @@ mdui-select::part(menu) {
   max-height: 300px;
   overflow: auto;
   width: 100%;
-}
-
-mdui-card {
-    overflow-x: scroll;
 }
