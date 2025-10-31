@@ -40,7 +40,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     const snackbar = document.createElement('mdui-snackbar');
     snackbar.setAttribute('open', true);
     snackbar.setAttribute('timeout', 10000);
-    snackbar.textContent = 'Separate audio stream detected. Downloading video and audio separately (There will be 2 downloads).'
+    snackbar.textContent = browser.i18n.getMessage("splitDownloadWarningSnackbar")
     document.body.appendChild(snackbar);
     snackbar.addEventListener('close', () => {
       snackbar.remove();
@@ -144,11 +144,11 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
   const baseFileName = getFileName(m3u8Url);
   if (audioUrl) {
-    loadingBar.setAttribute('aria-label', 'Downloading audio stream...');
+    loadingBar.setAttribute('aria-label', browser.i18n.getMessage("downloadingAudioSnackbar"));
     const snackbar = document.createElement('mdui-snackbar');
     snackbar.setAttribute('open', true);
     snackbar.setAttribute('timeout', 10000);
-    snackbar.textContent = 'Downloading audio stream...'
+    snackbar.textContent = browser.i18n.getMessage("downloadingAudioSnackbar")
     document.body.appendChild(snackbar);
     snackbar.addEventListener('close', () => {
       snackbar.remove();
@@ -183,7 +183,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(`Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i ${baseFileName}_video.ts -i ${baseFileName}_audio.mp3 -c copy ${baseFileName}.mp4</code>`, "Downloaded separated audio and video streams");
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription",[baseFileName]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;
@@ -260,14 +260,14 @@ async function selectStreamVariant(playlistLines, baseUrl) {
 
     return new Promise((resolve) => {
         const dialog = document.createElement("mdui-dialog");
-        dialog.headline = "Select Stream Quality";
+        dialog.headline = browser.i18n.getMessage("streamQualityDialogTitle")
 
         const content = document.createElement("div");
         content.className = "mdui-dialog-content";
         dialog.appendChild(content);
 
         const label = document.createElement("label");
-        label.textContent = "Quality:";
+        label.textContent = browser.i18n.getMessage("streamQualitySelectLabel")
         content.appendChild(label);
 
         const select = document.createElement("mdui-select");
@@ -288,7 +288,7 @@ async function selectStreamVariant(playlistLines, baseUrl) {
         actions.className = "mdui-dialog-actions";
 
         const confirmBtn = document.createElement("mdui-button");
-        confirmBtn.textContent = "OK";
+        confirmBtn.textContent = browser.i18n.getMessage("okButton")
         confirmBtn.setAttribute("variant", "text");
         confirmBtn.addEventListener("click", () => {
             const selectedIndex = select.value || 0;
@@ -678,7 +678,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(`The MPD stream has been downloaded as a ZIP file. You can extract it and play the ${baseName}.mpd video with VLC or any other compatible player.`, "MPD Download Complete");
+  showDialog(browser.i18n.getMessage("mpdDownloadCompleteTitle",[baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"));
 }
 
 /**
@@ -709,7 +709,7 @@ async function selectMPDVideoRepresentation(reps) {
   return new Promise((resolve) => {
     // Create dialog root
     const dialog = document.createElement("mdui-dialog");
-    dialog.headline = "Select Video Quality";
+    dialog.headline = browser.i18n.getMessage("videoQualityDialogTitle");
 
     // Content: a <div> that holds a label + <mdui-select>
     const content = document.createElement("div");
@@ -718,7 +718,7 @@ async function selectMPDVideoRepresentation(reps) {
 
     const label = document.createElement("label");
     label.setAttribute("for", "mpd-video-select");
-    label.textContent = "Video Quality:";
+    label.textContent = browser.i18n.getMessage("videoQualitySelectLabel");
     content.appendChild(label);
 
     const select = document.createElement("mdui-select");
@@ -744,7 +744,7 @@ async function selectMPDVideoRepresentation(reps) {
     const actions = document.createElement("div");
     actions.className = "mdui-dialog-actions";
     const confirmBtn = document.createElement("mdui-button");
-    confirmBtn.textContent = "OK";
+    confirmBtn.textContent = browser.i18n.getMessage("okButton")
     confirmBtn.setAttribute("variant", "text");
     confirmBtn.addEventListener("click", () => {
       const idx = parseInt(select.value, 10) || 0;
@@ -788,7 +788,7 @@ async function selectMPDAudioRepresentation(reps) {
   return new Promise((resolve) => {
     // Create dialog root
     const dialog = document.createElement("mdui-dialog");
-    dialog.headline = "Select Audio Quality";
+    dialog.headline = browser.i18n.getMessage("audioQualityDialogTitle");
 
     // Content: a <div> that holds a label + <mdui-select>
     const content = document.createElement("div");
@@ -797,7 +797,7 @@ async function selectMPDAudioRepresentation(reps) {
 
     const label = document.createElement("label");
     label.setAttribute("for", "mpd-audio-select");
-    label.textContent = "Audio Quality:";
+    label.textContent = browser.i18n.getMessage("audioQualitySelectLabel");;
     content.appendChild(label);
 
     const select = document.createElement("mdui-select");
@@ -823,7 +823,7 @@ async function selectMPDAudioRepresentation(reps) {
     const actions = document.createElement("div");
     actions.className = "mdui-dialog-actions";
     const confirmBtn = document.createElement("mdui-button");
-    confirmBtn.textContent = "OK";
+    confirmBtn.textContent = browser.i18n.getMessage("okButton")
     confirmBtn.setAttribute("variant", "text");
     confirmBtn.addEventListener("click", () => {
       const idx = parseInt(select.value, 10) || 0;

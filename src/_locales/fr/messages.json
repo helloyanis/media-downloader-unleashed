@@ -338,5 +338,73 @@
     "permissionGrantFailedMessage": {
         "message": "Échec de l'octroi de la permission. L'extension peut ne pas fonctionner comme prévu.",
         "description": "The message shown when the permission grant fails."
+    },
+    "mpdDownloadCompleteTitle": {
+        "message": "Téléchargement MPD terminé",
+        "description": "The title of the notification shown when an MPD download is complete."
+    },
+    "mpdDownloadCompleteMessage": {
+        "message": "Le flux MPD a été téléchargé en tant que fichier zip. Vous pouvez l'extraire et lire la vidéo $BASENAME$.mpd avec VLC ou n'importe quel autre lecteur compatible.",
+        "description": "The message of the notification shown when an MPD download is complete.",
+        "placeholders": {
+            "BASENAME": {
+                "content": "$1",
+                "example": "video"
+            }
+        }
+    },
+    "splitDownloadWarningSnackbar": {
+        "message": "Les flux audio et vidéo sont séparés. Deux fichiers seront téléchargés.",
+        "description": "The snackbar text that appears when an m3u8 stream with split audio and video starts to download"
+    },
+    "downloadingAudioSnackbar": {
+        "message": "Téléchargement du flux audio...",
+        "description": "The snackbar text that appears when an m3u8 stream with split audio and video has the video portion downloaded and switches to downloading audio"
+    },
+    "splitAudioVideoDownloadCompleteTitle": {
+        "message": "Téléchargement des flux audio et vidéo terminé.",
+        "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
+    },
+    "splitAudioVideoDownloadCompleteDescription": {
+        "message": "Les flux audio et vidéos ont été téléchargés séparément. Vous pouvez les fusionner avec <a href='https://ffmpeg.org/'>ffmpeg</a> en utilisant la commande suivante :<br/><code>ffmpeg -i $BASENAME$_video.ts -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
+        "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
+        "placeholders": {
+            "BASENAME": {
+                "content": "$1",
+                "example": "my_stream"
+            }
+        }
+    },
+    "videoQualityDialogTitle": {
+        "message": "Choisir la qualité vidéo",
+        "description": "The title of the dialog to select video quality when downloading a stream for MPD streams."
+    },
+    "videoQualitySelectLabel": {
+        "message": "Qualité vidéo",
+        "description": "The label of the quality selection dropdown in the video quality dialog for MPD streams."
+    },
+    "audioQualityDialogTitle": {
+        "message": "Choisir la qualité audio",
+        "description": "The title of the dialog to select audio quality when downloading an stream for MPD streams."
+    },
+    "audioQualitySelectLabel": {
+        "message": "Qualité audio",
+        "description": "The label of the quality selection dropdown in the audio quality dialog for MPD streams."
+    },
+    "streamQualityDialogTitle": {
+        "message": "Choisir la qualité du flux",
+        "description": "The title of the dialog to select the stream quality when downloading an m3u8 stream."
+    },
+    "streamQualitySelectLabel": {
+        "message": "Qualité du flux",
+        "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
+    },
+    "mediaPreviewSnackbar": {
+        "message": "Si la vidéo ne charge pas, essayez de mettre la méthode de téléchargement sur \"Fetch\" dans l'onglet des options. C'est plus lent mais fonctionne avec plus de sites.",
+        "description": "The snackbar shown when someone uses the preview mode for the first time."
+    },
+    "mediaPreviewDontRemindMe": {
+        "message": "Ne plus me le rappeler",
+        "description": "The action in the snackbar from above which will make it no longer show up."
     }
 }
