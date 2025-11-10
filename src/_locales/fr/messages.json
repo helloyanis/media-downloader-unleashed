@@ -406,5 +406,9 @@
     "mediaPreviewDontRemindMe": {
         "message": "Ne plus me le rappeler",
         "description": "The action in the snackbar from above which will make it no longer show up."
+    },
+    "helpTooltip": {
+        "message": "Ouvrir l'aide",
+        "description": "The text of the tooltip shown when hovering over the button at the bottom left, to open the wiki page"
     }
 }

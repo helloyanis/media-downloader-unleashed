@@ -402,5 +402,9 @@
     "streamQualitySelectLabel": {
         "message": "Stream quality",
         "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
+    },
+    "helpTooltip": {
+        "message": "Open help",
+        "description": "The text of the tooltip shown when hovering over the button at the bottom left, to open the wiki page"
     }
 }
