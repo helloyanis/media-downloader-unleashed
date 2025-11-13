@@ -203,7 +203,7 @@ function loadMediaList() {
       //Display request method and referrer
       const descriptionDiv = document.createElement('div');
       console.log(requests)
-      descriptionDiv.textContent = browser.i18n.getMessage("requestText",[requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value ?? browser.i18n.getMessage("requestSourceUnknown")]);
+      descriptionDiv.textContent = browser.i18n.getMessage("requestText",[requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value ?? browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) ?? "??:??"]);
       mediaDiv.appendChild(descriptionDiv);
 
       // Create a div to put actions at the end of the media item
@@ -244,7 +244,8 @@ function loadMediaList() {
         const request = requests.find(request => request.size === selectedSize);
         const refererHeader = request?.requestHeaders.find(h => h.name.toLowerCase() === "referer");
         const referer = refererHeader?.value || browser.i18n.getMessage("requestSourceUnknown");
-        descriptionDiv.textContent = browser.i18n.getMessage("requestText", [request?.method || browser.i18n.getMessage("requestMethodUnknown"), referer]);
+        const timeStamp = new Date(request?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"
+        descriptionDiv.textContent = browser.i18n.getMessage("requestText", [request?.method || browser.i18n.getMessage("requestMethodUnknown"), referer, timeStamp]);
       });
 
       actionsDiv.appendChild(sizeSelect);

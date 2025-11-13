@@ -27,97 +27,8 @@ let headersSentListener, headersReceivedListener;
 
 function initListener() {
     browser.storage.local.get('url-detection', function (result) {
-        if (result['url-detection'] !== '1') {
-            urlList = ["<all_urls>"];   //We filter it in popup.js because there are many filter options that can be selected
-            // urlList = [
-            //     "*://*/*.flv*",
-            //     "*://*/*.avi*",
-            //     "*://*/*.wmv*",
-            //     "*://*/*.mov*",
-            //     "*://*/*.mp4*",
-            //     "*://*/*.pcm*",
-            //     "*://*/*.wav*",
-            //     "*://*/*.mp3*",
-            //     "*://*/*.aac*",
-            //     "*://*/*.ogg*",
-            //     "*://*/*.wma*",
-            //     "*://*/*.m3u8*",
-
-            //     "*://*/*.3g2*",
-            //     "*://*/*.3gp*",
-            //     "*://*/*.asx*",
-            //     "*://*/*.divx*",
-            //     "*://*/*.f4v*",
-            //     "*://*/*.ismv*",
-            //     "*://*/*.m2t*",
-            //     "*://*/*.m2ts*",
-            //     "*://*/*.m2v*",
-            //     "*://*/*.m4s*",
-            //     "*://*/*.m4v*",
-            //     "*://*/*.mk3d*",
-            //     "*://*/*.mkv*",
-            //     "*://*/*.mng*",
-            //     "*://*/*.mp2v*",
-            //     "*://*/*.mp4v*",
-            //     "*://*/*.mpe*",
-            //     "*://*/*.mpeg*",
-            //     "*://*/*.mpeg1*",
-            //     "*://*/*.mpeg2*",
-            //     "*://*/*.mpeg4*",
-            //     "*://*/*.mpg*",
-            //     "*://*/*.mxf*",
-            //     "*://*/*.ogm*",
-            //     "*://*/*.ogv*",
-            //     "*://*/*.qt*",
-            //     "*://*/*.rm*",
-            //     "*://*/*.swf*",
-            //     "*://*/*.ts*",
-            //     "*://*/*.vob*",
-            //     "*://*/*.vp9*",
-            //     "*://*/*.webm*",
-            //     "*://*/*.3ga*",
-            //     "*://*/*.ac3*",
-            //     "*://*/*.adts*",
-            //     "*://*/*.aif*",
-            //     "*://*/*.aiff*",
-            //     "*://*/*.alac*",
-            //     "*://*/*.ape*",
-            //     "*://*/*.asf*",
-            //     "*://*/*.au*",
-            //     "*://*/*.dts*",
-            //     "*://*/*.f4a*",
-            //     "*://*/*.f4b*",
-            //     "*://*/*.flac*",
-            //     "*://*/*.isma*",
-            //     "*://*/*.it*",
-            //     "*://*/*.m4a*",
-            //     "*://*/*.m4b*",
-            //     "*://*/*.m4r*",
-            //     "*://*/*.mid*",
-            //     "*://*/*.mka*",
-            //     "*://*/*.mod*",
-            //     "*://*/*.mp1*",
-            //     "*://*/*.mp2*",
-            //     "*://*/*.mp4a*",
-            //     "*://*/*.mpa*",
-            //     "*://*/*.mpga*",
-            //     "*://*/*.oga*",
-            //     "*://*/*.ogx*",
-            //     "*://*/*.opus*",
-            //     "*://*/*.ra*",
-            //     "*://*/*.shn*",
-            //     "*://*/*.spx*",
-            //     "*://*/*.vorbis*",
-            //     "*://*/*.weba*",
-            //     "*://*/*.xm*",
-            //     "*://*/*.f4f*",
-            //     "*://*/*.f4m*",
-            //     "*://*/*.mpd*",
-            //     "*://*/*.smil*"
-            // ];            
-        } else {
-            urlList = ["<all_urls>"];
-        }
+        urlList = ["<all_urls>"];
+        
 
         // Check for event listener existence before adding a new one
         if (headersSentListener) {
@@ -132,7 +43,8 @@ function initListener() {
                     method: details.method,
                     requestHeaders: details.requestHeaders,
                     responseHeaders: null, // Placeholder for response headers
-                    size: null // Placeholder for media size
+                    size: null, // Placeholder for media size,
+                    timeStamp: null // Placeholder for timestamp
                 };
 
                 browser.storage.session.get(details.url, function (result) {
@@ -169,6 +81,7 @@ function initListener() {
                         if (!request.size) {
                             request.size = size;
                             request.responseHeaders = details.responseHeaders;
+                            request.timeStamp = details.timeStamp
                             break;
                         }
                     }
@@ -242,5 +155,8 @@ browser.runtime.onInstalled.addListener((details) => {
         });
     }
 });
+
+browser.runtime.onStartup.addListener(initListener);
+
 
 browser.runtime.setUninstallURL(`https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/uninstalled.md`);

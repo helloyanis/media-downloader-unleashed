@@ -40,7 +40,7 @@
     "description": "OK button text."
   },
   "requestText": {
-    "message": "$METHOD$-Anfrage von $SOURCE$",
+    "message": "$METHOD$-Anfrage von $SOURCE$ at $TIME$",
     "description": "Request type text.",
     "placeholders": {
       "METHOD": {
@@ -50,7 +50,11 @@
       "SOURCE": {
         "content": "$2",
         "example": "https://example.com/video.mp4"
-      }
+      },
+      "TIME": {
+                "content": "$3",
+                "example": "12:34"
+            }
     }
   },
   "requestMethodUnknown": {

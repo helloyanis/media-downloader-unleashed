@@ -40,7 +40,7 @@
         "description": "The text of the OK button in the error popup."
     },
     "requestText": {
-        "message": "$METHOD$ request from $SOURCE$",
+        "message": "$METHOD$ request from $SOURCE$ at $TIME$",
         "description": "The text showing which type of request is being made to load the media.",
         "placeholders": {
             "METHOD": {
@@ -50,6 +50,10 @@
             "SOURCE": {
                 "content": "$2",
                 "example": "https://example.com/video.mp4"
+            },
+            "TIME": {
+                "content": "$3",
+                "example": "12:34"
             }
         }
     },
