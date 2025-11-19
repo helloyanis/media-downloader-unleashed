@@ -184,7 +184,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     snackbar.addEventListener('close', () => {
       snackbar.remove();
     });
-    const { blob: audioBlob, extAudio } = await downloadSegments(audioUrl, true);
+    const { blob: audioBlob } = await downloadSegments(audioUrl, true);
 
     // Save both blobs separately
     const videoBlobUrl = URL.createObjectURL(videoBlob);
@@ -197,7 +197,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       });
       await browser.downloads.download({
         url: audioBlobUrl,
-        filename: `${baseFileName}_audio${extAudio}`
+        filename: `${baseFileName}_audio.mp3`
       });
     } else {
       const videoAnchor = document.createElement("a");
@@ -209,12 +209,12 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
       const audioAnchor = document.createElement("a");
       audioAnchor.href = audioBlobUrl;
-      audioAnchor.download = `${baseFileName}_audio${ext}`;
+      audioAnchor.download = `${baseFileName}_audio.mp3`;
       document.body.appendChild(audioAnchor);
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName,ext,extAudio]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName,ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;

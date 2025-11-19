@@ -370,7 +370,7 @@
         "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
     },
     "splitAudioVideoDownloadCompleteDescription": {
-        "message": "Les flux audio et vidéos ont été téléchargés séparément. Vous pouvez les fusionner avec <a href='https://ffmpeg.org/'>ffmpeg</a> en utilisant la commande suivante :<br/><code>ffmpeg -i $BASENAME$_video$VIDEOEXT$ -i $BASENAME$_audio$AUDIOEXT$ -c copy $BASENAME$.mp4</code>",
+        "message": "Les flux audio et vidéos ont été téléchargés séparément. Vous pouvez les fusionner avec <a href='https://ffmpeg.org/'>ffmpeg</a> en utilisant la commande suivante :<br/><code>ffmpeg -i $BASENAME$_video$VIDEOEXT$ -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
         "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
         "placeholders": {
             "BASENAME": {
@@ -380,10 +380,6 @@
             "VIDEOEXT": {
                 "content": "$2",
                 "example": ".mp4"
-            },
-            "AUDIOEXT": {
-                "content": "$3",
-                "example": ".mp3"
             }
         }
     },
