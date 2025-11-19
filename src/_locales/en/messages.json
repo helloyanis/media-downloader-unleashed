@@ -374,14 +374,22 @@
         "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
     },
     "splitAudioVideoDownloadCompleteDescription": {
-        "message": "Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i $BASENAME$_video.ts -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
+        "message": "Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i $BASENAME$_video$VIDEOEXT$ -i $BASENAME$_audio$AUDIOEXT$ -c copy $BASENAME$.mp4</code>",
         "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
         "placeholders": {
-            "BASENAME": {
-                "content": "$1",
-                "example": "my_stream"
-            }
-        }
+          "BASENAME": {
+              "content": "$1",
+              "example": "my_stream"
+          },
+          "VIDEOEXT": {
+            "content": "$2",
+            "example": ".mp4"
+          },
+          "AUDIOEXT": {
+            "content": "$3",
+            "example": ".mp3"
+          }
+      }
     },
     "videoQualityDialogTitle": {
         "message": "Select video quality",

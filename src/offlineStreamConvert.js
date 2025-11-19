@@ -48,30 +48,26 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
   }
 
   async function downloadSegments(playlistUrl) {
-    let totalSegments = 0;
-    let downloadedSegments = 0;
     const playlistText = await getText(playlistUrl);
-    const lines = playlistText.split("\n");
+    const lines = playlistText.split("\n").map(l => l.trim());
 
-    let keyUri = null;
-    let ivHex = null;
-    let keyBuffer = null;
+    // find EXT-X-MAP (init segment) and EXT-X-KEY
+    const mapLine = lines.find(l => l.startsWith("#EXT-X-MAP"));
+    const mapUri = mapLine ? (new URL(mapLine.match(/URI="([^"]+)"/)[1], playlistUrl)).href : null;
 
-    // Find key line
-    for (const line of lines) {
-      if (line.startsWith("#EXT-X-KEY")) {
-        const uriMatch = line.match(/URI="([^"]+)"/);
-        const ivMatch = line.match(/IV=0x([0-9a-fA-F]+)/);
-        if (uriMatch) keyUri = uriMatch[1];
-        if (ivMatch) ivHex = ivMatch[1];
+    let keyUri = null, ivHex = null, keyBuffer = null;
+    for (const l of lines) {
+      if (l.startsWith("#EXT-X-KEY")) {
+        const u = l.match(/URI="([^"]+)"/);
+        const iv = l.match(/IV=0x([0-9a-fA-F]+)/);
+        if (u) keyUri = new URL(u[1], playlistUrl).href;
+        if (iv) ivHex = iv[1];
         break;
       }
     }
 
-    // Fetch key if present
     if (keyUri) {
-      const fullKeyUri = new URL(keyUri, playlistUrl).href;
-      const keyRes = await fetch(fullKeyUri, {
+      const keyRes = await fetch(keyUri, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method
@@ -79,23 +75,52 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       keyBuffer = await keyRes.arrayBuffer();
     }
 
-    const tsUrls = lines
-      .filter(line => line && !line.startsWith("#"))
-      .map(line => new URL(line, playlistUrl).href);
+    const segUrls = lines.filter(l => l && !l.startsWith("#")).map(l => new URL(l, playlistUrl).href);
+    const parts = [];
+    let container = null; // 'fmp4' | 'ts' | 'unknown'
 
-    totalSegments += tsUrls.length;
-
-    const segmentBuffers = [];
-
-    for (let i = 0; i < tsUrls.length; i++) {
-      const res = await fetch(tsUrls[i], {
+    // Fetch and (if needed) decrypt init segment (EXT-X-MAP)
+    if (mapUri) {
+      let mapRes = await fetch(mapUri, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method
       });
+      let mapData = new Uint8Array(await mapRes.arrayBuffer());
+      if (keyBuffer) {
+        // Decrypt the init segment with same key/IV logic
+        const iv = ivHex
+          ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
+          : (() => { const iv = new Uint8Array(16); new DataView(iv.buffer).setUint32(12, 0 /* seq for init */, false); return iv; })();
+        mapData = await decryptSegment(mapData, keyBuffer, iv);
+      }
+      parts.push(mapData); // prepend init
+      container = 'fmp4';
+    }
 
-      let data = new Uint8Array(await res.arrayBuffer());
+    // download segments
+    for (let i = 0; i < segUrls.length; i++) {
+      const res = await fetch(segUrls[i], {
+        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+        method: request.method
+      });
+      const arr = new Uint8Array(await res.arrayBuffer());
 
+      // determine container type from first segment if unknown
+      if (!container && i === 0) {
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('mp4') || ct.includes('iso') || ct.includes('fmp4')) container = 'fmp4';
+        else if (arr[0] === 0x47) container = 'ts';
+        else {
+          // look for 'ftyp' or 'styp'
+          const hdr = String.fromCharCode(...arr.slice(4, 8));
+          if (hdr === 'ftyp' || hdr === 'styp') container = 'fmp4';
+          else container = 'unknown';
+        }
+      }
+
+      let data = arr;
       if (keyBuffer) {
         const iv = ivHex
           ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
@@ -109,16 +134,22 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
         data = await decryptSegment(data, keyBuffer, iv);
       }
 
-      segmentBuffers.push(data);
-
-      downloadedSegments++;
+      parts.push(data);
+      // update loading bar as you already do
       loadingBar.removeAttribute('indeterminate');
-      loadingBar.setAttribute("value", downloadedSegments / totalSegments);
+      loadingBar.setAttribute("value", (i + 1) / segUrls.length);
     }
 
-    const finalTsBlob = new Blob(segmentBuffers, { type: "video/MP2T" });
-    return finalTsBlob;
+    // create final blob and extension
+    if (container === 'fmp4') {
+      const finalBlob = new Blob(parts, { type: "video/mp4" });
+      return { blob: finalBlob, ext: '.mp4' };
+    } else {
+      const finalBlob = new Blob(parts, { type: "video/mp2t" });
+      return { blob: finalBlob, ext: '.ts' };
+    }
   }
+
   async function decryptSegment(encryptedBuffer, keyBuffer, iv) {
     const cryptoKey = await crypto.subtle.importKey(
       "raw",
@@ -140,7 +171,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     return new Uint8Array(decryptedBuffer);
   }
 
-  const videoBlob = await downloadSegments(videoUrl, false);
+  const { blob: videoBlob, ext } = await downloadSegments(videoUrl);
 
   const baseFileName = getFileName(m3u8Url);
   if (audioUrl) {
@@ -153,7 +184,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     snackbar.addEventListener('close', () => {
       snackbar.remove();
     });
-    const audioBlob = await downloadSegments(audioUrl, true);
+    const { blob: audioBlob, extAudio } = await downloadSegments(audioUrl, true);
 
     // Save both blobs separately
     const videoBlobUrl = URL.createObjectURL(videoBlob);
@@ -162,28 +193,28 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     if (downloadMethod === "browser") {
       await browser.downloads.download({
         url: videoBlobUrl,
-        filename: `${baseFileName}_video.ts`
+        filename: `${baseFileName}_video${ext}`
       });
       await browser.downloads.download({
         url: audioBlobUrl,
-        filename: `${baseFileName}_audio.ts`
+        filename: `${baseFileName}_audio${extAudio}`
       });
     } else {
       const videoAnchor = document.createElement("a");
       videoAnchor.href = videoBlobUrl;
-      videoAnchor.download = `${baseFileName}_video.ts`;
+      videoAnchor.download = `${baseFileName}_video${ext}`;
       document.body.appendChild(videoAnchor);
       videoAnchor.click();
       document.body.removeChild(videoAnchor);
 
       const audioAnchor = document.createElement("a");
       audioAnchor.href = audioBlobUrl;
-      audioAnchor.download = `${baseFileName}_audio.ts`;
+      audioAnchor.download = `${baseFileName}_audio${ext}`;
       document.body.appendChild(audioAnchor);
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription",[baseFileName]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName,ext,extAudio]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;
@@ -193,12 +224,12 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     if (downloadMethod === "browser") {
       await browser.downloads.download({
         url: videoBlobUrl,
-        filename: `${baseFileName}.ts`
+        filename: `${baseFileName}.${ext}`
       });
     } else {
       const videoAnchor = document.createElement("a");
       videoAnchor.href = videoBlobUrl;
-      videoAnchor.download = `${baseFileName}.ts`;
+      videoAnchor.download = `${baseFileName}.${ext}`;
       document.body.appendChild(videoAnchor);
       videoAnchor.click();
       document.body.removeChild(videoAnchor);
@@ -215,93 +246,93 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
   * @return {Promise<Object>} - A promise that resolves to the selected stream variant object containing bandwidth, resolution, and URI.
 */
 async function selectStreamVariant(playlistLines, baseUrl) {
-    const variants = [];
+  const variants = [];
 
-    for (let i = 0; i < playlistLines.length; i++) {
-        if (playlistLines[i].startsWith("#EXT-X-STREAM-INF")) {
-            const bwMatch = playlistLines[i].match(/BANDWIDTH=(\d+)/);
-            const resMatch = playlistLines[i].match(/RESOLUTION=(\d+x\d+)/);
-            const bandwidth = bwMatch ? parseInt(bwMatch[1]) : 0;
-            const resolution = resMatch ? resMatch[1] : "unknown";
-            const uri = playlistLines[i + 1];
-            variants.push({
-                bandwidth,
-                resolution,
-                uri: uri.startsWith("http") ? uri : baseUrl + uri
-            });
-        }
+  for (let i = 0; i < playlistLines.length; i++) {
+    if (playlistLines[i].startsWith("#EXT-X-STREAM-INF")) {
+      const bwMatch = playlistLines[i].match(/BANDWIDTH=(\d+)/);
+      const resMatch = playlistLines[i].match(/RESOLUTION=(\d+x\d+)/);
+      const bandwidth = bwMatch ? parseInt(bwMatch[1]) : 0;
+      const resolution = resMatch ? resMatch[1] : "unknown";
+      const uri = playlistLines[i + 1];
+      variants.push({
+        bandwidth,
+        resolution,
+        uri: uri.startsWith("http") ? uri : baseUrl + uri
+      });
     }
+  }
 
-    // Fetch duration for each variant to estimate size
-    await Promise.all(variants.map(async (variant) => {
-        try {
-            const res = await fetch(variant.uri);
-            const text = await res.text();
-            const duration = text.split('\n')
-                .filter(line => line.startsWith("#EXTINF:"))
-                .map(line => parseFloat(line.replace("#EXTINF:", "")))
-                .reduce((sum, dur) => sum + dur, 0); // total seconds
+  // Fetch duration for each variant to estimate size
+  await Promise.all(variants.map(async (variant) => {
+    try {
+      const res = await fetch(variant.uri);
+      const text = await res.text();
+      const duration = text.split('\n')
+        .filter(line => line.startsWith("#EXTINF:"))
+        .map(line => parseFloat(line.replace("#EXTINF:", "")))
+        .reduce((sum, dur) => sum + dur, 0); // total seconds
 
-            const estimatedSize = (variant.bandwidth * duration) / 8; // bytes
-            variant.estimatedSize = estimatedSize;
-            variant.duration = duration;
-        } catch (e) {
-            console.warn("Could not fetch duration for", variant.uri);
-            variant.estimatedSize = null;
-        }
-    }));
+      const estimatedSize = (variant.bandwidth * duration) / 8; // bytes
+      variant.estimatedSize = estimatedSize;
+      variant.duration = duration;
+    } catch (e) {
+      console.warn("Could not fetch duration for", variant.uri);
+      variant.estimatedSize = null;
+    }
+  }));
 
-    // If only one variant, return it
-    if (variants.length === 1) return variants[0];
+  // If only one variant, return it
+  if (variants.length === 1) return variants[0];
 
-    const preference = localStorage.getItem("stream-quality");
-    if (preference === "highest") return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
-    if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
+  const preference = localStorage.getItem("stream-quality");
+  if (preference === "highest") return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
+  if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
 
-    return new Promise((resolve) => {
-        const dialog = document.createElement("mdui-dialog");
-        dialog.headline = browser.i18n.getMessage("streamQualityDialogTitle")
+  return new Promise((resolve) => {
+    const dialog = document.createElement("mdui-dialog");
+    dialog.headline = browser.i18n.getMessage("streamQualityDialogTitle")
 
-        const content = document.createElement("div");
-        content.className = "mdui-dialog-content";
-        dialog.appendChild(content);
+    const content = document.createElement("div");
+    content.className = "mdui-dialog-content";
+    dialog.appendChild(content);
 
-        const label = document.createElement("label");
-        label.textContent = browser.i18n.getMessage("streamQualitySelectLabel")
-        content.appendChild(label);
+    const label = document.createElement("label");
+    label.textContent = browser.i18n.getMessage("streamQualitySelectLabel")
+    content.appendChild(label);
 
-        const select = document.createElement("mdui-select");
-        select.setAttribute("variant", "outlined");
+    const select = document.createElement("mdui-select");
+    select.setAttribute("variant", "outlined");
 
-        variants.forEach((v, index) => {
-            const option = document.createElement("mdui-menu-item");
-            option.setAttribute("value", index);
+    variants.forEach((v, index) => {
+      const option = document.createElement("mdui-menu-item");
+      option.setAttribute("value", index);
 
-            const sizeMB = v.estimatedSize ? (v.estimatedSize / (1024 * 1024)).toFixed(2) + " MB" : "Size N/A";
-            option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps, ${sizeMB})`;
-            select.appendChild(option);
-        });
-
-        content.appendChild(select);
-
-        const actions = document.createElement("div");
-        actions.className = "mdui-dialog-actions";
-
-        const confirmBtn = document.createElement("mdui-button");
-        confirmBtn.textContent = browser.i18n.getMessage("okButton")
-        confirmBtn.setAttribute("variant", "text");
-        confirmBtn.addEventListener("click", () => {
-            const selectedIndex = select.value || 0;
-            document.body.removeChild(dialog);
-            resolve(variants[selectedIndex]);
-        });
-
-        actions.appendChild(confirmBtn);
-        dialog.appendChild(actions);
-
-        document.body.appendChild(dialog);
-        requestAnimationFrame(() => dialog.open = true);
+      const sizeMB = v.estimatedSize ? (v.estimatedSize / (1024 * 1024)).toFixed(2) + " MB" : "Size N/A";
+      option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps, ${sizeMB})`;
+      select.appendChild(option);
     });
+
+    content.appendChild(select);
+
+    const actions = document.createElement("div");
+    actions.className = "mdui-dialog-actions";
+
+    const confirmBtn = document.createElement("mdui-button");
+    confirmBtn.textContent = browser.i18n.getMessage("okButton")
+    confirmBtn.setAttribute("variant", "text");
+    confirmBtn.addEventListener("click", () => {
+      const selectedIndex = select.value || 0;
+      document.body.removeChild(dialog);
+      resolve(variants[selectedIndex]);
+    });
+
+    actions.appendChild(confirmBtn);
+    dialog.appendChild(actions);
+
+    document.body.appendChild(dialog);
+    requestAnimationFrame(() => dialog.open = true);
+  });
 }
 
 
@@ -678,7 +709,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(browser.i18n.getMessage("mpdDownloadCompleteTitle",[baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"));
+  showDialog(browser.i18n.getMessage("mpdDownloadCompleteTitle", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"));
 }
 
 /**
