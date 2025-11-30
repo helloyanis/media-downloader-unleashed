@@ -389,6 +389,24 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
   const period = periodList[0];
 
+  // Determine a "zip base path" from any <BaseURL> inside the Period (or MPD root)
+  let baseURLNode = period.getElementsByTagNameNS(NS, "BaseURL")[0];
+  let baseURLForZip = baseURLNode ? baseURLNode.textContent.trim() : "";
+
+  // If the BaseURL is absolute, convert to a path portion (so we create that folder in the ZIP)
+  // e.g. "https://example.com/assets/dash/" -> "assets/dash/"
+  if (baseURLForZip.match(/^https?:\/\//i)) {
+    try {
+      const u = new URL(baseURLForZip);
+      baseURLForZip = u.pathname.replace(/^\//, "");
+    } catch (e) {
+      baseURLForZip = ""; // fallback
+    }
+  }
+
+  // Normalize: ensure trailing slash if non-empty
+  if (baseURLForZip && !baseURLForZip.endsWith("/")) baseURLForZip += "/";
+
   // 4) Collect all <AdaptationSet> inside that <Period>
   const allSets = Array.from(
     period.getElementsByTagNameNS(NS, "AdaptationSet")
@@ -711,9 +729,18 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
 
   // 12) Add the original MPD text as “<whatever>.mpd”
   const mpdFilename = mpdUrl.substring(mpdUrl.lastIndexOf("/") + 1); // e.g. "sintel.mpd"
+
+  // helper to prefix zip path safely:
+  function prefixedName(path) {
+    if (!baseURLForZip) return path;
+    if (path.startsWith(baseURLForZip)) return path;
+    return baseURLForZip + path;
+  }
+
+  // 12) MPD remains at root (usually fine)
   zipEntries.push({
     name: mpdFilename,
-    data: new TextEncoder().encode(mpdXmlText), // client-zip accepts ArrayBuffer/Uint8Array
+    input: new TextEncoder().encode(mpdXmlText),
   });
 
   // 13) Prepare to fetch + add every init + media segment to the ZIP.
@@ -746,8 +773,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   console.log(">>> Fetching video init:", videoInfo.initUrl);
   const vInitBuf = await fetchArrayBuffer(videoInfo.initUrl);
   zipEntries.push({
-    name: videoInfo.initPath, // e.g. "video/6000kbit/init.mp4"
-    data: vInitBuf, // ArrayBuffer
+    name: prefixedName(videoInfo.initPath), // e.g. "video/6000kbit/init.mp4"
+    input: vInitBuf, // ArrayBuffer
   });
   downloadedCount++;
   loadingBar.setAttribute("value", downloadedCount);
@@ -758,8 +785,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     console.log(">>> Fetching audio init:", audioInfo.initUrl);
     aInitBuf = await fetchArrayBuffer(audioInfo.initUrl);
     zipEntries.push({
-      name: audioInfo.initPath, // e.g. "audio/480kbit/init.mp4"
-      data: aInitBuf,
+      name: prefixedName(audioInfo.initPath), // e.g. "audio/480kbit/init.mp4"
+      input: aInitBuf,
     });
     downloadedCount++;
     loadingBar.setAttribute("value", downloadedCount);
@@ -772,8 +799,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     console.log(`>>> Fetching video segment #${i + 1}:`, segUrl);
     const buf = await fetchArrayBuffer(segUrl);
     zipEntries.push({
-      name: segPath,
-      data: buf,
+      name: prefixedName(segPath),
+      input: buf,
     });
     downloadedCount++;
     loadingBar.setAttribute("value", downloadedCount);
@@ -787,8 +814,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       console.log(`>>> Fetching audio segment #${i + 1}:`, segUrl);
       const buf = await fetchArrayBuffer(segUrl);
       zipEntries.push({
-        name: segPath,
-        data: buf,
+        name: prefixedName(segPath),
+        input: buf,
       });
       downloadedCount++;
       loadingBar.setAttribute("value", downloadedCount);
@@ -820,7 +847,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(browser.i18n.getMessage("mpdDownloadCompleteTitle", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteMessage"));
+  showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"));
 }
 
 /**
