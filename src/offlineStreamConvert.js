@@ -214,7 +214,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName,ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;
@@ -494,56 +494,167 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     const tmpl = rep.segmentTemplate;
     const baseUrl = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
 
-    // 9a) initialization URL & relative path
-    const initPath = tmpl.initialization
-      .replace(/\$RepresentationID\$/g, rep.id)
-      .replace(/\$Bandwidth\$/g, rep.bandwidth);
-    const initUrl = new URL(initPath, baseUrl).href;
-
-    // 9b) compute how many segments (no <SegmentTimeline> present)
-    const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
-    const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
-    const parseISODuration = d => {
-      // Supports “P…T…H…M…S” (e.g. “P0Y0M0DT0H3M30.000S”)
-      const m = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(d);
-      if (!m) return 0;
-      const years = parseFloat(m[1] || "0");
-      const months = parseFloat(m[2] || "0");
-      const days = parseFloat(m[3] || "0");
-      const hours = parseFloat(m[4] || "0");
-      const minutes = parseFloat(m[5] || "0");
-      const secs = parseFloat(m[6] || "0");
-      return (
-        years * 365 * 24 * 3600 +
-        months * 30 * 24 * 3600 +
-        days * 24 * 3600 +
-        hours * 3600 +
-        minutes * 60 +
-        secs
-      );
-    };
-    const totalSec = parseISODuration(totalDurationISO);
-    const segLenSec = tmpl.duration / tmpl.timescale; // e.g. 2000 / 1000 = 2 sec/segment
-    const segmentCount = Math.ceil(totalSec / segLenSec);
-
-    // 9c) build each media segment URL & relative path
-    const segmentUrls = [];
-    const mediaPaths = [];
-    const firstIndex = tmpl.startNumber;
-    for (let n = firstIndex; n < firstIndex + segmentCount; n++) {
-      const mediaPath = tmpl.media
+    // Helper: replace common vars
+    const substituteVars = (path, rep, extra = {}) => {
+      return path
         .replace(/\$RepresentationID\$/g, rep.id)
         .replace(/\$Bandwidth\$/g, rep.bandwidth)
-        .replace(/\$Number\$/g, n);
-      mediaPaths.push(mediaPath);
-      segmentUrls.push(new URL(mediaPath, baseUrl).href);
+        .replace(/\$Number\$/g, extra.number !== undefined ? String(extra.number) : "$Number$")
+        .replace(/\$Time\$/g, extra.time !== undefined ? String(extra.time) : "$Time$");
+    };
+
+    // 1) initialization
+    const initPath = substituteVars(tmpl.initialization, rep, {});
+    const initUrl = new URL(initPath, baseUrl).href;
+
+    // Detect whether this template uses a SegmentTimeline (look up actual SegmentTemplate node in XML)
+    // Try rep-level SegmentTemplate first, then adaptation-set level
+    let repNode = Array.from(xmlDoc.getElementsByTagNameNS(NS, "Representation")).find(r => r.getAttribute("id") === rep.id);
+    let tmplNode = null;
+    if (repNode) {
+      tmplNode = repNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+      if (!tmplNode && repNode.parentElement) {
+        tmplNode = repNode.parentElement.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+      }
+    } else {
+      // fallback: try to find any SegmentTemplate (safeguard)
+      tmplNode = xmlDoc.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+    }
+
+    // If there is a SegmentTimeline, build start times array
+    let segmentStartTimes = null; // in timescale units (same unit as $Time$ expects)
+    const timelineNode = tmplNode ? tmplNode.getElementsByTagNameNS(NS, "SegmentTimeline")[0] : null;
+    if (timelineNode) {
+      // Parse all <S> elements in order
+      const sElems = Array.from(timelineNode.getElementsByTagNameNS(NS, "S"));
+      segmentStartTimes = [];
+      let cursor = null;
+      for (let i = 0; i < sElems.length; i++) {
+        const s = sElems[i];
+        const tAttr = s.getAttribute("t");
+        const dAttr = s.getAttribute("d");
+        const rAttr = s.getAttribute("r");
+
+        if (!dAttr) {
+          throw new Error("SegmentTimeline S element missing 'd' attribute — cannot compute segments.");
+        }
+        const d = parseInt(dAttr, 10);
+        const r = rAttr !== null ? parseInt(rAttr, 10) : 0;
+
+        // If explicit t appears, set cursor to it; otherwise cursor remains at previous cursor (or 0 for first)
+        if (tAttr !== null) {
+          cursor = parseInt(tAttr, 10);
+        } else if (cursor === null) {
+          cursor = 0;
+        }
+
+        // push (r + 1) start times
+        const repeatCount = r + 1;
+        for (let k = 0; k < repeatCount; k++) {
+          segmentStartTimes.push(cursor);
+          cursor += d;
+        }
+      }
+    }
+
+    // If template contains $Time$, use the timeline-derived times (or attempt to derive them)
+    const usesTimeVar = tmpl.media && tmpl.media.indexOf("$Time$") !== -1;
+    let mediaPaths = [];
+    let segmentUrls = [];
+    let firstIndex = tmpl.startNumber || 1;
+
+    if (usesTimeVar) {
+      if (!segmentStartTimes) {
+        // If $Time$ is used but there's no SegmentTimeline, we cannot compute times.
+        // As a fallback: try to compute times from duration/timescale (if duration provided).
+        if (tmpl.duration && tmpl.duration > 0) {
+          const segLen = tmpl.duration; // units: timescale units
+          const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
+          const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
+          const parseISODuration = d => {
+            const m = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(d);
+            if (!m) return 0;
+            const years = parseFloat(m[1] || "0");
+            const months = parseFloat(m[2] || "0");
+            const days = parseFloat(m[3] || "0");
+            const hours = parseFloat(m[4] || "0");
+            const minutes = parseFloat(m[5] || "0");
+            const secs = parseFloat(m[6] || "0");
+            return (
+              years * 365 * 24 * 3600 +
+              months * 30 * 24 * 3600 +
+              days * 24 * 3600 +
+              hours * 3600 +
+              minutes * 60 +
+              secs
+            );
+          };
+          const totalSec = parseISODuration(totalDurationISO);
+          const segLenSec = segLen / (tmpl.timescale || 1);
+          const estimatedCount = Math.ceil(totalSec / segLenSec);
+          // Build times as multiples of segLen (in timescale units)
+          segmentStartTimes = [];
+          const segLenUnits = segLen;
+          for (let i = 0; i < estimatedCount; i++) {
+            segmentStartTimes.push(i * segLenUnits);
+          }
+        } else {
+          throw new Error("Cannot compute $Time$ segments: SegmentTimeline missing and no fixed duration provided.");
+        }
+      }
+
+      // Build media paths by replacing $Time$ with each start time
+      for (let i = 0; i < segmentStartTimes.length; i++) {
+        const t = segmentStartTimes[i];
+        const mediaPath = substituteVars(tmpl.media, rep, { time: t, number: firstIndex + i });
+        mediaPaths.push(mediaPath);
+        segmentUrls.push(new URL(mediaPath, baseUrl).href);
+      }
+    } else {
+      // Fallback: Number-based segment addressing
+      // compute how many segments using MPD total duration and duration/timescale
+      const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
+      const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
+      const parseISODuration = d => {
+        const m = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(d);
+        if (!m) return 0;
+        const years = parseFloat(m[1] || "0");
+        const months = parseFloat(m[2] || "0");
+        const days = parseFloat(m[3] || "0");
+        const hours = parseFloat(m[4] || "0");
+        const minutes = parseFloat(m[5] || "0");
+        const secs = parseFloat(m[6] || "0");
+        return (
+          years * 365 * 24 * 3600 +
+          months * 30 * 24 * 3600 +
+          days * 24 * 3600 +
+          hours * 3600 +
+          minutes * 60 +
+          secs
+        );
+      };
+      const totalSec = parseISODuration(totalDurationISO);
+
+      // segLenSec: if tmpl.duration is 0/absent this will be 0 => guard
+      const segLenSec = (tmpl.duration || 0) / (tmpl.timescale || 1);
+      if (!segLenSec || segLenSec <= 0) {
+        throw new Error("Cannot compute number-based segments: no SegmentTimeline and duration/timescale missing or zero.");
+      }
+
+      const segmentCount = Math.ceil(totalSec / segLenSec);
+      for (let i = 0; i < segmentCount; i++) {
+        const number = (tmpl.startNumber || 1) + i;
+        const mediaPath = substituteVars(tmpl.media, rep, { number });
+        mediaPaths.push(mediaPath);
+        segmentUrls.push(new URL(mediaPath, baseUrl).href);
+      }
     }
 
     return {
-      initPath,       // e.g. "video/6000kbit/init.mp4"
-      initUrl,        // full URL
-      mediaPaths,     // e.g. ["video/6000kbit/segment_1.m4s", ...]
-      segmentUrls,    // full URLs array
+      initPath,
+      initUrl,
+      mediaPaths,
+      segmentUrls,
       firstIndex
     };
   }
@@ -709,7 +820,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(browser.i18n.getMessage("mpdDownloadCompleteTitle", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"));
+  showDialog(browser.i18n.getMessage("mpdDownloadCompleteTitle", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteMessage"));
 }
 
 /**
