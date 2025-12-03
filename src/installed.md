@@ -21,7 +21,9 @@ The files are sorted chronologically, so the first file is the oldest, and the l
 
 You can report bugs by [creating an issue on GitHub](https://github.com/helloyanis/live-stream-downloader-unleashed/issues) (you will need a GitHub account to do so)
 
+---
 
-Here is a video linked below, so you can try it!
-
-# [Demo](https://1d3e88d4-70a1-4b1f-81b5-6128f9714010.mdnplay.dev/shared-assets/videos/flower.webm)
+> [!NOTE]
+> Here is a video linked below, so you can try it!
+> 
+> # [Demo](https://1d3e88d4-70a1-4b1f-81b5-6128f9714010.mdnplay.dev/shared-assets/videos/flower.webm)

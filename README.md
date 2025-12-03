@@ -4,14 +4,24 @@ A browser add-on to easily download any media (audio, video and streams) played 
 
 <a href="https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=github-readme"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
+> [!IMPORTANT]
+> This add-on is currently only available on the Firefox Add-ons store. Beware of any copies that you may find elsewhere, like on the Chrome web store or the Edge store!
+> It's not on these stores because :
+> - Chrome web store wants to get a $5 payment for opening the account which is fundamentally incompatible for a non-profit open-source app
+> - Edge does not want to accept the add-on because some features (like the icon) don't work fully, even though the core downloading process works fine.
+
 ### How to install on Chrome, Edge, Chromium, etc...
 1. Get the `addon.xpi` file from the [releases page](https://github.com/helloyanis/media-downloader-unleashed/releases) (scroll down for a bit to see it)
-2. Rename it to `addon.zip`
+2. Rename it to `addon.crx`
 3. Sideload it in your browser. See your browser documentation for more info.
 
-It's not on these stores because :
-- Chrome web store wants to get a $5 payment for opening the account which is fundamentally incompatible for a non-profit open-source app
-- Edge does not want to accept the add-on because it has `background.scripts` which is only used in Manifest Version 2 while this add-on uses manifest version 3, but the new `background.serviceWorker` is not supported yet by Firefox. I have included both for extended compatibility but removing `background.scripts` as Edge asks would break Firefox.
+> [!WARNING]
+> If you use the add-on on Chromium based browsers, these features are known to be broken :
+> - The extension shows a broken icon
+> - The detected media list does not show which website made the request, nor the time it happened at.
+> - The "Report a problem" button does not work
+> - Some settings might be broken
+> The development is mainly focused towards Firefox for desktop and Android so these are not going to be fixed. Use firefox for the best experience!
 
 ## Supporded media types
 
@@ -19,11 +29,13 @@ It's not on these stores because :
 - 🎵 Audio : `3ga`, `aac`, `ac3`, `adts`, `aif`, `aiff`, `alac`, `ape`, `asf`, `au`, `dts`, `f4a`, `f4b`, `flac`, `isma`, `it`, `m4a`, `m4b`, `m4r`, `mid`, `mka`, `mod`, `mp1`, `mp2`, `mp3`, `mp4a`, `mpa`, `mpga`, `oga`, `ogg`, `ogx`, `opus`, `ra`, `shn`, `spx`, `vorbis`, `wav`, `weba`, `wma`, `xm`
 - 📺 Stream : `f4f`\*, `f4m`\*, `m3u8`, `mpd`, `smil`\*
 
-> Note: `*` means partial support. Can download the stream manifest, but not convert to offline video/audio. You can use a third-party tool like ffmpeg to convert the downloaded stream manifest to offline video/audio, or use VLC to play the stream manifest.
+> [!NOTE]
+> `*` means partial support. Can download the stream manifest, but not convert to offline video/audio. You can use a third-party tool like ffmpeg to convert the downloaded stream manifest to offline video/audio, or use VLC to play the stream manifest.
 
 - Can change settings to show all requests without filtering if your media is not detected by default.
 
-> Note: Some sites may not work with the add-on due to DRM or other restrictions. If you encounter any issues, please report them on the [GitHub page](https://github.com/helloyanis/media-downloader-unleashed/issues)
+> [!NOTE]
+> Some sites may not work with the add-on due to DRM or other restrictions. If you encounter any issues, please report them on the [GitHub page](https://github.com/helloyanis/media-downloader-unleashed/issues)
 
 #### What this add-on does
 
