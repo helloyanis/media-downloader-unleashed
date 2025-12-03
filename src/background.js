@@ -159,4 +159,4 @@ browser.runtime.onInstalled.addListener((details) => {
 browser.runtime.onStartup.addListener(initListener);
 
 
-browser.runtime.setUninstallURL(`https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/uninstalled.md`);
+browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);

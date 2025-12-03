@@ -422,5 +422,17 @@
     "helpTooltip": {
         "message": "Open help",
         "description": "The text of the tooltip shown when hovering over the button at the bottom left, to open the wiki page"
+    },
+    "diagnosticDataPermissionDenied": {
+        "message": "Permission to share diagnostic data was denied.",
+        "description": "The message shown when the user denies permission to share diagnostic data."
+    },
+    "diagnosticDataSent": {
+        "message": "Diagnostic data has been sent successfully. Thank you for helping improve the extension!",
+        "description": "The message shown when diagnostic data has been sent successfully."
+    },
+    "diagnosticDataSendError": {
+        "message": "An error occurred while sending diagnostic data. Please try again later.",
+        "description": "The message shown when there is an error sending diagnostic data."
     }
 }

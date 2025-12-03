@@ -348,11 +348,11 @@
     "description": "Permission grant failed message."
   },
   "mpdDownloadCompleteTitle": {
-      "message": "MPD Download Complete",
+      "message": "MPD-Download abgeschlossen",
       "description": "The title of the notification shown when an MPD download is complete."
   },
   "mpdDownloadCompleteMessage": {
-      "message": "The MPD stream has been downloaded as a ZIP file. You can extract it and play the $BASENAME$.mpd video with VLC or any other compatible player.",
+      "message": "Der MPD-Stream wurde als ZIP-Datei heruntergeladen. Du kannst sie entpacken und das $BASENAME$.mpd-Video mit VLC oder einem anderen kompatiblen Player abspielen.",
       "description": "The message of the notification shown when an MPD download is complete.",
       "placeholders": {
           "BASENAME": {
@@ -362,19 +362,19 @@
       }
   },
   "splitDownloadWarningSnackbar": {
-      "message": "The audio and video streams are separated. Two files will be downloaded.",
+      "message": "Die Audio- und Videoströme sind getrennt. Zwei Dateien werden heruntergeladen.",
       "description": "The snackbar text that appears when an m3u8 stream with split audio and video starts to download"
   },
   "downloadingAudioSnackbar": {
-      "message": "Downloading audio stream...",
+      "message": "Audio-Stream wird heruntergeladen...",
       "description": "The snackbar text that appears when an m3u8 stream with split audio and video has the video portion downloaded and switches to downloading audio"
   },
   "splitAudioVideoDownloadCompleteTitle": {
-      "message": "Downloaded separated audio and video streams",
+      "message": "Getrennte Audio- und Videoströme heruntergeladen",
       "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
   },
   "splitAudioVideoDownloadCompleteDescription": {
-      "message": "Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i $BASENAME$_video$VIDEOEXT$ -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
+      "message": "Sowohl Video- als auch Audioströme wurden heruntergeladen. Du kannst sie beide mit <a href='https://ffmpeg.org/'>ffmpeg</a> mit folgendem Befehl zusammenführen :<br/><code>ffmpeg -i $BASENAME$_video$VIDEOEXT$ -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
       "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
       "placeholders": {
           "BASENAME": {
@@ -388,39 +388,51 @@
       }
   },
   "videoQualityDialogTitle": {
-      "message": "Select video quality",
+      "message": "Videoqualität auswählen",
       "description": "The title of the dialog to select video quality when downloading a stream for MPD streams."
   },
   "videoQualitySelectLabel": {
-      "message": "Video quality",
+      "message": "Videoqualität",
       "description": "The label of the quality selection dropdown in the video quality dialog for MPD streams."
   },
   "audioQualityDialogTitle": {
-      "message": "Select audio quality",
+      "message": "Audioqualität auswählen",
       "description": "The title of the dialog to select audio quality when downloading an stream for MPD streams."
   },
   "audioQualitySelectLabel": {
-      "message": "Audio quality",
+      "message": "Audioqualität",
       "description": "The label of the quality selection dropdown in the audio quality dialog for MPD streams."
   },
   "streamQualityDialogTitle": {
-      "message": "Select stream quality",
+      "message": "SStreamqualität auswählen",
       "description": "The title of the dialog to select the stream quality when downloading an m3u8 stream."
   },
   "streamQualitySelectLabel": {
-      "message": "Stream quality",
+      "message": "Streamqualität",
       "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
   },
   "mediaPreviewSnackbar": {
-      "message": "If video does not load, make sure the download method is set to \"Fetch\" in the add-on settings. It's slower but works with more sites.",
+      "message": "Wenn das Video nicht geladen wird, stelle sicher, dass die Download-Methode in den Add-on-Einstellungen auf \"Fetch\" eingestellt ist. Es ist langsamer, funktioniert aber mit mehr Seiten.",
       "description": "The snackbar shown when someone uses the preview mode for the first time."
   },
   "mediaPreviewDontRemindMe": {
-      "message": "Don't remind me",
+      "message": "Nicht mehr anzeigen",
       "description": "The action in the snackbar from above which will make it no longer show up."
   },
   "helpTooltip": {
-    "message": "Open help",
+    "message": "Hilfe öffnen",
     "description": "The text of the tooltip shown when hovering over the button at the bottom left, to open the wiki page"
+  },
+  "diagnosticDataPermissionDenied": {
+      "message": "Permission to share diagnostic data was denied.",
+      "description": "The message shown when the user denies permission to share diagnostic data."
+  },
+  "diagnosticDataSent": {
+      "message": "Diagnostic data has been sent successfully. Thank you for helping improve the extension!",
+      "description": "The message shown when diagnostic data has been sent successfully."
+  },
+  "diagnosticDataSendError": {
+      "message": "An error occurred while sending diagnostic data. Please try again later.",
+      "description": "The message shown when there is an error sending diagnostic data."
   }
 }

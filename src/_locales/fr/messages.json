@@ -418,5 +418,17 @@
     "helpTooltip": {
         "message": "Ouvrir l'aide",
         "description": "The text of the tooltip shown when hovering over the button at the bottom left, to open the wiki page"
+    },
+    "diagnosticDataPermissionDenied": {
+        "message": "La permission de partage de données de diagnostic a été refusée.",
+        "description": "The message shown when the user denies permission to share diagnostic data."
+    },
+    "diagnosticDataSent": {
+        "message": "Les données de diagnostic ont été envoyées avec succès. Merci de contribuer à l'amélioration de l'extension !",
+        "description": "The message shown when diagnostic data has been sent successfully."
+    },
+    "diagnosticDataSendError": {
+        "message": "Une erreur s'est produite lors de l'envoi des données de diagnostic. Veuillez réessayer plus tard.",
+        "description": "The message shown when there is an error sending diagnostic data."
     }
 }

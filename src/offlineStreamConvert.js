@@ -214,7 +214,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"));
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseFileName}".`, urls: { video: videoBlobUrl, audio: audioBlobUrl, m3u8: m3u8Url }, request: request, downloadMethod: downloadMethod });
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;
@@ -847,7 +847,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"));
+  showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded ZIP (“${zipName}”).`, urls: { zip: URL.createObjectURL(zipBlob), mpd: mpdUrl }, request: request, downloadMethod: downloadMethod });
 }
 
 /**

@@ -348,11 +348,11 @@
         "description": "The message shown when the permission grant operation fails."
     },
     "mpdDownloadCompleteTitle": {
-        "message": "MPD Download Complete",
+        "message": "Download de MPD concluído",
         "description": "The title of the notification shown when an MPD download is complete."
     },
     "mpdDownloadCompleteMessage": {
-        "message": "The MPD stream has been downloaded as a ZIP file. You can extract it and play the $BASENAME$.mpd video with VLC or any other compatible player.",
+        "message": "O stream MPD foi baixado como um arquivo ZIP. Você pode extraí-lo e reproduzir o vídeo $BASENAME$.mpd com o VLC ou qualquer outro player compatível.",
         "description": "The message of the notification shown when an MPD download is complete.",
         "placeholders": {
             "BASENAME": {
@@ -362,19 +362,19 @@
         }
     },
     "splitDownloadWarningSnackbar": {
-        "message": "The audio and video streams are separated. Two files will be downloaded.",
+        "message": "Os fluxos de áudio e vídeo estão separados. Dois arquivos serão baixados.",
         "description": "The snackbar text that appears when an m3u8 stream with split audio and video starts to download"
     },
     "downloadingAudioSnackbar": {
-        "message": "Downloading audio stream...",
+        "message": "Baixando fluxo de áudio...",
         "description": "The snackbar text that appears when an m3u8 stream with split audio and video has the video portion downloaded and switches to downloading audio"
     },
     "splitAudioVideoDownloadCompleteTitle": {
-        "message": "Downloaded separated audio and video streams",
+        "message": "Fluxos de áudio e vídeo separados baixados",
         "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
     },
     "splitAudioVideoDownloadCompleteDescription": {
-        "message": "Both video and audio streams have been downloaded. You can merge them both with <a href='https://ffmpeg.org/'>ffmpeg</a> using the following command :<br/><code>ffmpeg -i $BASENAME$_video.ts -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
+        "message": "Os fluxos de vídeo e áudio foram baixados separadamente. Você pode mesclá-los com <a href='https://ffmpeg.org/'>ffmpeg</a> usando o seguinte comando :<br/><code>ffmpeg -i $BASENAME$_video.ts -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
         "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
         "placeholders": {
             "BASENAME": {
@@ -388,31 +388,43 @@
         }
     },
     "videoQualityDialogTitle": {
-        "message": "Select video quality",
+        "message": "Selecionar qualidade do vídeo",
         "description": "The title of the dialog to select video quality when downloading a stream for MPD streams."
     },
     "videoQualitySelectLabel": {
-        "message": "Video quality",
+        "message": "Qualidade do vídeo",
         "description": "The label of the quality selection dropdown in the video quality dialog for MPD streams."
     },
     "audioQualityDialogTitle": {
-        "message": "Select audio quality",
+        "message": "Selecionar qualidade do áudio",
         "description": "The title of the dialog to select audio quality when downloading an stream for MPD streams."
     },
     "audioQualitySelectLabel": {
-        "message": "Audio quality",
+        "message": "Qualidade do áudio",
         "description": "The label of the quality selection dropdown in the audio quality dialog for MPD streams."
     },
     "streamQualityDialogTitle": {
-        "message": "Select stream quality",
+        "message": "Selecionar qualidade do stream",
         "description": "The title of the dialog to select the stream quality when downloading an m3u8 stream."
     },
     "streamQualitySelectLabel": {
-        "message": "Stream quality",
+        "message": "Qualidade do stream",
         "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
     },
     "helpTooltip": {
-        "message": "Open help",
+        "message": "Abrir ajuda",
         "description": "The text of the tooltip shown when hovering over the button at the bottom left, to open the wiki page"
+    },
+        "diagnosticDataPermissionDenied": {
+        "message": "Permissão para compartilhar dados de diagnóstico foi negada.",
+        "description": "The message shown when the user denies permission to share diagnostic data."
+    },
+    "diagnosticDataSent": {
+        "message": "Dados de diagnóstico foram enviados com sucesso. Obrigado por ajudar a melhorar a extensão!",
+        "description": "The message shown when diagnostic data has been sent successfully."
+    },
+    "diagnosticDataSendError": {
+        "message": "Ocorreu um erro ao enviar os dados de diagnóstico. Por favor, tente novamente mais tarde.",
+        "description": "The message shown when there is an error sending diagnostic data."
     }
 }

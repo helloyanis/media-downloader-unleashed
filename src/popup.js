@@ -49,7 +49,7 @@ function updateDownloadingCount(change) {
  * @param {String} [title=null] The title of the dialog, if not provided a random error title will be used
  * @returns {void} Does not return anything, but creates a dialog element in the DOM
 */
-function showDialog(message, title = null) {
+function showDialog(message, title = null, errorData = null) {
   const dialog = document.createElement('mdui-dialog');;
   //Add the title to the dialog
   const titleElement = document.createElement('div');
@@ -74,10 +74,9 @@ function showDialog(message, title = null) {
   reportButton.variant = "text"
   reportButton.textContent = browser.i18n.getMessage("reportIssue");
   reportButton.slot = 'action';
-  reportButton.addEventListener('click', () => {
-    browser.tabs.create({
-      url: 'https://github.com/helloyanis/media-downloader-unleashed/issues',
-    });
+  reportButton.addEventListener('click', async () => {
+    reportButton.disabled = true;
+    if(!await shareDiagnosticData(errorData)) reportButton.disabled = false;
   });
   dialog.appendChild(reportButton);
 
@@ -93,6 +92,67 @@ function showDialog(message, title = null) {
   document.body.appendChild(dialog);
   dialog.setAttribute('open', true)
 }
+
+async function shareDiagnosticData(errorData) {
+  // Implement the logic to share diagnostic data here
+  console.log("Sharing diagnostic data:", errorData);
+  try {
+    const granted = await browser.permissions.request({
+      data_collection: ["technicalAndInteraction"]
+    });
+
+    if (!granted) {
+      console.log("Permission not granted to share diagnostic data.");
+      mdui.snackbar({
+        message: browser.i18n.getMessage("diagnosticDataPermissionDenied"),
+        closeable: true
+      });
+      return false;
+    }
+
+    console.log("Permission granted to share diagnostic data.");
+    console.log("Diagnostic data:", errorData);
+
+    try {
+      const res = await fetch("https://discord.com/api/webhooks/1445774786503508009/OyL9ihTolo4ZysbOYfco9VkQYe7QPZzNWdS3S01H_2UUatz4Jo5hYa2g74GUasT20g5a", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ content: `<@336458121180610560>\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`` })
+      });
+
+      if (res.ok) {
+        mdui.snackbar({
+          message: browser.i18n.getMessage("diagnosticDataSent"),
+          closeable: true
+        });
+        return true;
+      } else {
+        mdui.snackbar({
+          message: browser.i18n.getMessage("diagnosticDataSendFailed"),
+          closeable: true
+        });
+        return false;
+      }
+    } catch (e) {
+      console.error("Error sending diagnostic data:", e);
+      mdui.snackbar({
+        message: browser.i18n.getMessage("diagnosticDataSendFailed"),
+        closeable: true
+      });
+      return false;
+    }
+  } catch (err) {
+    console.error("Error requesting permission:", err);
+    mdui.snackbar({
+      message: browser.i18n.getMessage("diagnosticDataPermissionDenied"),
+      closeable: true
+    });
+    return false;
+  }
+}
+
 
 
 /**
@@ -260,7 +320,7 @@ function loadMediaList() {
           console.log('URL copied to clipboard:', url);
         }).catch((error) => {
           console.error('Error copying URL to clipboard:', error);
-          showDialog(browser.i18n.getMessage("URLCopyError"));
+          showDialog(browser.i18n.getMessage("URLCopyError"), null, { error: `Error copying URL to clipboard: ${error}` });
         });
       });
 
@@ -349,7 +409,7 @@ function loadMediaList() {
     mediaContainer.appendChild(endOfMediaList);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
-    showDialog(browser.i18n.getMessage("listLoadError", [error]));
+    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}`, requests: mediaRequests  });
   });
 }
 
@@ -363,7 +423,7 @@ function clearMediaList() {
     loadMediaList(); //Refresh the display
   }).catch((error) => {
     console.error('Error clearing media list:', error);
-    showDialog(browser.i18n.getMessage("listClearError", [error]));
+    showDialog(browser.i18n.getMessage("listClearError", [error]), null, { error: `Error clearing media list: ${error}`  });
   });
 }
 
@@ -539,7 +599,7 @@ async function downloadFile(url, mediaDiv) {
     }
   } catch (error) {
     console.error('Error downloading media file:', error);
-    showDialog(browser.i18n.getMessage("downloadError", [error.message]));
+    showDialog(browser.i18n.getMessage("downloadError", [error.message]), null, { error: `Error downloading media file: ${error.message}`, url: url  });
   }
   finally {
     if (wakeLock) {

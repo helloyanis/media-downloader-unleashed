@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const shareData = {
-            title: 'Check out Live Stream Downloader Unleashed!!',
+            title: 'Check out Media Downloader Unleashed!!',
             text: 'Check out Media Downloader Unleashed, a free and #opensource browser extension to download videos, audios and live streams from many websites!',
             url: 'https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=inapp-share'
         };
