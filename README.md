@@ -21,6 +21,7 @@ A browser add-on to easily download any media (audio, video and streams) played 
 > - The detected media list does not show which website made the request, nor the time it happened at.
 > - The "Report a problem" button does not work
 > - Some settings might be broken
+> 
 > The development is mainly focused towards Firefox for desktop and Android so these are not going to be fixed. Use firefox for the best experience!
 
 ## Supporded media types
