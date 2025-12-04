@@ -440,7 +440,7 @@
         "description": "The title of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailDescription": {
-        "message": "If so, please enter your e-mail address below. It will not be saved or shared to third parties. (You can also contact me on Mastodon or e-mail directly, see contact info in the settings tab.)",
+        "message": "If so, please enter your e-mail address below. It will not be saved or shared to third parties. It will only be used to contact you back. If you don't want to be contacted, leave the field empty.",
         "description": "The description of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailLabel": {
@@ -454,10 +454,6 @@
     "diagnosticDataEmailOkButton": {
         "message": "Submit",
         "description": "The text of the OK button in the prompt to enter an e-mail when sharing diagnostic data."
-    },
-    "diagnosticDataEmailCancelButton": {
-        "message": "Send without e-mail",
-        "description": "The text of the Cancel button in the prompt to enter an e-mail when sharing diagnostic data."
     },
     "noRequestFoundError": {
         "message": "No request found for the selected size. Please try again.",

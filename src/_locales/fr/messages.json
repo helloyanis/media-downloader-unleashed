@@ -436,7 +436,7 @@
         "description": "The title of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailDescription": {
-        "message": "Dans ce cas, merci d'entrer votre e-mail ci dessous. Il ne sera pas sauvegardé ni partagé à des tiers et sera uniquement utilisé pour vous recontacter. (Vous pouvez également me contacter via Mastodon ou e-mail directement, voir les informations de contact dans l'onglet des paramètres.)",
+        "message": "Dans ce cas, merci d'entrer votre e-mail ci dessous. Il ne sera pas sauvegardé ni partagé à des tiers et sera uniquement utilisé pour vous recontacter. Si vous ne souhaitez pas être recontacté, laissez le champ vide.",
         "description": "The description of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailLabel": {
@@ -450,10 +450,6 @@
     "diagnosticDataEmailOkButton": {
         "message": "Envoyer",
         "description": "The text of the OK button in the prompt to enter an e-mail when sharing diagnostic data."
-    },
-    "diagnosticDataEmailCancelButton": {
-        "message": "Envoyer sans e-mail",
-        "description": "The text of the Cancel button in the prompt to enter an e-mail when sharing diagnostic data."
     },
     "noRequestFoundError": {
         "message": "Impossible de trouver les détails de la requête parmi l'historique de requêtes. Cela peut arriver quand la requête a déjà été effectuée et mise en cache dans votre navigateur avant l'installation de l'extension. Effacez les données de navigation du site web depuis lequel vous essayez de télécharger, puis redémarrez le navigateur et réessayez.",

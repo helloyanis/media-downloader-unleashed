@@ -107,7 +107,6 @@ async function shareDiagnosticData(errorData) {
         type: 'email',
         label: browser.i18n.getMessage("diagnosticDataEmailLabel"),
         placeholder: browser.i18n.getMessage("diagnosticDataEmailPlaceholder"),
-        required: true,
       }
     });
   try {
