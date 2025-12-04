@@ -440,7 +440,7 @@
         "description": "The description of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailLabel": {
-        "message": "Adresse e-mail",
+        "message": "Adresse e-mail (facultatif)",
         "description": "The label of the text field to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailPlaceholder": {

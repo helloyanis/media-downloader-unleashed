@@ -132,7 +132,7 @@ async function shareDiagnosticData(errorData) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ content: `<@336458121180610560>\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\` ${email}` })
+        body: JSON.stringify({ content: `Hey <@336458121180610560>!\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`🌐 \`${navigator.userAgent}\`\n📧 \`${email}\`` })
       });
 
       if (res.ok) {
