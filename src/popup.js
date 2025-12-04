@@ -96,6 +96,20 @@ function showDialog(message, title = null, errorData = null) {
 async function shareDiagnosticData(errorData) {
   // Implement the logic to share diagnostic data here
   console.log("Sharing diagnostic data:", errorData);
+  let email="";
+  await mdui.prompt({
+      headline: browser.i18n.getMessage("diagnosticDataEmailTitle"),
+      description: browser.i18n.getMessage("diagnosticDataEmailDescription"),
+      confirmText: browser.i18n.getMessage("diagnosticDataEmailOkButton"),
+      cancelText: browser.i18n.getMessage("diagnosticDataEmailCancelButton"),
+      onConfirm: (value) => email = value,
+      textFieldOptions: {
+        type: 'email',
+        label: browser.i18n.getMessage("diagnosticDataEmailLabel"),
+        placeholder: browser.i18n.getMessage("diagnosticDataEmailPlaceholder"),
+        required: true,
+      }
+    });
   try {
     const granted = await browser.permissions.request({
       data_collection: ["technicalAndInteraction"]
@@ -119,7 +133,7 @@ async function shareDiagnosticData(errorData) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ content: `<@336458121180610560>\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`` })
+        body: JSON.stringify({ content: `<@336458121180610560>\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\` ${email}` })
       });
 
       if (res.ok) {
@@ -517,6 +531,9 @@ async function downloadFile(url, mediaDiv) {
     }
 
     // Set the request headers for the download to the same headers that were used to fetch the media file on the site, to reproduce the same request, without the headers forbidden by the fetch api.
+    if(!requests[url] || !requests[url][selectedSizeIndex]) {
+      throw new Error(browser.i18n.getMessage("noRequestFoundError"));
+    }
     const headers = requests[url][selectedSizeIndex].requestHeaders.filter(header =>
       !forbiddenHeaders.includes(header.name) &&
       !header.name.startsWith('Sec-') &&

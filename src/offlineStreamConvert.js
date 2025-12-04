@@ -378,7 +378,14 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
 
   const hasDRM = !!xmlDoc.getElementsByTagNameNS(NS, "ContentProtection").length;
   if (hasDRM) {
-    throw new Error("This MPD uses DRM (ContentProtection). Cannot download encrypted streams. Maybe you can get around this by setting your browser to deny DRM content (e.g. in Firefox: about:preferences#general → Digital Rights Management Content). But on most sites they won't deliver the MPD at all if DRM is disabled, so this has a low chance to work. Sorry! 😢");
+    await mdui.confirm({
+      headline: browser.i18n.getMessage("drmWarningTitle"),
+      description: browser.i18n.getMessage("drmWarningDescription"),
+      confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+      cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+      //onConfirm: () => console.log("confirmed"),
+      onCancel: () => { throw new Error("Download cancelled by user due to DRM protection."); },
+    });
   }
 
 
@@ -400,6 +407,26 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       const u = new URL(baseURLForZip);
       baseURLForZip = u.pathname.replace(/^\//, "");
     } catch (e) {
+      console.warn("Could not parse absolute BaseURL:", baseURLForZip, e);
+      baseURLForZip = ""; // fallback
+    }
+  }
+
+  // Handle relative BaseURL (relative to MPD URL)
+  // eg. "../media/" -> "media/"
+  else if (baseURLForZip) {
+    const mpdBase = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
+    try {
+      console.log("Resolving relative BaseURL:", baseURLForZip, "against", mpdBase);
+      const u = new URL(baseURLForZip, mpdBase);
+      baseURLForZip = u.pathname.replace(/^\//, "");
+      if (localStorage.getItem("mpd-fix") === "1") {
+        // Remove any parent directory references for safety
+        baseURLForZip = baseURLForZip.replace(/\.\.\//g, "");
+        console.log("Fixed MPD's BaseURL for ZIP to:", baseURLForZip);
+      }
+    } catch (e) {
+      console.warn("Could not parse relative BaseURL:", baseURLForZip, e);
       baseURLForZip = ""; // fallback
     }
   }
@@ -579,7 +606,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     const usesTimeVar = tmpl.media && tmpl.media.indexOf("$Time$") !== -1;
     let mediaPaths = [];
     let segmentUrls = [];
-    let firstIndex = tmpl.startNumber || 1;
+    let firstIndex = tmpl.startNumber ?? 1;
 
     if (usesTimeVar) {
       if (!segmentStartTimes) {
@@ -661,7 +688,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
 
       const segmentCount = Math.ceil(totalSec / segLenSec);
       for (let i = 0; i < segmentCount; i++) {
-        const number = (tmpl.startNumber || 1) + i;
+        const number = (tmpl.startNumber ?? 1) + i;
         const mediaPath = substituteVars(tmpl.media, rep, { number });
         mediaPaths.push(mediaPath);
         segmentUrls.push(new URL(mediaPath, baseUrl).href);

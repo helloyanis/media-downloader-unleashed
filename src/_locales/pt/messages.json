@@ -426,5 +426,49 @@
     "diagnosticDataSendError": {
         "message": "Ocorreu um erro ao enviar os dados de diagnóstico. Por favor, tente novamente mais tarde.",
         "description": "The message shown when there is an error sending diagnostic data."
+    },
+    "diagnosticDataEmailTitle": {
+        "message": "Do you want me to contact you back about this issue?",
+        "description": "The title of the prompt to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailDescription": {
+        "message": "If so, please enter your e-mail address below. It will not be saved or shared to third parties. (You can also contact me on Mastodon or e-mail directly, see contact info in the settings tab.)",
+        "description": "The description of the prompt to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailLabel": {
+        "message": "E-mail address",
+        "description": "The label of the text field to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailPlaceholder": {
+        "message": "email@example.com",
+        "description": "The placeholder of the text field to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailOkButton": {
+        "message": "Submit",
+        "description": "The text of the OK button in the prompt to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailCancelButton": {
+        "message": "Send without e-mail",
+        "description": "The text of the Cancel button in the prompt to enter an e-mail when sharing diagnostic data."
+    },
+    "noRequestFoundError": {
+        "message": "Nenhuma solicitação encontrada para o tamanho selecionado",
+        "description": "The error message shown when no request is found for the selected size."
+    },
+    "drmWarningTitle": {
+        "message": "DRM Detected",
+        "description": "The title of the warning shown when a DRM-protected MPD is detected."
+    },
+    "drmWarningDescription": {
+        "message": "This MPD uses DRM (ContentProtection). It can be downloaded, but not played without decrypting the stream. Maybe you can get around this by setting your browser to deny DRM content (e.g. In Firefox: about:preferences#general → Digital Rights Management Content). But on some sites they won't load the media at all if DRM is disabled, so this has a low chance to work.",
+        "description": "The description of the warning shown when a DRM-protected MPD is detected."
+    },
+    "drmWarningConntinueButton": {
+        "message": "Continue",
+        "description": "The text of the OK button in the DRM warning dialog."
+    },
+    "drmWarningCancelButton": {
+        "message": "Cancel",
+        "description": "The text of the Cancel button in the DRM warning dialog."
     }
 }
