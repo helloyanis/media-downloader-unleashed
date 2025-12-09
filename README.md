@@ -12,12 +12,15 @@ A browser add-on to easily download any media (audio, video and streams) played 
 
 ### How to install on Chrome, Edge, Chromium, etc...
 1. Get the `addon.xpi` file from the [releases page](https://github.com/helloyanis/media-downloader-unleashed/releases) (scroll down for a bit to see it)
-2. Rename it to `addon.crx`
-3. Sideload it in your browser. See your browser documentation for more info.
+2. Rename it to `addon.zip`, and extract it in its own folder
+3. Sideload it in your browser. See your browser documentation for more info. To sideload it on Chrome :
+   - Open Chrome's `...` menu, then `Extensions`, `Manage browers extensions`
+   - Enable the `Developer mode` switch
+   - Click `Load unpacked extension` and chose the folder you just extracted earlier. It should have a `manifest.json` file in it.
 
 > [!WARNING]
 > If you use the add-on on Chromium based browsers, these features are known to be broken :
-> - The extension shows a broken icon
+> - The extension shows a default icon, or no icon
 > - The detected media list does not show which website made the request, nor the time it happened at.
 > - The "Report a problem" button does not work
 > - Some settings might be broken
