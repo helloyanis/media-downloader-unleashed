@@ -1,6 +1,6 @@
 {
     "actionTitle": {
-        "message": "Télécarger les médias",
+        "message": "Télécharger les médias",
         "description": "The contents of the context menu when hovering over the extension icon."
     },
     "extensionDescription": {
