@@ -12,6 +12,8 @@
     "storage",
     "contextMenus",
     "webRequest",
+    "webRequestBlocking",
+    "webRequestFilterResponse",
     "unlimitedStorage"
   ],
   "optional_permissions": [

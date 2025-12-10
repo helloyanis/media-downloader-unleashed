@@ -22,8 +22,49 @@ const mediaTypes = [
     "application/x-mpegURL"
 ];
 
+const urlMediaRegex = /\.(mp4|m3u8|ts|mp3|aac|wav|flv|webm|mkv|mov|m4a|m4v)(?:[?#].*)?$/i;
 let urlList = [];
 let headersSentListener, headersReceivedListener;
+
+// ---------- IndexedDB helpers (same DB used by offlineStreamConvert.js) ----------
+const DB_NAME = "MediaCacheDB";
+const STORE_NAME = "network-cache";
+
+function openCacheDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onerror = (event) => reject(event.target.error || "IDB Open Error");
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: "url" });
+            }
+        };
+        request.onsuccess = (event) => resolve(event.target.result);
+    });
+}
+
+async function storeInCache(url, blob, mime) {
+    try {
+        const db = await openCacheDB();
+        const tx = db.transaction([STORE_NAME], "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        const item = {
+            url: url,
+            mime: mime || (blob && blob.type) || "application/octet-stream",
+            data: blob,
+            timestamp: Date.now()
+        };
+        return await new Promise((resolve, reject) => {
+            const req = store.put(item);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.error("Failed to store in cache:", e);
+    }
+}
+// -------------------------------------------------------------------------------
 
 function initListener() {
     browser.storage.local.get('url-detection', function (result) {
@@ -160,3 +201,99 @@ browser.runtime.onStartup.addListener(initListener);
 
 
 browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);
+
+// ----------------- New: capture & cache media response bodies -----------------
+// We use onHeadersReceived to detect Content-Type, and if it's a media type we attach
+// a filterResponseData stream to capture the response body and store it into IndexedDB.
+//
+// NOTE: this requires the "webRequestFilterResponse" permission (you already have it).
+// ------------------------------------------------------------------------------
+
+let cacheHeadersListener;
+function initCacheListener() {
+    // remove if previously attached
+    if (cacheHeadersListener) {
+        try { browser.webRequest.onHeadersReceived.removeListener(cacheHeadersListener); } catch (e) { /* ignore */ }
+    }
+
+    cacheHeadersListener = browser.webRequest.onBeforeRequest.addListener(
+        (details) => {
+            try {
+                // Find content-type header (if any)
+
+
+                // decide if this is a media type we want to cache
+                console.log("Cache listener checking:", details.url, "details", details);
+                const shouldCache = (() => {
+                    // Check URL pattern
+                    if (urlMediaRegex.test(details.url)) {
+                        return true;
+                    }
+                    return false;
+                })();
+
+                if (!shouldCache) return;
+
+                // guard: filterResponseData may not exist in some environments
+                if (!browser.webRequest.filterResponseData) {
+                    console.warn("filterResponseData not available in this runtime; cannot cache response bodies.");
+                    return;
+                }
+
+                // attach a filter to stream & capture the response body
+                let filter;
+                try {
+                    filter = browser.webRequest.filterResponseData(details.requestId);
+                } catch (e) {
+                    console.warn("filterResponseData failed for requestId", details.requestId, e);
+                    return;
+                }
+
+                const chunks = [];
+                filter.ondata = (event) => {
+                    // event.data is ArrayBuffer
+                    try {
+                        // store chunk for cache and pass it through to the response
+                        chunks.push(event.data);
+                        filter.write(event.data);
+                        console.log("Caching chunk for:", details.url, "bytes:", event.data.byteLength);
+                    } catch (e) {
+                        console.error("Error writing chunk back to filter:", e);
+                    }
+                };
+                filter.onstop = async () => {
+                    try {
+                        filter.disconnect();
+                        // create a blob from the chunks
+                        const blob = new Blob(chunks, { type: 'application/octet-stream' });
+
+                        // store in indexeddb (background context)
+                        await storeInCache(details.url, blob, '');
+
+                        // debug
+                        console.log("Cached response for:", details.url, "mime:", "", "bytes:", blob.size);
+                    } catch (e) {
+                        console.error("Failed to cache response body for", details.url, e);
+                    }
+                };
+                filter.onerror = (err) => {
+                    try { filter.disconnect(); } catch (e) {}
+                    console.error("filter error:", err);
+                };
+            } catch (e) {
+                console.error("Error in cache listener:", e);
+            }
+        },
+        { urls: ["<all_urls>"] },
+        ["blocking"]
+    );
+}
+
+// initialize cache listener
+initCacheListener();
+
+browser.runtime.onMessage.addListener((message) => {
+    if (message.action === 'initCacheListener') {
+        initCacheListener();
+    }
+});

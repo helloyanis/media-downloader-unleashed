@@ -1,11 +1,67 @@
+// --- IndexedDB Cache Helpers ---
+const DB_NAME = "MediaCacheDB";
+const STORE_NAME = "network-cache";
+
+function openCacheDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onerror = (event) => reject(event.target.error);
+    request.onupgradeneeded = (event) => {
+      // In case this script runs before background (unlikely), create store
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "url" });
+      }
+    };
+    request.onsuccess = (event) => resolve(event.target.result);
+  });
+}
+
+/**
+ * Tries to fetch from IndexedDB cache first.
+ * If missing, falls back to network fetch.
+ */
+async function fetchWithCache(url, options = {}) {
+  try {
+    const db = await openCacheDB();
+    const cachedItem = await new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME], "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(url);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+
+    if (cachedItem && cachedItem.data) {
+      console.log("⚡ IndexedDB Cache hit for:", url);
+      return new Response(cachedItem.data, {
+        status: 200,
+        statusText: "OK (Cached)",
+        headers: {
+          "Content-Type": cachedItem.mime || "application/octet-stream"
+        }
+      });
+    }else{
+      console.log("⚡ IndexedDB Cache miss for:", url);
+    }
+  } catch (e) {
+    console.warn("Cache lookup failed/miss, fetching from network:", e);
+  }
+
+  // Fallback to standard network request
+  return fetch(url, options);
+}
+// ----------------------------------------
+
 /**
  * Downloads and converts an M3U8 stream to an MP4 file for offline use.
  * Uses either browser.downloads API or fetch depending on the download method.
  * Most of the code here is chatGPT so good luck finding out what it does lol (ㆆ_ㆆ)
  */
 async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
-  const getText = async (url) => {
-    const res = await fetch(url, {
+const getText = async (url) => {
+    // UPDATED
+    const res = await fetchWithCache(url, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method
@@ -67,7 +123,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     }
 
     if (keyUri) {
-      const keyRes = await fetch(keyUri, {
+      const keyRes = await fetchWithCache(keyUri, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method
@@ -81,7 +137,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
     // Fetch and (if needed) decrypt init segment (EXT-X-MAP)
     if (mapUri) {
-      let mapRes = await fetch(mapUri, {
+      let mapRes = await fetchWithCache(mapUri, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method
@@ -100,7 +156,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
     // download segments
     for (let i = 0; i < segUrls.length; i++) {
-      const res = await fetch(segUrls[i], {
+      const res = await fetchWithCache(segUrls[i], {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method
@@ -266,7 +322,7 @@ async function selectStreamVariant(playlistLines, baseUrl) {
   // Fetch duration for each variant to estimate size
   await Promise.all(variants.map(async (variant) => {
     try {
-      const res = await fetch(variant.uri);
+      const res = await fetchWithCache(variant.uri);
       const text = await res.text();
       const duration = text.split('\n')
         .filter(line => line.startsWith("#EXTINF:"))
@@ -407,7 +463,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   // 1) Fetch the MPD manifest text
-  const resp = await fetch(mpdUrl, {
+  const resp = await fetchWithCache(mpdUrl, {
     method: request.method,
     headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
     referrer:
@@ -827,7 +883,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
 
   // Helper to fetch a URL → ArrayBuffer
   async function fetchArrayBuffer(url) {
-    const r = await fetch(url, {
+    const r = await fetchWithCache(url, {
       method: request.method,
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer:
