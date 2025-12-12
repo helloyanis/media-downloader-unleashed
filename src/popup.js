@@ -93,22 +93,108 @@ function showDialog(message, title = null, errorData = null) {
   dialog.setAttribute('open', true)
 }
 
+async function showDiagnosticReportDialog({
+  headline = "",
+  description = "",
+  confirmText = "OK",
+  cancelText = "Cancel",
+  onConfirm = () => {},
+  onCancel = () => {},
+  textFieldOptions = {}
+}) {
+  return new Promise((resolve) => {
+
+    const dialog = document.createElement("mdui-dialog");
+
+    // ----- Headline -----
+    const headlineElement = document.createElement("div");
+    headlineElement.setAttribute("slot", "headline");
+    headlineElement.textContent = headline;
+    dialog.appendChild(headlineElement);
+
+    // ----- Body ------
+    const dialogBodyElement = document.createElement("div");
+    dialogBodyElement.style.display = "flex";
+    dialogBodyElement.style.flexDirection = "column";
+    dialog.appendChild(dialogBodyElement);
+
+    // ----- Description -----
+    const descriptionElement = document.createElement("div");
+    descriptionElement.setAttribute("slot", "description");
+    descriptionElement.innerHTML = description;
+    dialogBodyElement.appendChild(descriptionElement);
+
+    // ----- Text Field -----
+    const textField = document.createElement("mdui-text-field");
+    textField.setAttribute("slot", "description");
+
+    for (const [key, val] of Object.entries(textFieldOptions)) {
+      if (val !== undefined && val !== null) {
+        textField.setAttribute(key, val);
+      }
+    }
+
+    dialogBodyElement.appendChild(textField);
+
+    // ----- Cancel Button -----
+    const cancelBtn = document.createElement("mdui-button");
+    cancelBtn.variant = "text";
+    cancelBtn.slot = "action";
+    cancelBtn.textContent = cancelText;
+    cancelBtn.addEventListener("click", () => {
+      dialog.removeAttribute("open");
+      onCancel();
+      resolve(false);
+    });
+    dialog.appendChild(cancelBtn);
+
+    // ----- Confirm Button -----
+    const confirmBtn = document.createElement("mdui-button");
+    confirmBtn.variant = "text";
+    confirmBtn.slot = "action";
+    confirmBtn.textContent = confirmText;
+    confirmBtn.addEventListener("click", () => {
+      const value = textField.value;
+      dialog.removeAttribute("open");
+      onConfirm(value);
+      resolve(true);
+    });
+    dialog.appendChild(confirmBtn);
+
+    // Show dialog
+    document.body.appendChild(dialog);
+    dialog.setAttribute("open", true);
+  });
+}
+
+
 async function shareDiagnosticData(errorData) {
   // Implement the logic to share diagnostic data here
   console.log("Sharing diagnostic data:", errorData);
   let email="";
-  await mdui.prompt({
+  let mediaRequests = await browser.runtime.sendMessage({ action: 'getMediaRequests' });
+  const userResponse = await showDiagnosticReportDialog({
       headline: browser.i18n.getMessage("diagnosticDataEmailTitle"),
-      description: browser.i18n.getMessage("diagnosticDataEmailDescription"),
+      description: browser.i18n.getMessage("diagnosticDataEmailDescription", [
+        navigator.userAgent, 
+        mediaRequests[errorData.url][0].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value, // Get the referer of the first request for context
+        errorData.url,
+        errorData.error
+      ]),
       confirmText: browser.i18n.getMessage("diagnosticDataEmailOkButton"),
       cancelText: browser.i18n.getMessage("diagnosticDataEmailCancelButton"),
       onConfirm: (value) => email = value,
+      onCancel: () => { return false; },
       textFieldOptions: {
         type: 'email',
         label: browser.i18n.getMessage("diagnosticDataEmailLabel"),
         placeholder: browser.i18n.getMessage("diagnosticDataEmailPlaceholder"),
       }
     });
+  if (!userResponse) {
+    console.log("User cancelled diagnostic data submission.");
+    return false;
+  }
   try {
     const granted = await browser.permissions.request({
       data_collection: ["technicalAndInteraction"]
@@ -125,16 +211,25 @@ async function shareDiagnosticData(errorData) {
 
     console.log("Permission granted to share diagnostic data.");
     console.log("Diagnostic data:", errorData);
+    sendDataToWebhook(errorData, email);
+  } catch (err) {
+    console.error("Error requesting permission. Probably on Chrome?", err);
+    sendDataToWebhook(errorData, email);
+    return true;
+  }
+}
 
+
+async function sendDataToWebhook(errorData, email) {
     try {
+      browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
       const res = await fetch("https://discord.com/api/webhooks/1445774786503508009/OyL9ihTolo4ZysbOYfco9VkQYe7QPZzNWdS3S01H_2UUatz4Jo5hYa2g74GUasT20g5a", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ content: `Hey <@336458121180610560>!\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`🌐 \`${navigator.userAgent}\`\n📧 \`${email}\`` })
+        body: JSON.stringify({ content: `Hey <@336458121180610560>!\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`🌐 \`${navigator.userAgent}\`${email && `\n📧 \`${email}\``}\nRequest from ${mediaRequests[errorData.url][0].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value}` })
       });
-
       if (res.ok) {
         mdui.snackbar({
           message: browser.i18n.getMessage("diagnosticDataSent"),
@@ -143,30 +238,22 @@ async function shareDiagnosticData(errorData) {
         return true;
       } else {
         mdui.snackbar({
-          message: browser.i18n.getMessage("diagnosticDataSendFailed"),
+          message: browser.i18n.getMessage("diagnosticDataSendError"),
           closeable: true
         });
         return false;
       }
+    });
+
     } catch (e) {
       console.error("Error sending diagnostic data:", e);
       mdui.snackbar({
-        message: browser.i18n.getMessage("diagnosticDataSendFailed"),
+        message: browser.i18n.getMessage("diagnosticDataSendError"),
         closeable: true
       });
       return false;
     }
-  } catch (err) {
-    console.error("Error requesting permission:", err);
-    mdui.snackbar({
-      message: browser.i18n.getMessage("diagnosticDataPermissionDenied"),
-      closeable: true
-    });
-    return false;
   }
-}
-
-
 
 /**
  * Load the media list from the background script and display it in the window.

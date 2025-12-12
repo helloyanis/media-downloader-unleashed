@@ -75,3 +75,9 @@ mdui-select::part(menu) {
 mdui-card {
     overflow-x: scroll;
 }
+
+code{
+    background-color: var(--mdui-color-surface-container-low);
+    color: var(--mdui-color-on-surface);
+    font-family: monospace;
+}

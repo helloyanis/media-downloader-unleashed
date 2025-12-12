@@ -432,8 +432,26 @@
         "description": "The title of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailDescription": {
-        "message": "If so, please enter your e-mail address below. It will not be saved or shared to third parties. It will only be used to contact you back. If you don't want to be contacted, leave the field empty.",
-        "description": "The description of the prompt to enter an e-mail when sharing diagnostic data."
+        "message": "If so, please enter your e-mail address below. It will not be saved or shared to third parties. It will only be used to contact you back. If you don't want to be contacted, leave the field empty.<br/>The data that will be sent in your error report is : <br/><ul><li>Your user agent (yours is the following : <code>$USERAGENT$</code>)</li><li>The URL of the page that triggered the error : <code>$REFERER$</code></li><li>The URL of the media : <code>$MEDIAURL$</code></li><li>The error that has occured : <code>$ERROR$</code></li></ul>",
+        "description": "The description of the prompt to enter an e-mail when sharing diagnostic data.",
+        "placeholders": {
+            "USERAGENT": {
+                "content": "$1",
+                "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            },
+            "REFERER": {
+                "content": "$2",
+                "example": "https://example.com/video_page"
+            },
+            "MEDIAURL": {
+                "content": "$3",
+                "example": "https://example.com/video.mp4"
+            },
+            "ERROR": {
+                "content": "$4",
+                "example": "Network error"
+            }
+        }
     },
     "diagnosticDataEmailLabel": {
         "message": "E-mail address (optional)",
@@ -446,6 +464,10 @@
     "diagnosticDataEmailOkButton": {
         "message": "Submit",
         "description": "The text of the OK button in the prompt to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailCancelButton": {
+        "message": "Cancel submission",
+        "description": "The text of the Cancel button in the prompt to enter an e-mail when sharing diagnostic data."
     },
     "noRequestFoundError": {
         "message": "Nenhuma solicitação encontrada para o tamanho selecionado",

@@ -267,11 +267,16 @@ function initCacheListener() {
                         // create a blob from the chunks
                         const blob = new Blob(chunks, { type: 'application/octet-stream' });
 
-                        // store in indexeddb (background context)
-                        await storeInCache(details.url, blob, '');
+                        // Only cache if we actually received data
+                        if (blob.size > 0) {
+                            // store in indexeddb (background context)
+                            await storeInCache(details.url, blob, '');
 
-                        // debug
-                        console.log("Cached response for:", details.url, "mime:", "", "bytes:", blob.size);
+                            // debug
+                            console.log("Cached response for:", details.url, "mime:", "", "bytes:", blob.size);
+                        } else {
+                            console.warn("Skipping cache for empty response:", details.url);
+                        }
                     } catch (e) {
                         console.error("Failed to cache response body for", details.url, e);
                     }

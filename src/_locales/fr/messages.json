@@ -436,8 +436,26 @@
         "description": "The title of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailDescription": {
-        "message": "Dans ce cas, merci d'entrer votre e-mail ci dessous. Il ne sera pas sauvegardé ni partagé à des tiers et sera uniquement utilisé pour vous recontacter. Si vous ne souhaitez pas être recontacté, laissez le champ vide.",
-        "description": "The description of the prompt to enter an e-mail when sharing diagnostic data."
+        "message": "Dans ce cas, merci d'entrer votre e-mail ci dessous. Il ne sera pas sauvegardé ni partagé à des tiers et sera uniquement utilisé pour vous recontacter. Si vous ne souhaitez pas être recontacté, laissez le champ vide.<br/>Les données incluses dans votre signalement sont les suivantes : <br/><ul><li>Votre user agent (le vôtre est : <code>$USERAGENT$</code>)</li><li>L'URL de la page qui a causé l'erreur : <code>$REFERER$</code></li><li>L'URL du média : <code>$MEDIAURL$</code></li><li>The error that has occured : <code>$ERROR$</code></li></ul>",
+        "description": "The description of the prompt to enter an e-mail when sharing diagnostic data.",
+        "placeholders": {
+            "USERAGENT": {
+                "content": "$1",
+                "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            },
+            "REFERER": {
+                "content": "$2",
+                "example": "https://example.com/video_page"
+            },
+            "MEDIAURL": {
+                "content": "$3",
+                "example": "https://example.com/video.mp4"
+            },
+            "ERROR": {
+                "content": "$4",
+                "example": "Network error"
+            }
+        }
     },
     "diagnosticDataEmailLabel": {
         "message": "Adresse e-mail (facultatif)",
@@ -450,6 +468,10 @@
     "diagnosticDataEmailOkButton": {
         "message": "Envoyer",
         "description": "The text of the OK button in the prompt to enter an e-mail when sharing diagnostic data."
+    },
+    "diagnosticDataEmailCancelButton": {
+        "message": "Annuler l'envoi",
+        "description": "The text of the Cancel button in the prompt to enter an e-mail when sharing diagnostic data."
     },
     "noRequestFoundError": {
         "message": "Impossible de trouver les détails de la requête parmi l'historique de requêtes. Cela peut arriver quand la requête a déjà été effectuée et mise en cache dans votre navigateur avant l'installation de l'extension. Effacez les données de navigation du site web depuis lequel vous essayez de télécharger, puis redémarrez le navigateur et réessayez.",
