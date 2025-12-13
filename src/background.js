@@ -75,6 +75,7 @@ const allExtensions = videoExtensions.concat(audioExtensions, streamExtensions);
 // build a safe regex from extensions (escape dots already present)
 const extPattern = allExtensions.map(e => e.replace(/^\./, '').replace(/\+/g, '\\+')).join('|');
 const detectionRegex = new RegExp('\\.(?:' + extPattern + ')(?:[?#].*)?$', 'i');
+const temporaryHeaderMap = new Map();
 
 // helper to interpret setting values (localStorage or browser.storage.local)
 function isFlagEnabled(val) {
@@ -121,15 +122,32 @@ function initListener() {
 
         // Remove existing listeners if present
         if (headersSentListener) {
-            try { browser.webRequest.onSendHeaders.removeListener(headersSentListener); } catch (e) { /* ignore */ }
+            try { browser.webRequest.onSendHeaders.removeListener(headersSentListener); } catch (e) { }
         }
         if (headersReceivedListener) {
-            try { browser.webRequest.onHeadersReceived.removeListener(headersReceivedListener); } catch (e) { /* ignore */ }
+            try { browser.webRequest.onHeadersReceived.removeListener(headersReceivedListener); } catch (e) { }
         }
 
-        // onSendHeaders: decide whether to record the request immediately (URL-based or all)
+        // --- [NEW] Cleanup Listeners to prevent memory leaks in the Map ---
+        const cleanupListener = (details) => {
+            if (temporaryHeaderMap.has(details.requestId)) {
+                temporaryHeaderMap.delete(details.requestId);
+            }
+        };
+        // Ensure we don't duplicate cleanup listeners if initListener runs multiple times
+        if (!browser.webRequest.onCompleted.hasListener(cleanupListener)) {
+            browser.webRequest.onCompleted.addListener(cleanupListener, { urls: ["<all_urls>"] });
+            browser.webRequest.onErrorOccurred.addListener(cleanupListener, { urls: ["<all_urls>"] });
+        }
+        // ------------------------------------------------------------------
+
         headersSentListener = function (details) {
             try {
+                // [NEW] Always capture headers to the temporary map first
+                if (details.requestHeaders) {
+                    temporaryHeaderMap.set(details.requestId, details.requestHeaders);
+                }
+
                 const urlMatches = detectionRegex.test(details.url);
 
                 // If neither flag is enabled -> save all (original behavior)
@@ -144,7 +162,6 @@ function initListener() {
                             // wait for onHeadersReceived to decide
                             return;
                         }
-                        // If only mime detection is enabled -> do not save here
                         if (mimeEnabled && !urlEnabled) {
                             return;
                         }
@@ -161,9 +178,9 @@ function initListener() {
                     url: details.url,
                     method: details.method,
                     requestHeaders: details.requestHeaders,
-                    responseHeaders: null, // Placeholder for response headers
-                    size: null, // Placeholder for media size,
-                    timeStamp: null // Placeholder for timestamp
+                    responseHeaders: null,
+                    size: null,
+                    timeStamp: null
                 };
 
                 browser.storage.session.get(details.url, function (result) {
@@ -244,20 +261,20 @@ function initListener() {
                         const urlEnabledNow = !!currentSettings.urlDetection;
 
                         const shouldSaveNow = (() => {
-                            if (!mimeEnabledNow && !urlEnabledNow) {
-                                return true; // save all
-                            }
+                            if (!mimeEnabledNow && !urlEnabledNow) return true;
                             if (mimeEnabledNow && mimeMatches) return true;
                             if (urlEnabledNow && urlMatches) return true;
                             return false;
                         })();
 
                         if (!updated && shouldSaveNow) {
-                            // No prior entry to update -> create a new record using available info
+                            // [NEW] Retrieve the stashed request headers using requestId
+                            const cachedHeaders = temporaryHeaderMap.get(details.requestId) || null;
+
                             let mediaRequest = {
                                 url: details.url,
                                 method: details.method || 'GET',
-                                requestHeaders: null,
+                                requestHeaders: cachedHeaders, // Now populated correctly!
                                 responseHeaders: responseHeaders,
                                 size: size,
                                 timeStamp: details.timeStamp
@@ -265,10 +282,7 @@ function initListener() {
                             existingRequests.push(mediaRequest);
                             console.log('Media request added (onHeadersReceived):', mediaRequest);
                         } else if (updated) {
-                            console.log('Media response updated (onHeadersReceived) for', details.url, 'size:', size);
-                        } else {
-                            // Not saving this request (didn't meet detection criteria)
-                            // Nothing to do.
+                            console.log('Media response updated (onHeadersReceived) for', details.url);
                         }
 
                         let requestsObj = {};

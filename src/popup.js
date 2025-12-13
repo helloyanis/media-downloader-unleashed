@@ -653,7 +653,7 @@ async function downloadFile(url, mediaDiv) {
     }
 
     // Set the request headers for the download to the same headers that were used to fetch the media file on the site, to reproduce the same request, without the headers forbidden by the fetch api.
-    if(!requests[url] || !requests[url][selectedSizeIndex]) {
+    if(!requests[url] || !requests[url][selectedSizeIndex] || !requests[url][selectedSizeIndex].requestHeaders) {
       throw new Error(browser.i18n.getMessage("noRequestFoundError"));
     }
     const headers = requests[url][selectedSizeIndex].requestHeaders.filter(header =>
