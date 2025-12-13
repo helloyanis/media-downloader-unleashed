@@ -187,6 +187,18 @@
         "message": "Fetch API",
         "description": "The label of the checkbox to enable Fetch API download method."
     },
+    "hideSegmentsTitle": {
+        "message": "Hide stream segments",
+        "description": "The title of the hide stream segments section in the settings tab."
+    },
+    "hideSegmentsExplanation": {
+        "message": "Live streams use multiple segments to deliver content in small parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.",
+        "description": "The explanation of the hide stream segments option shown in a tooltip."
+    },
+    "hideSegmentsCheckbox": {
+        "message": "Hide stream segments in the media list",
+        "description": "The label of the checkbox to enable hiding stream segments in the media list."
+    },
     "streamDownloadTitle": {
         "message": "Preferência de download da stream",
         "description": "The title of the stream download preference section in the settings tab."

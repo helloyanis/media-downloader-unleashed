@@ -270,7 +270,7 @@ const getText = async (url) => {
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseFileName, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseFileName}".`, urls: { video: videoBlobUrl, audio: audioBlobUrl, m3u8: m3u8Url }, request: request, downloadMethod: downloadMethod });
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [new Option(baseFileName).innerHTML, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseFileName}".`, urls: { video: videoBlobUrl, audio: audioBlobUrl, m3u8: m3u8Url }, request: request, downloadMethod: downloadMethod });
     URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;

@@ -83,6 +83,18 @@ async function initializeSettings() {
         streamRadioGroup.value = streamDownload;
     }
 
+    // Check for hideSegments setting in localStorage
+    let hideSegments = localStorage.getItem('hide-segments') || '1';
+    localStorage.setItem('hide-segments', hideSegments);
+
+    // Select the current hideSegments
+    let hideSegmentsCheckbox = document.querySelector(`mdui-checkbox[name="hide-segments"]`);
+    if (hideSegmentsCheckbox) {
+        if (hideSegments === '1') {
+            hideSegmentsCheckbox.setAttribute('checked', true);
+        }
+    }
+
     // Check for the opening preference in localStorage
     let openPreference = localStorage.getItem('open-preference') || 'tab';
     localStorage.setItem('open-preference', openPreference);

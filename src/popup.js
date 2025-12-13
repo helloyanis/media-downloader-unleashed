@@ -176,10 +176,10 @@ async function shareDiagnosticData(errorData) {
   const userResponse = await showDiagnosticReportDialog({
       headline: browser.i18n.getMessage("diagnosticDataEmailTitle"),
       description: browser.i18n.getMessage("diagnosticDataEmailDescription", [
-        navigator.userAgent, 
-        mediaRequests[errorData.url][0].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value, // Get the referer of the first request for context
-        errorData.url,
-        errorData.error
+        new Option(navigator.userAgent).innerHTML, 
+        new Option(mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A').innerHTML, // Get the referer of the first request for context
+        new Option(errorData.url || 'N/A').innerHTML,
+        new Option(errorData.error || 'N/A').innerHTML
       ]),
       confirmText: browser.i18n.getMessage("diagnosticDataEmailOkButton"),
       cancelText: browser.i18n.getMessage("diagnosticDataEmailCancelButton"),
@@ -228,7 +228,7 @@ async function sendDataToWebhook(errorData, email) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ content: `Hey <@336458121180610560>!\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`🌐 \`${navigator.userAgent}\`${email && `\n📧 \`${email}\``}\nRequest from ${mediaRequests[errorData.url][0].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value}` })
+        body: JSON.stringify({ content: `Hey <@336458121180610560>!\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`🌐 \`${navigator.userAgent}\`${email && `\n📧 \`${email}\``}\nRequest from ${mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A'}` })
       });
       if (res.ok) {
         mdui.snackbar({
@@ -292,7 +292,8 @@ function loadMediaList() {
         "audio/ogg",
         "audio/x-ms-wma",
         "application/vnd.apple.mpegurl",
-        "application/x-mpegURL"
+        "application/x-mpegURL",
+        "application/dash+xml"
       ];
 
       const useMimeDetection = localStorage.getItem('mime-detection') === '1';
@@ -311,10 +312,39 @@ function loadMediaList() {
       if (useUrlDetection) {
         urlMatch = fileExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext));
       }
-      //Hide .ts segments
-      if (mediaURL.pathname.toLowerCase().endsWith(".ts")) {
-        continue;
+
+      //Hide segments
+      const hideSegments = localStorage.getItem('hide-segments') === '1';
+
+
+      // If user doesn't want to hide segments we do nothing special
+      if (hideSegments) {
+        // Always show playlists/manifests (.m3u8, .mpd)
+        const isPlaylistExt = mediaURL.pathname.toLowerCase().endsWith('.m3u8') ||
+                              mediaURL.pathname.toLowerCase().endsWith('.mpd');
+        if (!isPlaylistExt) {
+          // Gather response headers from the first request (if available)
+          const resHeaders = requests[0]?.responseHeaders || [];
+          const contentType = (resHeaders.find(h => h.name.toLowerCase() === 'content-type')?.value || '').toLowerCase();
+          const contentLengthHeader = resHeaders.find(h => h.name.toLowerCase() === 'content-length')?.value;
+          const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
+
+          // Known segment-related content-types and file extensions
+          const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
+          const segmentExtRe = /\.(ts|m4s|m4f|seg|frag|fragment)(?:$|\?)/i;
+
+          const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
+          const looksLikeSegmentByExt = segmentExtRe.test(mediaURL.pathname);
+
+          // If any of the tests indicate a segment, skip adding this entry
+          if (looksLikeSegmentByExt || looksLikeSegmentByType) {
+            // Skip segment
+            console.debug('Hiding stream segment:', url, { contentType, contentLength });
+            continue;
+          }
+        }
       }
+
 
       if (!useMimeDetection && !useUrlDetection) {
         // No filtering at all, proceed

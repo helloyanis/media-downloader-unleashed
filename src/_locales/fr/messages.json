@@ -144,7 +144,7 @@
         "description": "The title of the detection method section in the settings tab."
     },
     "needToRefreshListWarning": {
-        "message": "⚠️ Vous devez actualiser la liste des médias pour appliquer les changements de méthode de détection.",
+        "message": "⚠️ Vous devez actualiser la liste des médias pour appliquer le changement.",
         "description": "The warning shown below the detection method title in the settings tab."
     },
     "urlDetectionExplain": {
@@ -182,6 +182,18 @@
     "fetchDownloadCheckbox": {
         "message": "API Fetch",
         "description": "The label of the checkbox to enable Fetch API download method."
+    },
+    "hideSegmentsTitle": {
+        "message": "Masquer les segments de streams",
+        "description": "The title of the hide stream segments section in the settings tab."
+    },
+    "hideSegmentsExplanation": {
+        "message": "Les flux en direct utilisent plusieurs segments pour diffuser le contenu en petites parties. En général, vous n'avez besoin que du manifeste du flux, donc les segments peuvent être masqués pour réduire l'encombrement.",
+        "description": "The explanation of the hide stream segments option shown in a tooltip."
+    },
+    "hideSegmentsCheckbox": {
+        "message": "Masquer les segments de streams dans la liste des médias",
+        "description": "The label of the checkbox to enable hiding stream segments in the media list."
     },
     "streamDownloadTitle": {
         "message": "Préférence de téléchargement des flux (streams)",

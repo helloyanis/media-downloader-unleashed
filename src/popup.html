@@ -130,6 +130,16 @@
             </mdui-radio-group>
           </mdui-card>
 
+          <!-- Hide segments -->
+          <mdui-card id="hide-segments" role="group" variant="filled">
+            <h3 data-translate="hideSegmentsTitle">Hide stream segments</h3>
+            <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
+            <p data-translate="hideSegmentsExplanation">Live streams use multiple segments to deliver content in small parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.</p>
+
+            <mdui-checkbox id="hide-segments" name="hide-segments" value="1" data-translate="hideSegmentsCheckbox">Hide stream segments in the media list</mdui-checkbox>
+
+          </mdui-card>
+
           <!-- Stream download preference -->
           <mdui-card variant="filled">
             <mdui-radio-group id="stream-download" value="stream" name="stream-download">
