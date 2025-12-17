@@ -41,7 +41,7 @@ async function fetchWithCache(url, options = {}) {
           "Content-Type": cachedItem.mime || "application/octet-stream"
         }
       });
-    }else{
+    } else {
       console.log("⚡ IndexedDB Cache miss for:", url);
     }
   } catch (e) {
@@ -59,7 +59,7 @@ async function fetchWithCache(url, options = {}) {
  * Most of the code here is chatGPT so good luck finding out what it does lol (ㆆ_ㆆ)
  */
 async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
-const getText = async (url) => {
+  const getText = async (url) => {
     // UPDATED
     const res = await fetchWithCache(url, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
@@ -736,43 +736,55 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
         segmentUrls.push(new URL(mediaPath, baseUrl).href);
       }
     } else {
-      // Fallback: Number-based segment addressing
-      // compute how many segments using MPD total duration and duration/timescale
-      const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
-      const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
-      const parseISODuration = d => {
-        const m = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(d);
-        if (!m) return 0;
-        const years = parseFloat(m[1] || "0");
-        const months = parseFloat(m[2] || "0");
-        const days = parseFloat(m[3] || "0");
-        const hours = parseFloat(m[4] || "0");
-        const minutes = parseFloat(m[5] || "0");
-        const secs = parseFloat(m[6] || "0");
-        return (
-          years * 365 * 24 * 3600 +
-          months * 30 * 24 * 3600 +
-          days * 24 * 3600 +
-          hours * 3600 +
-          minutes * 60 +
-          secs
-        );
-      };
-      const totalSec = parseISODuration(totalDurationISO);
+      // 1. Check if we parsed a SegmentTimeline earlier.
+      // If the MPD has a timeline, we trust it for the segment count, 
+      // even if we are using $Number$ instead of $Time$.
+      if (segmentStartTimes && segmentStartTimes.length > 0) {
+        for (let i = 0; i < segmentStartTimes.length; i++) {
+          const number = (tmpl.startNumber ?? 1) + i;
+          const mediaPath = substituteVars(tmpl.media, rep, { number });
+          mediaPaths.push(mediaPath);
+          mediaZipPaths.push(sanitizeZipPath(mediaPath));
+          segmentUrls.push(new URL(mediaPath, baseUrl).href);
+        }
+      } else {
+        // 2. Fallback: If no timeline, compute using fixed duration
+        const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
+        const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
+        const parseISODuration = d => {
+          const m = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(d);
+          if (!m) return 0;
+          const years = parseFloat(m[1] || "0");
+          const months = parseFloat(m[2] || "0");
+          const days = parseFloat(m[3] || "0");
+          const hours = parseFloat(m[4] || "0");
+          const minutes = parseFloat(m[5] || "0");
+          const secs = parseFloat(m[6] || "0");
+          return (
+            years * 365 * 24 * 3600 +
+            months * 30 * 24 * 3600 +
+            days * 24 * 3600 +
+            hours * 3600 +
+            minutes * 60 +
+            secs
+          );
+        };
+        const totalSec = parseISODuration(totalDurationISO);
 
-      // segLenSec: if tmpl.duration is 0/absent this will be 0 => guard
-      const segLenSec = (tmpl.duration || 0) / (tmpl.timescale || 1);
-      if (!segLenSec || segLenSec <= 0) {
-        throw new Error("Cannot compute number-based segments: no SegmentTimeline and duration/timescale missing or zero.");
-      }
+        // segLenSec: if tmpl.duration is 0/absent this will be 0 => guard
+        const segLenSec = (tmpl.duration || 0) / (tmpl.timescale || 1);
+        if (!segLenSec || segLenSec <= 0) {
+          throw new Error("Cannot compute number-based segments: no SegmentTimeline and duration/timescale missing or zero.");
+        }
 
-      const segmentCount = Math.ceil(totalSec / segLenSec);
-      for (let i = 0; i < segmentCount; i++) {
-        const number = (tmpl.startNumber ?? 1) + i;
-        const mediaPath = substituteVars(tmpl.media, rep, { number });
-        mediaPaths.push(mediaPath);
-        mediaZipPaths.push(sanitizeZipPath(mediaPath));
-        segmentUrls.push(new URL(mediaPath, baseUrl).href);
+        const segmentCount = Math.ceil(totalSec / segLenSec);
+        for (let i = 0; i < segmentCount; i++) {
+          const number = (tmpl.startNumber ?? 1) + i;
+          const mediaPath = substituteVars(tmpl.media, rep, { number });
+          mediaPaths.push(mediaPath);
+          mediaZipPaths.push(sanitizeZipPath(mediaPath));
+          segmentUrls.push(new URL(mediaPath, baseUrl).href);
+        }
       }
     }
 
