@@ -110,6 +110,14 @@ function getSettings(callback) {
 }
 
 function initListener() {
+    // Cleare indexedDB cache on init to avoid stale data
+    openCacheDB().then(db => {
+        const tx = db.transaction([STORE_NAME], "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.clear();
+    }).catch(e => {
+        console.error("Failed to clear IndexedDB cache on init:", e);
+    });
     // Decide which urls we will watch for onSendHeaders/onHeadersReceived - keep default <all_urls>
     urlList = ["<all_urls>"];
 
@@ -316,17 +324,18 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Initialize the listener
 initListener();
 
-// Check if the listener should be reinitialized when message is received
-browser.runtime.onMessage.addListener((message) => {
-    if (message.action === 'initListener') {
-        initListener();
-    }
-});
-
 // Clear local storage when message is received
 browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'clearStorage') {
         browser.storage.session.clear();
+        // Also clear IndexedDB cache
+        openCacheDB().then(db => {
+            const tx = db.transaction([STORE_NAME], "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+            store.clear();
+        }).catch(e => {
+            console.error("Failed to clear IndexedDB cache:", e);
+        });
     }
 });
 
