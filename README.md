@@ -55,7 +55,7 @@ You can download audios, videos and streams to view offline, from most websites!
 
 ### Tried it? Like it? Please share it with others!
 
-<a rel="me" href="https://mastodonshare.com/?text=Check+out+Media+Downloader+Unleashed%2C+a+free+and+%23opensource+browser+extension+to+download+videos%2C+audios+and+live+streams+from+many+websites%21+For+%23firefox+and+can+be+sideloaded+on+%23chrome+and+other+%23chromium+browsers%21%0D%0A%0D%0AFirefox+store+%3A+https%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%3Futm_source%3Dmastodon-share%0D%0A%0D%0ASource+code+%3A%0D%0Ahttps%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%0D%0A%0D%0A%23downloader+%23extension+%23foss+%23libre+%23mediadownloaderunleashed&url="><img alt="Share on Mastodon" src="https://img.shields.io/badge/Share-on Mastodon-%236364FF?logo=mastodon&logoColor=white">
+<a rel="me" href="https://mastodonshare.🦊💻.ws/?text=Check+out+Media+Downloader+Unleashed%2C+a+free+and+%23opensource+browser+extension+to+download+videos%2C+audios+and+live+streams+from+many+websites%21+For+%23firefox+and+can+be+sideloaded+on+%23chrome+and+other+%23chromium+browsers%21%0D%0A%0D%0AFirefox+store+%3A+https%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%3Futm_source%3Dmastodon-share%0D%0A%0D%0ASource+code+%3A%0D%0Ahttps%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%0D%0A%0D%0A%23downloader+%23extension+%23foss+%23libre+%23mediadownloaderunleashed&url="><img alt="Share on Mastodon" src="https://img.shields.io/badge/Share-on Mastodon-%236364FF?logo=mastodon&logoColor=white">
 </a>
 
 ### Screenshots
