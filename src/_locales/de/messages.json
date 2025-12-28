@@ -86,7 +86,7 @@
     "description": "Download button."
   },
   "endOfMediaList": {
-    "message": "Das ist alles, was gefunden wurde! Wenn der gewünschte Inhalt nicht angezeigt wird, starte die Wiedergabe und aktualisiere anschließend die Liste. Falls der Stream weiterhin nicht erscheint, versuche es mit einer anderen Erkennungsmethode in den Einstellungen.",
+    "message": "Das ist alles, was gefunden wurde! Wenn der gewünschte Inhalt nicht angezeigt wird, starte die Wiedergabe und aktualisiere anschließend die Liste. Falls der Stream weiterhin nicht erscheint, versuche es mit einer anderen Erkennungsmethode in den Einstellungen. Für weitere Hilfe klicke auf die '?'-Schaltfläche unten links.",
     "description": "End of list text."
   },
   "listLoadError": {
@@ -508,5 +508,25 @@
     "drmWarningCancelButton": {
         "message": "Cancel",
         "description": "The text of the Cancel button in the DRM warning dialog."
+    },
+    "ratingBannerText": {
+        "message": "If you enjoy using this add-on, please take a moment to rate it. Thank you very much!",
+        "description": "The text shown in the rating banner."
+    },
+    "ratingBannerRateButton": {
+        "message": "Rate now",
+        "description": "The label of the button to rate the extension in the rating banner."
+    },
+    "ratingBannerDismissButton": {
+        "message": "Dismiss",
+        "description": "The label of the button to dismiss the rating banner." 
+    },
+    "ratingBannerDontShowAgainButton": {
+        "message": "Don't ask again",
+        "description": "The label of the button to not show the rating banner again."
+    },
+    "ratingBannerRemindMeLaterButton": {
+        "message": "Ask again in a week",
+        "description": "The label of the button to be reminded later in the rating banner."
     }
-}
+  }

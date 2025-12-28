@@ -396,7 +396,7 @@ function initCacheListener() {
                 console.log("Cache listener checking:", details.url, "details", details);
                 const shouldCache = (() => {
                     // Check URL pattern
-                    if (urlMediaRegex.test(details.url)) {
+                    if (urlMediaRegex.test(details.url) && !details.incognito) {
                         return true;
                     }
                     return false;

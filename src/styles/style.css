@@ -3,9 +3,6 @@
 }
 
 .bottom-right {
-    position: fixed;
-    bottom: 16px;
-    right: 16px;
     display: flex;
     justify-content: flex-end;
     flex-wrap: wrap;
@@ -19,6 +16,12 @@
     position: fixed;
     bottom: 16px;
     left: 16px;
+}
+
+mdui-bottom-app-bar {
+    height: unset;
+    min-height: 5rem;
+    background-color: rgb(var(--mdui-color-surface-container-high));
 }
 
 .media-item {
@@ -80,4 +83,27 @@ code{
     background-color: var(--mdui-color-surface-container-low);
     color: var(--mdui-color-on-surface);
     font-family: monospace;
+}
+
+#rating-banner {
+    background-color: rgb(var(--mdui-color-surface-bright));
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 5px;
+}
+
+#rating-banner > * {
+    margin: 5px;
+}
+
+#star-icon {
+    min-width: 25px;
+}
+
+#rating-banner-buttons {
+    margin-left: auto;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
 }

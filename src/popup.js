@@ -4,6 +4,7 @@ if (typeof browser === 'undefined') {
 }
 
 let downloadingCount = 0;
+let ratingCount = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
   loadMediaList();
@@ -21,7 +22,69 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('clear-list').addEventListener('click', (event) => {
     clearMediaList();
   });
+
+  checkAndShowRatingBanner()
+  document.getElementById('dont-show-again-button').addEventListener('click', (event) => {
+    dismissRatingBanner();
+  });
+
+  // Remind me later button
+  document.getElementById('remind-me-later-button').addEventListener('click', (event) => {
+    const ratingBanner = document.getElementById('rating-banner');
+    ratingBanner.style.display = 'none';
+    // Reset install date to now so we remind in 7 days
+    localStorage.setItem('install-date', Date.now());
+  });
+
+  document.getElementById('rate-now-button').addEventListener('click', async (event) => {
+    //Check the amount of ratings before opening the page
+    res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
+    data = await res.json();
+    ratingCount = data.ratings.count;
+    console.log("Current rating count:", ratingCount);
+    // On focus we will check if the rating count increased
+    onfocus = async () => {
+      res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
+      data = await res.json();
+      const newRatingCount = data.ratings.count;
+      console.log("New rating count:", newRatingCount);
+      if (newRatingCount > ratingCount) {
+        // User rated, dismiss the banner
+        dismissRatingBanner();
+      }
+      onfocus = null; // Remove the onfocus handler after it's been used
+    };
+  })
+
+
 });
+
+// Check if we should show the rating banner
+function checkAndShowRatingBanner() {
+
+  if (!localStorage.getItem('install-date')) {
+    // First time opening, set the date
+    localStorage.setItem('install-date', Date.now());
+
+    return;
+  }
+  const installDate = localStorage.getItem('install-date');
+  const hasRated = localStorage.getItem('has-rated');
+  const daysSinceInstall = (Date.now() - installDate) / (1000 * 60 * 60 * 24);
+  if (daysSinceInstall >= 7 && !hasRated) {
+    // Show the rating banner
+    const ratingBanner = document.getElementById('rating-banner');
+    ratingBanner.removeAttribute("style"); //Show the banner
+  }
+}
+
+// Dismiss the rating banner
+function dismissRatingBanner() {
+  const ratingBanner = document.getElementById('rating-banner');
+  ratingBanner.style.display = 'none';
+  localStorage.setItem('has-rated', 'true');
+}
+
 
 /**
  * Update the downloading count and change the title accordingly
@@ -280,20 +343,20 @@ function loadMediaList() {
       const fileExtensions = [...videoExtensions, ...audioExtensions, ...streamExtensions];
 
       const mediaTypes = [
-        "video/x-flv",
-        "video/x-msvideo",
-        "video/x-ms-wmv",
-        "video/quicktime",
-        "video/mp4",
-        "audio/x-pcm",
-        "audio/wav",
-        "audio/mpeg",
-        "audio/aac",
-        "audio/ogg",
-        "audio/x-ms-wma",
-        "application/vnd.apple.mpegurl",
-        "application/x-mpegURL",
-        "application/dash+xml"
+        "videoxflv",
+        "videoxmsvideo",
+        "videoxmswmv",
+        "videoquicktime",
+        "videomp4",
+        "audioxpcm",
+        "audiowav",
+        "audiompeg",
+        "audioaac",
+        "audioogg",
+        "audioxmswma",
+        "applicationvdnapplempegurl",
+        "applicationxmpegurl",
+        "applicationdashxml"
       ];
 
       const useMimeDetection = localStorage.getItem('mime-detection') === '1';
@@ -304,7 +367,7 @@ function loadMediaList() {
 
       // Check if the request matches the media types or file extensions
       if (useMimeDetection && requests[0]?.responseHeaders) {
-        mimeMatch = requests[0].responseHeaders.find(header => mediaTypes.includes(header.value)) !== undefined;
+        mimeMatch = requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z]/g, ''))) !== undefined;
       }
 
       const mediaURL = new URL(url);
@@ -673,8 +736,8 @@ async function downloadFile(url, mediaDiv) {
     mediaDiv.appendChild(loadingBar);
 
     const lowerPath = new URL(url).pathname.toLowerCase();
-    const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value ==="application/x-mpegURL" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value ==="application/vnd.apple.mpegurl";
-    const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value ==="application/dash+xml";
+    const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationvdnapplempegurl";
+    const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationdashxml";
 
     console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value}`);
 

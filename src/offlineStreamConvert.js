@@ -105,96 +105,284 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
   async function downloadSegments(playlistUrl) {
     const playlistText = await getText(playlistUrl);
-    const lines = playlistText.split("\n").map(l => l.trim());
+    const rawLines = playlistText.split(/\r?\n/);
 
-    // find EXT-X-MAP (init segment) and EXT-X-KEY
-    const mapLine = lines.find(l => l.startsWith("#EXT-X-MAP"));
-    const mapUri = mapLine ? (new URL(mapLine.match(/URI="([^"]+)"/)[1], playlistUrl)).href : null;
+    // helpers for fetch options
+    const fetchOpts = {
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+      method: request.method
+    };
 
-    let keyUri = null, ivHex = null, keyBuffer = null;
-    for (const l of lines) {
-      if (l.startsWith("#EXT-X-KEY")) {
-        const u = l.match(/URI="([^"]+)"/);
-        const iv = l.match(/IV=0x([0-9a-fA-F]+)/);
-        if (u) keyUri = new URL(u[1], playlistUrl).href;
-        if (iv) ivHex = iv[1];
-        break;
+    // parse media-sequence if present
+    let mediaSeq = 0;
+    for (const l of rawLines) {
+      const m = l.match(/^#EXT-X-MEDIA-SEQUENCE:(\d+)/);
+      if (m) { mediaSeq = parseInt(m[1], 10); break; }
+    }
+
+    // Build ordered list of playlist "items" so we can process sequentially
+    const items = []; // {type: 'key'|'map'|'segment', ...}
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i].trim();
+      if (!line) continue;
+
+      if (line.startsWith('#EXT-X-KEY')) {
+        // capture the full line for attribute parsing later
+        items.push({ type: 'key', raw: line });
+      } else if (line.startsWith('#EXT-X-MAP')) {
+        items.push({ type: 'map', raw: line });
+      } else if (line.startsWith('#')) {
+        // other tags ignored here
+        continue;
+      } else {
+        // segment URI line
+        items.push({ type: 'segment', uri: new URL(line, playlistUrl).href, rawUri: line });
       }
     }
 
-    if (keyUri) {
-      const keyRes = await fetchWithCache(keyUri, {
-        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-        method: request.method
-      });
-      keyBuffer = await keyRes.arrayBuffer();
-    }
+    const segCount = items.filter(it => it.type === 'segment').length;
 
-    const segUrls = lines.filter(l => l && !l.startsWith("#")).map(l => new URL(l, playlistUrl).href);
     const parts = [];
     let container = null; // 'fmp4' | 'ts' | 'unknown'
 
-    // Fetch and (if needed) decrypt init segment (EXT-X-MAP)
-    if (mapUri) {
-      let mapRes = await fetchWithCache(mapUri, {
-        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-        method: request.method
-      });
-      let mapData = new Uint8Array(await mapRes.arrayBuffer());
-      if (keyBuffer) {
-        // Decrypt the init segment with same key/IV logic
-        const iv = ivHex
-          ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
-          : (() => { const iv = new Uint8Array(16); new DataView(iv.buffer).setUint32(12, 0 /* seq for init */, false); return iv; })();
-        mapData = await decryptSegment(mapData, keyBuffer, iv);
-      }
-      parts.push(mapData); // prepend init
-      container = 'fmp4';
-    }
+    // encryption state
+    let currentKeyBuffer = null;   // ArrayBuffer containing 16 raw bytes
+    let currentKeyUri = null;      // string
+    let currentKeyIV = null;       // Uint8Array(16) or null
 
-    // download segments
-    for (let i = 0; i < segUrls.length; i++) {
-      const res = await fetchWithCache(segUrls[i], {
-        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-        method: request.method
-      });
-      const arr = new Uint8Array(await res.arrayBuffer());
+    // segment-based sequence for IV when not provided in EXT-X-KEY
+    let processedSegmentIndex = 0; // counts only segments (for IV calc)
 
-      // determine container type from first segment if unknown
-      if (!container && i === 0) {
-        const ct = (res.headers.get('content-type') || '').toLowerCase();
-        if (ct.includes('mp4') || ct.includes('iso') || ct.includes('fmp4')) container = 'fmp4';
-        else if (arr[0] === 0x47) container = 'ts';
-        else {
-          // look for 'ftyp' or 'styp'
-          const hdr = String.fromCharCode(...arr.slice(4, 8));
-          if (hdr === 'ftyp' || hdr === 'styp') container = 'fmp4';
-          else container = 'unknown';
+    // utility: build 16-byte IV where last 8 bytes are the sequence number (big-endian)
+    function makeSequenceIV(seq) {
+      const iv = new Uint8Array(16);
+      const dv = new DataView(iv.buffer);
+      // prefer setBigUint64 if available for clarity/precision
+      if (typeof dv.setBigUint64 === 'function') {
+        try {
+          dv.setBigUint64(8, BigInt(seq), false); // big-endian, offset 8
+        } catch (e) {
+          // fallback below
+          const high = Math.floor(seq / 0x100000000);
+          const low = seq >>> 0;
+          dv.setUint32(8, high, false);
+          dv.setUint32(12, low, false);
         }
+      } else {
+        const high = Math.floor(seq / 0x100000000);
+        const low = seq >>> 0;
+        dv.setUint32(8, high, false);  // bytes 8..11
+        dv.setUint32(12, low, false);  // bytes 12..15
       }
-
-      let data = arr;
-      if (keyBuffer) {
-        const iv = ivHex
-          ? Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)))
-          : (() => {
-            const iv = new Uint8Array(16);
-            const view = new DataView(iv.buffer);
-            view.setUint32(12, i); // segment index as IV
-            return iv;
-          })();
-
-        data = await decryptSegment(data, keyBuffer, iv);
-      }
-
-      parts.push(data);
-      // update loading bar as you already do
-      loadingBar.removeAttribute('indeterminate');
-      loadingBar.setAttribute("value", (i + 1) / segUrls.length);
+      return iv;
     }
+
+    // small util: decode key response robustly (raw 16 bytes / base64 / hex)
+    async function fetchAndDecodeKey(keyHref, fetchOpts) {
+      const res = await fetchWithCache(keyHref, fetchOpts);
+      const ab = await res.arrayBuffer();
+
+      // 1. If it's exactly 16 bytes, it's the raw key
+      if (ab.byteLength === 16) return ab;
+
+      // 2. Otherwise, treat as text to check for Hex or Base64
+      const text = new TextDecoder().decode(ab).trim().replace(/^"(.*)"$/, '$1').trim();
+
+      // Try Hex (32 hex chars)
+      if (/^[0-9a-fA-F]{32}$/.test(text)) {
+        const u = new Uint8Array(16);
+        for (let i = 0; i < 16; i++) u[i] = parseInt(text.substr(i * 2, 2), 16);
+        return u.buffer;
+      }
+
+      // Try Base64 (A 16-byte key is 24 chars in Base64 including padding)
+      if (text.length >= 22 && text.length <= 24) {
+        try {
+          const bin = atob(text);
+          const u = Uint8Array.from(bin, c => c.charCodeAt(0));
+          if (u.byteLength === 16) return u.buffer;
+        } catch (e) { }
+      }
+
+      throw new Error(`Invalid key length: ${ab.byteLength} bytes. Expected 16.`);
+    }
+
+    // Decrypt helper (defensive: accept Uint8Array or ArrayBuffer)
+    async function decryptSegment(encryptedBuffer, keyBuffer, iv) {
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        keyBuffer,
+        { name: "AES-CBC" },
+        false,
+        ["decrypt"]
+      );
+
+      try {
+        const decrypted = await crypto.subtle.decrypt(
+          { name: "AES-CBC", iv },
+          cryptoKey,
+          encryptedBuffer
+        );
+        return new Uint8Array(decrypted);
+      } catch (e) {
+        // If decryption fails here, the Key or IV is almost certainly wrong
+        throw new Error(`WebCrypto Decrypt Failed. Check if the key/IV is correct for this segment.`);
+      }
+    }
+
+    // process items sequentially
+    for (let idx = 0; idx < items.length; idx++) {
+      const it = items[idx];
+
+      if (it.type === 'key') {
+        // parse attributes: METHOD=..., URI="...", IV=0x...
+        const line = it.raw;
+        const method = (line.match(/METHOD=([^,]*)/) || [null, null])[1];
+        const uriMatch = line.match(/URI="([^"]+)"/);
+        const ivMatch = line.match(/IV=0x([0-9a-fA-F]+)/);
+
+        if (!method) {
+          // If method not present, treat it as NONE to be safe
+          currentKeyBuffer = null;
+          currentKeyUri = null;
+          currentKeyIV = null;
+          continue;
+        }
+
+        if (method === 'NONE') {
+          currentKeyBuffer = null;
+          currentKeyUri = null;
+          currentKeyIV = null;
+          continue;
+        }
+
+        if (method === 'AES-128') {
+          if (!uriMatch) {
+            throw new Error('AES-128 key line without URI');
+          }
+          const keyHref = new URL(uriMatch[1], playlistUrl).href;
+
+          // parse IV if present
+          if (ivMatch) {
+            const ivHex = ivMatch[1];
+            const ivBytes = Uint8Array.from(ivHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+            // If shorter than 16, pad left with zeros (shouldn't normally happen)
+            if (ivBytes.length < 16) {
+              const padded = new Uint8Array(16);
+              padded.set(ivBytes, 16 - ivBytes.length);
+              currentKeyIV = padded;
+            } else {
+              currentKeyIV = ivBytes;
+            }
+          } else {
+            currentKeyIV = null; // use sequence-derived IV for segments when needed
+          }
+
+          // Only fetch key if URI changed (key rotation)
+          if (keyHref !== currentKeyUri) {
+            currentKeyBuffer = await fetchAndDecodeKey(keyHref);
+            currentKeyUri = keyHref;
+
+            // debug
+            try {
+              const kb = new Uint8Array(currentKeyBuffer);
+              console.debug('Fetched HLS key from', keyHref, 'len=', kb.byteLength, 'hex=', Array.from(kb).map(b => b.toString(16).padStart(2, '0')).join(''));
+            } catch (e) { /* ignore */ }
+          }
+          continue;
+        }
+
+        // unsupported METHOD — clear key for safety
+        currentKeyBuffer = null;
+        currentKeyUri = null;
+        currentKeyIV = null;
+        continue;
+      }
+
+      if (it.type === 'map') {
+        // parse URI
+        const mapUriMatch = it.raw.match(/URI="([^"]+)"/);
+        if (!mapUriMatch) continue;
+        const mapHref = new URL(mapUriMatch[1], playlistUrl).href;
+
+        const mapRes = await fetchWithCache(mapHref, fetchOpts);
+        let mapData = new Uint8Array(await mapRes.arrayBuffer());
+
+        // determine container from map if not set
+        if (!container) {
+          const ct = (mapRes.headers.get && mapRes.headers.get('content-type') || '').toLowerCase();
+          if (ct.includes('mp4') || ct.includes('iso') || ct.includes('fmp4')) container = 'fmp4';
+          else {
+            const hdr = String.fromCharCode(...mapData.slice(4, 8));
+            if (hdr === 'ftyp' || hdr === 'styp') container = 'fmp4';
+          }
+        }
+
+        // decrypt map if key active
+        if (currentKeyBuffer) {
+          // build IV for map: if currentKeyIV provided, use it; else IV for init per spec usually sequence "0"
+          const iv = currentKeyIV
+            ? currentKeyIV
+            : makeSequenceIV(0); // use sequence 0 for initial map when IV not present
+
+          mapData = await decryptSegment(mapData, currentKeyBuffer, iv);
+        }
+
+        parts.push(mapData);
+        // mark container as fmp4 (init -> fmp4)
+        container = container || 'fmp4';
+        continue;
+      }
+
+      if (it.type === 'segment') {
+        // fetch the segment
+        const segUrl = it.uri;
+        const res = await fetchWithCache(segUrl, fetchOpts);
+        let arr = new Uint8Array(await res.arrayBuffer());
+
+        // container detection from first segment if unknown
+        if (!container && processedSegmentIndex === 0) {
+          const ct = (res.headers.get && res.headers.get('content-type') || '').toLowerCase();
+          if (ct.includes('mp4') || ct.includes('iso') || ct.includes('fmp4')) container = 'fmp4';
+          else if (arr[0] === 0x47) container = 'ts';
+          else {
+            const hdr = String.fromCharCode(...arr.slice(4, 8));
+            if (hdr === 'ftyp' || hdr === 'styp') container = 'fmp4';
+            else container = 'unknown';
+          }
+        }
+
+        // decrypt only if we currently have a key
+        if (currentKeyBuffer) {
+          // determine IV: currentKeyIV or sequence-based (mediaSeq + processedSegmentIndex)
+          const seq = mediaSeq + processedSegmentIndex + 1;
+          const iv = currentKeyIV
+            ? currentKeyIV
+            : makeSequenceIV(seq);
+
+          try {
+            console.debug('key hex', Array.from(new Uint8Array(currentKeyBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''), 'iv hex', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''), 'for segment seq', seq, 'url', segUrl);
+            console.debug('iv used for segment:', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''));
+
+            arr = await decryptSegment(arr, currentKeyBuffer, iv);
+          } catch (e) {
+            throw new Error(`Decryption failed for segment ${segUrl}: ${e.message || e}`);
+          }
+        }
+
+        parts.push(arr);
+        processedSegmentIndex++;
+
+        // update loading bar
+        if (loadingBar) {
+          loadingBar.removeAttribute('indeterminate');
+          loadingBar.setAttribute('value', Math.min(1, processedSegmentIndex / segCount));
+        }
+
+        continue;
+      }
+    } // end for items
 
     // create final blob and extension
     if (container === 'fmp4') {
@@ -206,26 +394,6 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     }
   }
 
-  async function decryptSegment(encryptedBuffer, keyBuffer, iv) {
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyBuffer,
-      { name: "AES-CBC" },
-      false,
-      ["decrypt"]
-    );
-
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      {
-        name: "AES-CBC",
-        iv
-      },
-      cryptoKey,
-      encryptedBuffer
-    );
-
-    return new Uint8Array(decryptedBuffer);
-  }
 
   const { blob: videoBlob, ext } = await downloadSegments(videoUrl);
 
@@ -280,18 +448,19 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     if (downloadMethod === "browser") {
       await browser.downloads.download({
         url: videoBlobUrl,
-        filename: `${baseFileName}.${ext}`
+        filename: `${baseFileName}${ext}`
       });
     } else {
       const videoAnchor = document.createElement("a");
       videoAnchor.href = videoBlobUrl;
-      videoAnchor.download = `${baseFileName}.${ext}`;
+      videoAnchor.download = `${baseFileName}${ext}`;
       document.body.appendChild(videoAnchor);
       videoAnchor.click();
       document.body.removeChild(videoAnchor);
     }
   }
 }
+
 
 /*
   * Selects a stream variant from an m3u8 manifest.

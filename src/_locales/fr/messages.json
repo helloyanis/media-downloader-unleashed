@@ -86,7 +86,7 @@
         "description": "The text of the download button in the media list."
     },
     "endOfMediaList": {
-        "message": "C'est tout ce qui a été trouvé. Si vous ne voyez pas le média que vous cherchez, rafraichissez la page où il se trouve, lancez la lecture puis cliquez sur \"Actualiser liste\". Si il n'apparaît toujours pas, changez la méthode de détection dans les options.",
+        "message": "C'est tout ce qui a été trouvé. Si vous ne voyez pas le média que vous cherchez, rafraichissez la page où il se trouve, lancez la lecture puis cliquez sur \"Actualiser liste\". Si il n'apparaît toujours pas, changez la méthode de détection dans les options. Pour plus d'aide, cliquez sur le bouton '?' en bas à gauche.",
         "description": "The text shown at the end of the media list."
     },
     "listLoadError": {
@@ -504,5 +504,25 @@
     "drmWarningCancelButton": {
         "message": "Annuler",
         "description": "The text of the Cancel button in the DRM warning dialog."
+    },
+    "ratingBannerText": {
+        "message": "Si vous aimez cette extension, prenez un instant pour lui donner une note. Merci pour votre soutien !",
+        "description": "The text shown in the rating banner."
+    },
+    "ratingBannerRateButton": {
+        "message": "Noter maintenant",
+        "description": "The label of the button to rate the extension in the rating banner."
+    },
+    "ratingBannerDismissButton": {
+        "message": "Ignorer",
+        "description": "The label of the button to dismiss the rating banner." 
+    },
+    "ratingBannerDontShowAgainButton": {
+        "message": "Ne plus demander",
+        "description": "The label of the button to not show the rating banner again."
+    },
+    "ratingBannerRemindMeLaterButton": {
+        "message": "Me redemander dans une semaine",
+        "description": "The label of the button to be reminded later in the rating banner."
     }
 }
