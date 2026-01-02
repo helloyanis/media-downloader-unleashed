@@ -1,12 +1,12 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "description": "__MSG_extensionDescription__",
   "author": "🦊 helloyanis",
   "developer": {
     "name": "🦊 helloyanis",
-    "url": "https://github.com/helloyanis/"
+    "url": "https://🦊💻️.ws"
   },
   "permissions": [
     "storage",
@@ -44,5 +44,6 @@
       }
     }
   },
-  "default_locale": "en"
+  "default_locale": "en",
+  "options_page": "popup.html?options=true"
 }

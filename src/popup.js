@@ -5,6 +5,7 @@ if (typeof browser === 'undefined') {
 
 let downloadingCount = 0;
 let ratingCount = 0;
+sessionStorage.setItem('shownYoutubeAlert', 0); //To prevent multiple youtube alerts in the same session
 
 document.addEventListener('DOMContentLoaded', () => {
   loadMediaList();
@@ -42,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     data = await res.json();
     ratingCount = data.ratings.count;
     console.log("Current rating count:", ratingCount);
+    // Save rating count to local storage, in case the user opens a new extension window after rating
+    localStorage.setItem('ratings-at-attempt', ratingCount)
     // On focus we will check if the rating count increased
     onfocus = async () => {
       res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
@@ -52,15 +55,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // User rated, dismiss the banner
         dismissRatingBanner();
       }
+      localStorage.removeItem("ratings-at-attempt")
       onfocus = null; // Remove the onfocus handler after it's been used
     };
   })
 
+  // Check if the options page is requested
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('options') === 'true') {
+    document.querySelectorAll('mdui-tab')[1].click(); //Click on the options tab
+  }
 
 });
 
 // Check if we should show the rating banner
-function checkAndShowRatingBanner() {
+async function checkAndShowRatingBanner() {
 
   if (!localStorage.getItem('install-date')) {
     // First time opening, set the date
@@ -72,6 +81,17 @@ function checkAndShowRatingBanner() {
   const hasRated = localStorage.getItem('has-rated');
   const daysSinceInstall = (Date.now() - installDate) / (1000 * 60 * 60 * 24);
   if (daysSinceInstall >= 7 && !hasRated) {
+    if(localStorage.getItem("ratings-at-attempt")){
+      // User has attempted to rate, check if the ratings are higher than the stored ones
+      res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
+      data = await res.json();
+      const newRatingCount = data.ratings.count;
+      const previousRatingCount = parseInt(localStorage.getItem("ratings-at-attempt"), 10);
+      if (newRatingCount > previousRatingCount) {
+        // User rated, do not show the banner
+        return dismissRatingBanner();
+      }
+    }
     // Show the rating banner
     const ratingBanner = document.getElementById('rating-banner');
     ratingBanner.removeAttribute("style"); //Show the banner
@@ -156,13 +176,14 @@ function showDialog(message, title = null, errorData = null) {
   dialog.setAttribute('open', true)
 }
 
-async function showDiagnosticReportDialog({
+async function showDialogCustom({
   headline = "",
   description = "",
   confirmText = "OK",
   cancelText = "Cancel",
   onConfirm = () => {},
   onCancel = () => {},
+  showTextField = true,
   textFieldOptions = {}
 }) {
   return new Promise((resolve) => {
@@ -188,16 +209,17 @@ async function showDiagnosticReportDialog({
     dialogBodyElement.appendChild(descriptionElement);
 
     // ----- Text Field -----
-    const textField = document.createElement("mdui-text-field");
-    textField.setAttribute("slot", "description");
+      const textField = document.createElement("mdui-text-field");
+      textField.setAttribute("slot", "description");
 
-    for (const [key, val] of Object.entries(textFieldOptions)) {
-      if (val !== undefined && val !== null) {
-        textField.setAttribute(key, val);
+      for (const [key, val] of Object.entries(textFieldOptions)) {
+        if (val !== undefined && val !== null) {
+          textField.setAttribute(key, val);
+        }
       }
+    if (showTextField) {
+      dialogBodyElement.appendChild(textField);
     }
-
-    dialogBodyElement.appendChild(textField);
 
     // ----- Cancel Button -----
     const cancelBtn = document.createElement("mdui-button");
@@ -217,9 +239,14 @@ async function showDiagnosticReportDialog({
     confirmBtn.slot = "action";
     confirmBtn.textContent = confirmText;
     confirmBtn.addEventListener("click", () => {
-      const value = textField.value;
       dialog.removeAttribute("open");
-      onConfirm(value);
+      if (showTextField) {
+        const value = textField.value;
+        onConfirm(value);
+
+      } else {
+        onConfirm();;
+      }
       resolve(true);
     });
     dialog.appendChild(confirmBtn);
@@ -236,7 +263,7 @@ async function shareDiagnosticData(errorData) {
   console.log("Sharing diagnostic data:", errorData);
   let email="";
   let mediaRequests = await browser.runtime.sendMessage({ action: 'getMediaRequests' });
-  const userResponse = await showDiagnosticReportDialog({
+  const userResponse = await showDialogCustom({
       headline: browser.i18n.getMessage("diagnosticDataEmailTitle"),
       description: browser.i18n.getMessage("diagnosticDataEmailDescription", [
         new Option(navigator.userAgent).innerHTML, 
@@ -415,6 +442,13 @@ function loadMediaList() {
         // If neither detection matched, skip
         continue;
       }
+      // If the request is from youtube, show a popup to inform the user that downloading from youtube is not supported
+      if (mediaURL.hostname.includes("youtube.com") || mediaURL.hostname.includes("youtu.be")) {
+        handleYoutubeMediaRequest(url);
+        continue;
+      }
+
+
       // Create a container for each media request
       const mediaDiv = document.createElement('mdui-list-item');
       mediaDiv.setAttribute('nonclickable', 'true');
@@ -610,6 +644,51 @@ function loadMediaList() {
     console.error('Error retrieving media requests:', error);
     showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}`, requests: mediaRequests  });
   });
+}
+
+/** Handle media requests from YouTube by showing an alert once per session */
+function handleYoutubeMediaRequest(url) {
+  if (sessionStorage.getItem('shownYoutubeAlert') !== '1' && localStorage.getItem('show-youtube-alert') !== '0') {
+    sessionStorage.setItem('shownYoutubeAlert', '1');
+    showDialogCustom({
+      showTextField: false,
+      headline: browser.i18n.getMessage("youtubeDialogAskTitle"),
+      description: browser.i18n.getMessage("youtubeDialogAskMessage"),
+      confirmText: browser.i18n.getMessage("youtubeDialogAskOkButton"),
+      cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+      onConfirm: () => {
+        // Check if the user is on PC or Android
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        if (isAndroid) {
+          // Show Seal download page on Android
+          mdui.confirm({
+            headline: browser.i18n.getMessage("youtubeDialogDownloaderAndroidTitle"),
+            description: browser.i18n.getMessage("youtubeDialogDownloaderAndroidMessage"),
+            onConfirm: () => {
+              window.open('https://github.com/JunkFood02/Seal?tab=readme-ov-file#%EF%B8%8F-download', '_blank');
+            }
+          })
+        } else {
+          // Show yt-dlp page on PC
+          mdui.confirm({
+            headline: browser.i18n.getMessage("youtubeDialogDownloaderPCTitle"),
+            description: browser.i18n.getMessage("youtubeDialogDownloaderPCMessage"),
+            onConfirm: () => {
+              window.open('https://github.com/yt-dlp/yt-dlp?tab=readme-ov-file#installation', '_blank');
+            }
+          });
+        }
+      },
+      onCancel: () => {},
+    });
+    document.getElementById('youtube-dialog-dont-show-again').addEventListener('change', (event) => {
+      if (event.target.checked) {
+        localStorage.setItem('show-youtube-alert', '0');
+      } else {
+        localStorage.setItem('show-youtube-alert', '1');
+      }
+    })
+  }
 }
 
 /**

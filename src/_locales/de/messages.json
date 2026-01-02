@@ -528,5 +528,33 @@
     "ratingBannerRemindMeLaterButton": {
         "message": "Ask again in a week",
         "description": "The label of the button to be reminded later in the rating banner."
+    },
+    "youtubeDialogAskTitle": {
+        "message": "Are you trying to download from YouTube?",
+        "description": "The title of the dialog shown when a YouTube media request is detected."
+    },
+    "youtubeDialogAskMessage": {
+        "message": "Downloading from YouTube is not supported directly in this extension due to YouTube's proprietary streaming methods. However, I can guide you to tools that specialize in downloading YouTube videos. Would you like me to show you these options?<br/><mdui-checkbox id=\"youtube-dialog-dont-show-again\">Don't show this message again</mdui-checkbox>",
+        "description": "The message of the dialog shown when a YouTube media request is detected."
+    },
+    "youtubeDialogAskOkButton": {
+        "message": "Yes",
+        "description": "The text of the OK button in the YouTube media request dialog."
+    },
+    "youtubeDialogDownloaderPCTitle": {
+        "message": "Try with yt-dlp",
+        "description": "The title of the dialog shown when guiding the user to download YouTube videos on PC."
+    },
+    "youtubeDialogDownloaderPCMessage": {
+        "message": "You can use yt-dlp, a powerful command-line tool to download videos from YouTube and many other platforms. You can find installation instructions on their GitHub page.",
+        "description": "The message of the dialog shown when guiding the user to download YouTube videos on PC."
+    },
+    "youtubeDialogDownloaderAndroidTitle": {
+        "message": "Try with Seal",
+        "description": "The title of the dialog shown when guiding the user to download YouTube videos on Android."
+    },
+    "youtubeDialogDownloaderAndroidMessage": {
+        "message": "You can use Seal, an Android app that allows you to download videos from YouTube and other platforms. You can find the download link on their GitHub page.",
+        "description": "The message of the dialog shown when guiding the user to download YouTube videos on Android."
     }
   }

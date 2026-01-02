@@ -524,5 +524,33 @@
     "ratingBannerRemindMeLaterButton": {
         "message": "Me redemander dans une semaine",
         "description": "The label of the button to be reminded later in the rating banner."
+    },
+    "youtubeDialogAskTitle": {
+        "message": "Voulez-vous télécharger depuis YouTube ?",
+        "description": "The title of the dialog shown when a YouTube media request is detected."
+    },
+    "youtubeDialogAskMessage": {
+        "message": "Le téléchargement depuis YouTube n'est pas pris en charge directement dans cette extension en raison des méthodes de streaming propriétaires de YouTube. Cependant, je peux vous guider vers des outils spécialisés dans le téléchargement de vidéos YouTube. Voulez-vous que je vous montre ces options ?<br/><mdui-checkbox id=\"youtube-dialog-dont-show-again\">Ne plus afficher ce message</mdui-checkbox>",
+        "description": "The message of the dialog shown when a YouTube media request is detected."
+    },
+    "youtubeDialogAskOkButton": {
+        "message": "Oui",
+        "description": "The text of the OK button in the YouTube media request dialog."
+    },
+    "youtubeDialogDownloaderPCTitle": {
+        "message": "Essayez avec yt-dlp",
+        "description": "The title of the dialog shown when guiding the user to download YouTube videos on PC."
+    },
+    "youtubeDialogDownloaderPCMessage": {
+        "message": "Vous pouvez utiliser yt-dlp, un puissant outil en ligne de commande pour télécharger des vidéos depuis YouTube et de nombreuses autres plateformes. Vous pouvez trouver les instructions d'installation sur leur page GitHub.",
+        "description": "The message of the dialog shown when guiding the user to download YouTube videos on PC."
+    },
+    "youtubeDialogDownloaderAndroidTitle": {
+        "message": "Essayez avec Seal",
+        "description": "The title of the dialog shown when guiding the user to download YouTube videos on Android."
+    },
+    "youtubeDialogDownloaderAndroidMessage": {
+        "message": "Vous pouvez utiliser Seal, une application Android qui vous permet de télécharger des vidéos depuis YouTube et d'autres plateformes. Vous pouvez trouver le lien de téléchargement sur leur page GitHub.",
+        "description": "The message of the dialog shown when guiding the user to download YouTube videos on Android."
     }
 }
