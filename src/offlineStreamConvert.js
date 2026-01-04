@@ -646,7 +646,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   // 2) Parse with DOMParser (namespace-aware)
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(mpdXmlText, "application/xml");
-  const NS = "urn:mpeg:dash:schema:mpd:2011";
+  const NS = xmlDoc.documentElement.namespaceURI || "urn:mpeg:dash:schema:mpd:2011";
 
   const hasDRM = !!xmlDoc.getElementsByTagNameNS(NS, "ContentProtection").length;
   if (hasDRM) {
@@ -692,8 +692,28 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
 
   // Filter to only audio/mp4 or video/mp4 AdaptationSets
   const adaptationSets = allSets.filter(asNode => {
+    // Check mimeType on AdaptationSet
     const mimeType = asNode.getAttribute("mimeType") || "";
-    return mimeType.startsWith("audio/") || mimeType.startsWith("video/");
+    if (mimeType.startsWith("audio/") || mimeType.startsWith("video/")) {
+      return true;
+    }
+    
+    // Check contentType attribute
+    const contentType = asNode.getAttribute("contentType") || "";
+    if (contentType === "audio" || contentType === "video") {
+      return true;
+    }
+    
+    // If not found on AdaptationSet, check child Representation elements
+    const representations = asNode.getElementsByTagNameNS(NS, "Representation");
+    for (let i = 0; i < representations.length; i++) {
+      const repMimeType = representations[i].getAttribute("mimeType") || "";
+      if (repMimeType.startsWith("audio/") || repMimeType.startsWith("video/")) {
+        return true;
+      }
+    }
+    
+    return false;
   });
   if (adaptationSets.length === 0) {
     throw new Error("MPD’s Period has no AdaptationSet for audio/video. This might mean it’s not a valid MPD (or gets detected as an MPD but isn't).");
@@ -708,13 +728,24 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       contentType = declaredType;
     } else {
       const mimeType = asNode.getAttribute("mimeType") || "";
-      contentType = mimeType.startsWith("video/") ? "video" : "audio";
+      if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
+        contentType = mimeType.startsWith("video/") ? "video" : "audio";
+      } else {
+        // Check first Representation element for mimeType
+        const representations = asNode.getElementsByTagNameNS(NS, "Representation");
+        if (representations.length > 0) {
+          const repMimeType = representations[0].getAttribute("mimeType") || "";
+          contentType = repMimeType.startsWith("video/") ? "video" : "audio";
+        } else {
+          contentType = "video"; // fallback
+        }
+      }
     }
 
     // Grab the SegmentTemplate from the AdaptationSet:
     const setSt = asNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
     if (!setSt) {
-      throw new Error("AdaptationSet missing SegmentTemplate. This isn’t a valid MPD.");
+      throw new Error("AdaptationSet missing SegmentTemplate. Downloading this MPD is not supported yet.");
     }
     // Build a “base” segmentTemplate object from the AdaptationSet
     const baseSegTmpl = {

@@ -868,8 +868,41 @@ async function downloadFile(url, mediaDiv) {
         throw new Error(`Error downloading media file with fetch: ${response.status}`);
       }
 
-      // Create a blob from the response and trigger a download
-      const blob = await response.blob();
+      // Get the total size from Content-Length header
+      const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+      
+      // Update loading bar to show determinate progress
+      loadingBar.removeAttribute('indeterminate');
+      loadingBar.value = 0;
+
+      // Read the response body as a stream to track progress
+      const reader = response.body.getReader();
+      const chunks = [];
+      let receivedLength = 0;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          chunks.push(value);
+          receivedLength += value.length;
+          
+          // Update progress bar if we know the total size
+          if (contentLength > 0) {
+            const progress = receivedLength / contentLength;
+            loadingBar.value = progress;
+            console.log(`Download progress: ${(progress * 100).toFixed(2)}%`);
+          }
+        }
+      } catch (error) {
+        reader.cancel();
+        throw new Error(`Error reading response stream: ${error.message}`);
+      }
+
+      // Create a blob from the chunks and trigger a download
+      const blob = new Blob(chunks);
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
