@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ratingBanner = document.getElementById('rating-banner');
     ratingBanner.style.display = 'none';
     // Reset install date to now so we remind in 7 days
-    localStorage.setItem('install-date', Date.now());
+    localStorage.setItem('install-date', Temporal.Now.plainDateISO().toString());
   });
 
   document.getElementById('rate-now-button').addEventListener('click', async (event) => {
@@ -71,15 +71,25 @@ document.addEventListener('DOMContentLoaded', () => {
 // Check if we should show the rating banner
 async function checkAndShowRatingBanner() {
 
-  if (!localStorage.getItem('install-date')) {
-    // First time opening, set the date
-    localStorage.setItem('install-date', Date.now());
+  if(typeof Temporal !== 'undefined') {
+    if (!localStorage.getItem('install-date')) {
+      localStorage.setItem('install-date', Temporal.Now.plainDateISO().toString());
+      return;
+    }
 
-    return;
-  }
-  const installDate = localStorage.getItem('install-date');
-  const hasRated = localStorage.getItem('has-rated');
-  const daysSinceInstall = (Date.now() - installDate) / (1000 * 60 * 60 * 24);
+    let installDate;
+    try {
+      installDate = Temporal.PlainDate.from(localStorage.getItem('install-date'));
+    } catch (e) {
+      // Fallback: older versions stored epoch-ms as a string. Fall back to today minus 7 days to show the banner immediately
+      installDate = Temporal.Now.plainDateISO().subtract({ days: 7 });
+      localStorage.setItem('install-date', installDate.toString());
+
+    }
+    const hasRated = localStorage.getItem('has-rated');
+    const now = Temporal.Now.plainDateISO();
+
+    const daysSinceInstall = now.since(installDate).days
   if (daysSinceInstall >= 7 && !hasRated) {
     if(localStorage.getItem("ratings-at-attempt")){
       // User has attempted to rate, check if the ratings are higher than the stored ones
@@ -95,6 +105,13 @@ async function checkAndShowRatingBanner() {
     // Show the rating banner
     const ratingBanner = document.getElementById('rating-banner');
     ratingBanner.removeAttribute("style"); //Show the banner
+  }
+  } else {
+    // If Temporal is not supported (Chrome), show the banner immediately
+    if (!localStorage.getItem('has-rated')) {
+      const ratingBanner = document.getElementById('rating-banner');
+      ratingBanner.removeAttribute("style"); //Show the banner
+    }
   }
 }
 

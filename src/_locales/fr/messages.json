@@ -448,7 +448,7 @@
         "description": "The title of the prompt to enter an e-mail when sharing diagnostic data."
     },
     "diagnosticDataEmailDescription": {
-        "message": "Dans ce cas, merci d'entrer votre e-mail ci dessous. Il ne sera pas sauvegardé ni partagé à des tiers et sera uniquement utilisé pour vous recontacter. Si vous ne souhaitez pas être recontacté, laissez le champ vide.<br/>Les données incluses dans votre signalement sont les suivantes : <br/><ul><li>Votre user agent (le vôtre est : <code>$USERAGENT$</code>)</li><li>L'URL de la page qui a causé l'erreur : <code>$REFERER$</code></li><li>L'URL du média : <code>$MEDIAURL$</code></li><li>The error that has occured : <code>$ERROR$</code></li></ul>",
+        "message": "Dans ce cas, merci d'entrer votre e-mail ci dessous. Il ne sera pas sauvegardé ni partagé à des tiers et sera uniquement utilisé pour vous recontacter. Si vous ne souhaitez pas être recontacté, laissez le champ vide.<br/>Les données incluses dans votre signalement sont les suivantes : <br/><ul><li>Votre user agent (le vôtre est : <code>$USERAGENT$</code>)</li><li>L'URL de la page qui a causé l'erreur : <code>$REFERER$</code></li><li>L'URL du média : <code>$MEDIAURL$</code></li><li>L'erreur qui est survenue : <code>$ERROR$</code></li></ul>",
         "description": "The description of the prompt to enter an e-mail when sharing diagnostic data.",
         "placeholders": {
             "USERAGENT": {
