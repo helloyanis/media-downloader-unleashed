@@ -31,6 +31,10 @@
         "message": "Oh no!",
         "description": "The 6th title of the error popup."
     },
+    "offlineError": {
+        "message": "The download likely failed because you are offline. Please check your internet connection and try again.",
+        "description": "The error message shown when the user tries to download media while offline."
+    },
     "reportIssue": {
         "message": "Report issue",
         "description": "The text of the link to report an issue in the error popup."

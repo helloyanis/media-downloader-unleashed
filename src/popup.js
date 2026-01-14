@@ -931,6 +931,13 @@ async function downloadFile(url, mediaDiv) {
       URL.revokeObjectURL(blobUrl); // Clean up the blob URL
     }
   } catch (error) {
+    if(!navigator.onLine) {
+      mdui.snackbar({
+        message: browser.i18n.getMessage("offlineError"),
+        autoCloseDelay: 15000,
+        closeable: true,
+      });
+    }
     console.error('Error downloading media file:', error);
     showDialog(browser.i18n.getMessage("downloadError", [error.message]), null, { error: `Error downloading media file: ${error.message}`, url: url  });
   }
@@ -943,8 +950,8 @@ async function downloadFile(url, mediaDiv) {
     window.removeEventListener('beforeunload', beforeUnloadHandler);
     updateDownloadingCount(-1);
     mediaDiv.removeChild(loadingBar);
-    mediaDiv.querySelector("#download-button").loading = false
-    mediaDiv.querySelector("#download-button").disabled = false
+    mediaDiv.querySelector("#download-button").loading = false;
+    mediaDiv.querySelector("#download-button").disabled = false;
   }
 }
 

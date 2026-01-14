@@ -22,6 +22,12 @@ function openCacheDB() {
  * If missing, falls back to network fetch.
  */
 async function fetchWithCache(url, options = {}) {
+
+  if (browser.extension.inIncognitoContext) {
+    // Bypass cache in incognito/private mode
+    return fetch(url, options);
+  }
+
   try {
     const db = await openCacheDB();
     const cachedItem = await new Promise((resolve, reject) => {
