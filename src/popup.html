@@ -129,7 +129,7 @@
           <mdui-card id="detection-method" role="group" variant="filled">
             <h3 data-translate="detectionMethodTitle">Detection method</h3>
             <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
-            <p data-translate="detectionDisabledExplanation">Unchecking both options will not filter anything, showing
+            <p data-translate="detectionDisabledExplain">Unchecking both options will not filter anything, showing
               all requests (even non-media requests!) of the
               browser.</p>
 
@@ -176,11 +176,21 @@
             </mdui-radio-group>
           </mdui-card>
 
+          <!-- Media cache -->
+          <mdui-card role="group" variant="filled">
+            <h3 data-translate="mediaCacheTitle">Use media cache</h3>
+            <p data-translate="mediaCacheExplain">Attempt to store the media response, so the download can occur without making a request to the server. Downloads will be faster but navigation might be slower.</p>
+
+            <mdui-checkbox id="media-cache" name="media-cache" value="1" data-translate="mediaCacheCheckbox">Use media cache</mdui-checkbox>
+
+          </mdui-card>
+
+
           <!-- Hide segments -->
-          <mdui-card id="hide-segments" role="group" variant="filled">
+          <mdui-card role="group" variant="filled">
             <h3 data-translate="hideSegmentsTitle">Hide stream segments</h3>
             <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
-            <p data-translate="hideSegmentsExplanation">Live streams use multiple segments to deliver content in small
+            <p data-translate="hideSegmentsExplain">Live streams use multiple segments to deliver content in small
               parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.</p>
 
             <mdui-checkbox id="hide-segments" name="hide-segments" value="1" data-translate="hideSegmentsCheckbox">Hide

@@ -151,7 +151,7 @@
         "message": "⚠️ After changing this, click on \"Refresh list\" to see the changes!",
         "description": "The warning shown below the detection method title in the settings tab."
     },
-    "detectionDisabledExplanation": {
+    "detectionDisabledExplain": {
         "message": "Unchecking both options will not filter anything, showing all requests (even non-media requests!) of the browser.",
         "description": "The explanation on how disabling detection works, shown in the settings tab"
     },
@@ -195,7 +195,7 @@
         "message": "Hide stream segments",
         "description": "The title of the hide stream segments section in the settings tab."
     },
-    "hideSegmentsExplanation": {
+    "hideSegmentsExplain": {
         "message": "Live streams use multiple segments to deliver content in small parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.",
         "description": "The explanation of the hide stream segments option shown in a tooltip."
     },

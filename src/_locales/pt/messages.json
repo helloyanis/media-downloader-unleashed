@@ -151,7 +151,7 @@
         "message": "⚠️ Após alterar isso, clique em \"Atualizar lista\" para ver as alterações!",
         "description": "The warning shown below the detection method title in the settings tab."
     },
-      "detectionDisabledExplanation": {
+      "detectionDisabledExplain": {
         "message": "Desmarcar ambas as opções não filtrará nada, mostrando todas as solicitações (mesmo as que não são de mídia!) do navegador da web.",
         "description": "The explanation on how disabling detection works, shown in the settings tab"
     },
@@ -192,15 +192,15 @@
         "description": "The label of the checkbox to enable Fetch API download method."
     },
     "hideSegmentsTitle": {
-        "message": "Hide stream segments",
+        "message": "Ocultar segmentos de stream",
         "description": "The title of the hide stream segments section in the settings tab."
     },
-    "hideSegmentsExplanation": {
-        "message": "Live streams use multiple segments to deliver content in small parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.",
+    "hideSegmentsExplain": {
+        "message": "As transmissões ao vivo usam vários segmentos para entregar o conteúdo em pequenas partes. Normalmente, você só precisa do manifesto da transmissão, então os segmentos podem ser ocultados para reduzir a desordem.",
         "description": "The explanation of the hide stream segments option shown in a tooltip."
     },
     "hideSegmentsCheckbox": {
-        "message": "Hide stream segments in the media list",
+        "message": "Ocultar segmentos de stream na lista de mídia",
         "description": "The label of the checkbox to enable hiding stream segments in the media list."
     },
     "streamDownloadTitle": {

@@ -83,6 +83,18 @@ async function initializeSettings() {
         streamRadioGroup.value = streamDownload;
     }
 
+    // Check for mediaCache setting in localStorage
+    let mediaCache = localStorage.getItem('media-cache') || '1';
+    localStorage.setItem('media-cache', mediaCache);
+
+    // Select the current mediaCache
+    let mediaCacheCheckbox = document.querySelector(`mdui-checkbox[name="media-cache"]`);
+    if (mediaCacheCheckbox) {
+        if (mediaCache === '1') {
+            mediaCacheCheckbox.setAttribute('checked', true);
+        }
+    }
+
     // Check for hideSegments setting in localStorage
     let hideSegments = localStorage.getItem('hide-segments') || '1';
     localStorage.setItem('hide-segments', hideSegments);
@@ -142,7 +154,7 @@ async function initializeSettings() {
     });
 
     // Check is the extension has permissions to access all URLs
-    if( !await browser.permissions.contains({ origins: ["<all_urls>"] })) {
+    if (!await browser.permissions.contains({ origins: ["<all_urls>"] })) {
         requestOriginsPermission();
     }
 
@@ -168,6 +180,12 @@ async function initializeSettings() {
             let value = event.target.checked ? '1' : '0';
             localStorage.setItem(setting, value);
             browser.storage.local.set({ [setting]: value });
+            switch (setting) {
+                case 'media-cache':
+                    // Re-initialize the listener to reflect changes
+                    browser.runtime.sendMessage({ action: 'initCacheListener' });
+                    break;
+            }
         });
     });
 

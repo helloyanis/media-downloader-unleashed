@@ -23,8 +23,8 @@ function openCacheDB() {
  */
 async function fetchWithCache(url, options = {}) {
 
-  if (browser.extension.inIncognitoContext) {
-    // Bypass cache in incognito/private mode
+  if (browser.extension.inIncognitoContext || localStorage.getItem("media-cache") !== "1") {
+    // Bypass cache in incognito/private mode or if media-cache is disabled
     return fetch(url, options);
   }
 

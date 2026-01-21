@@ -372,11 +372,9 @@ browser.runtime.onStartup.addListener(initListener);
 
 browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);
 
-// ----------------- New: capture & cache media response bodies -----------------
+// ----------------- Capture & cache media response bodies -----------------
 // We use onHeadersReceived to detect Content-Type, and if it's a media type we attach
 // a filterResponseData stream to capture the response body and store it into IndexedDB.
-//
-// NOTE: this requires the "webRequestFilterResponse" permission (you already have it).
 // ------------------------------------------------------------------------------
 
 let cacheHeadersListener;
@@ -388,12 +386,24 @@ function initCacheListener() {
 
     cacheHeadersListener = browser.webRequest.onBeforeRequest.addListener(
         (details) => {
+            // Return early if media cache setting is disabled
+            browser.storage.local.get('media-cache', function (result) {
+                const mediaCacheEnabled = isFlagEnabled(result['media-cache']);
+                if (!mediaCacheEnabled) {
+                    console.debug("Media cache is disabled; not using cache listener.");
+                    if (cacheHeadersListener) {
+                        try { browser.webRequest.onHeadersReceived.removeListener(cacheHeadersListener); } catch (e) { /* ignore */ }
+                    }
+                    cacheHeadersListener = null;
+                    return;
+                }
+            });
             try {
                 // Find content-type header (if any)
 
 
                 // decide if this is a media type we want to cache
-                console.log("Cache listener checking:", details.url, "details", details);
+                console.debug("Cache listener checking:", details.url, "details", details);
                 const shouldCache = (() => {
                     // Check URL pattern
                     if (urlMediaRegex.test(details.url) && !details.incognito) {
@@ -426,7 +436,7 @@ function initCacheListener() {
                         // store chunk for cache and pass it through to the response
                         chunks.push(event.data);
                         filter.write(event.data);
-                        console.log("Caching chunk for:", details.url, "bytes:", event.data.byteLength);
+                        console.debug("Caching chunk for:", details.url, "bytes:", event.data.byteLength);
                     } catch (e) {
                         console.error("Error writing chunk back to filter:", e);
                     }

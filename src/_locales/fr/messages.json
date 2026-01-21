@@ -191,7 +191,7 @@
         "message": "Masquer les segments de streams",
         "description": "The title of the hide stream segments section in the settings tab."
     },
-    "hideSegmentsExplanation": {
+    "hideSegmentsExplain": {
         "message": "Les flux en direct utilisent plusieurs segments pour diffuser le contenu en petites parties. En général, vous n'avez besoin que du manifeste du flux, donc les segments peuvent être masqués pour réduire l'encombrement.",
         "description": "The explanation of the hide stream segments option shown in a tooltip."
     },
