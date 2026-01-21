@@ -110,7 +110,7 @@ function getSettings(callback) {
 }
 
 function initListener() {
-    // Cleare indexedDB cache on init to avoid stale data
+    // Clear indexedDB cache on init to avoid stale data
     openCacheDB().then(db => {
         const tx = db.transaction([STORE_NAME], "readwrite");
         const store = tx.objectStore(STORE_NAME);
@@ -136,7 +136,6 @@ function initListener() {
             try { browser.webRequest.onHeadersReceived.removeListener(headersReceivedListener); } catch (e) { }
         }
 
-        // --- [NEW] Cleanup Listeners to prevent memory leaks in the Map ---
         const cleanupListener = (details) => {
             if (temporaryHeaderMap.has(details.requestId)) {
                 temporaryHeaderMap.delete(details.requestId);
@@ -147,7 +146,6 @@ function initListener() {
             browser.webRequest.onCompleted.addListener(cleanupListener, { urls: ["<all_urls>"] });
             browser.webRequest.onErrorOccurred.addListener(cleanupListener, { urls: ["<all_urls>"] });
         }
-        // ------------------------------------------------------------------
 
         headersSentListener = function (details) {
             try {
@@ -363,7 +361,7 @@ browser.action.onClicked.addListener((tab) => {
 browser.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
         browser.tabs.create({
-            url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md#thank-you-for-installing-the-file-downloader-unleashed-add-on`,
+            url: `https://github.com/helloyanis/media-downloader-unleashed/blob/master/src/installed.md#thank-you-for-installing-the-media-downloader-unleashed-add-on`,
         });
     }
 });
@@ -377,108 +375,128 @@ browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);
 // a filterResponseData stream to capture the response body and store it into IndexedDB.
 // ------------------------------------------------------------------------------
 
-let cacheHeadersListener;
-function initCacheListener() {
-    // remove if previously attached
-    if (cacheHeadersListener) {
-        try { browser.webRequest.onHeadersReceived.removeListener(cacheHeadersListener); } catch (e) { /* ignore */ }
-    }
+let cacheListener = null;
+let mediaCacheEnabled = false;
 
-    cacheHeadersListener = browser.webRequest.onBeforeRequest.addListener(
-        (details) => {
-            // Return early if media cache setting is disabled
-            browser.storage.local.get('media-cache', function (result) {
-                const mediaCacheEnabled = isFlagEnabled(result['media-cache']);
-                if (!mediaCacheEnabled) {
-                    console.debug("Media cache is disabled; not using cache listener.");
-                    if (cacheHeadersListener) {
-                        try { browser.webRequest.onHeadersReceived.removeListener(cacheHeadersListener); } catch (e) { /* ignore */ }
-                    }
-                    cacheHeadersListener = null;
-                    return;
-                }
-            });
-            try {
-                // Find content-type header (if any)
-
-
-                // decide if this is a media type we want to cache
-                console.debug("Cache listener checking:", details.url, "details", details);
-                const shouldCache = (() => {
-                    // Check URL pattern
-                    if (urlMediaRegex.test(details.url) && !details.incognito) {
-                        return true;
-                    }
-                    return false;
-                })();
-
-                if (!shouldCache) return;
-
-                // guard: filterResponseData may not exist in some environments
-                if (!browser.webRequest.filterResponseData) {
-                    console.warn("filterResponseData not available in this runtime; cannot cache response bodies.");
-                    return;
-                }
-
-                // attach a filter to stream & capture the response body
-                let filter;
-                try {
-                    filter = browser.webRequest.filterResponseData(details.requestId);
-                } catch (e) {
-                    console.warn("filterResponseData failed for requestId", details.requestId, e);
-                    return;
-                }
-
-                const chunks = [];
-                filter.ondata = (event) => {
-                    // event.data is ArrayBuffer
-                    try {
-                        // store chunk for cache and pass it through to the response
-                        chunks.push(event.data);
-                        filter.write(event.data);
-                        console.debug("Caching chunk for:", details.url, "bytes:", event.data.byteLength);
-                    } catch (e) {
-                        console.error("Error writing chunk back to filter:", e);
-                    }
-                };
-                filter.onstop = async () => {
-                    try {
-                        filter.disconnect();
-                        // create a blob from the chunks
-                        const blob = new Blob(chunks, { type: 'application/octet-stream' });
-
-                        // Only cache if we actually received data
-                        if (blob.size > 0) {
-                            // store in indexeddb (background context)
-                            await storeInCache(details.url, blob, '');
-
-                            // debug
-                            console.log("Cached response for:", details.url, "mime:", "", "bytes:", blob.size);
-                        } else {
-                            console.warn("Skipping cache for empty response:", details.url);
-                        }
-                    } catch (e) {
-                        console.error("Failed to cache response body for", details.url, e);
-                    }
-                };
-                filter.onerror = (err) => {
-                    try { filter.disconnect(); } catch (e) { }
-                    console.error("filter error:", err);
-                };
-            } catch (e) {
-                console.error("Error in cache listener:", e);
-            }
-        },
-        { urls: ["<all_urls>"] },
-        ["blocking"]
-    );
+// helper to safely remove current listener
+function detachCacheListener() {
+    if (!cacheListener) return;
+    try {
+        browser.webRequest.onBeforeRequest.removeListener(cacheListener);
+    } catch (e) { /* ignore if already removed */ }
+    cacheListener = null;
+    console.debug("Cache listener detached.");
 }
 
-// initialize cache listener
-initCacheListener();
+// attach listener (only when we already know mediaCacheEnabled === true)
+function attachCacheListener() {
+    if (cacheListener) return; // already attached
 
-browser.runtime.onMessage.addListener((message) => {
-    if (message.action === 'initCacheListener') {
-        initCacheListener();
+    // guard: if runtime doesn't support filterResponseData, don't attach
+    if (!browser.webRequest || !browser.webRequest.filterResponseData) {
+        console.warn("filterResponseData not available; not attaching cache listener.");
+        return;
+    }
+
+    cacheListener = (details) => {
+        try {
+            // quick checks; avoid any async storage calls here
+            if (details.incognito) return;
+
+            // very cheap URL filter: check the regex (precompiled outside if you want)
+            if (!urlMediaRegex.test(details.url)) return;
+
+            // attach filter to stream & capture the response body
+            let filter;
+            try {
+                filter = browser.webRequest.filterResponseData(details.requestId);
+            } catch (e) {
+                console.warn("filterResponseData failed for requestId", details.requestId, e);
+                return;
+            }
+
+            const chunks = [];
+            filter.ondata = (event) => {
+                try {
+                    chunks.push(event.data);
+                    filter.write(event.data);
+                } catch (e) {
+                    console.error("Error writing chunk back to filter:", e);
+                }
+            };
+            filter.onstop = async () => {
+                try {
+                    filter.disconnect();
+                    const blob = new Blob(chunks, { type: 'application/octet-stream' });
+                    if (blob.size > 0) {
+                        await storeInCache(details.url, blob, '');
+                        console.log("Cached response for:", details.url, "bytes:", blob.size);
+                    } else {
+                        console.warn("Skipping cache for empty response:", details.url);
+                    }
+                } catch (e) {
+                    console.error("Failed to cache response body for", details.url, e);
+                }
+            };
+            filter.onerror = (err) => {
+                try { filter.disconnect(); } catch (e) {}
+                console.error("filter error:", err);
+            };
+        } catch (e) {
+            console.error("Error in cache listener:", e);
+        }
+    };
+
+    browser.webRequest.onBeforeRequest.addListener(
+        cacheListener,
+        { urls: ["<all_urls>"], /*types: ["media", "object"]*/ }, // Types can't work with MPD files as the MPD request is categorized as "xmlhttprequest"
+        ["blocking"]
+    );
+
+    console.debug("Cache listener attached.");
+}
+
+// read initial setting from storage and attach/detach accordingly
+async function initCacheState() {
+    try {
+        const res = await browser.storage.local.get('media-cache');
+        const enabled = !!isFlagEnabled(res['media-cache']);
+        mediaCacheEnabled = enabled;
+        if (mediaCacheEnabled) {
+            attachCacheListener();
+        } else {
+            detachCacheListener();
+        }
+    } catch (e) {
+        console.error("Failed to read media-cache setting:", e);
+        // default to detached to avoid blocking requests
+        mediaCacheEnabled = false;
+        detachCacheListener();
+    }
+}
+
+// watch for runtime changes to storage and update attachment immediately
+browser.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (!Object.prototype.hasOwnProperty.call(changes, 'media-cache')) return;
+
+    const newEnabled = !!isFlagEnabled(changes['media-cache'].newValue);
+    if (newEnabled === mediaCacheEnabled) return; // no change
+
+    mediaCacheEnabled = newEnabled;
+    if (mediaCacheEnabled) {
+        attachCacheListener();
+    } else {
+        detachCacheListener();
     }
 });
+
+// optional: message API to force re-init from elsewhere
+browser.runtime.onMessage.addListener((message) => {
+    if (message && message.action === 'initCacheListener') {
+        initCacheState();
+    }
+});
+
+// do initial setup
+initCacheState();

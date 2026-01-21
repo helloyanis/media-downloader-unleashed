@@ -191,6 +191,18 @@
         "message": "Fetch API",
         "description": "The label of the checkbox to enable Fetch API download method."
     },
+    "mediaCacheTitle": {
+        "message": "Media cache",
+        "description": "The title of the media cache section in the settings tab."
+    },
+    "mediaCacheExplain": {
+        "message": "Attempt to store the media response, so the download can occur without making a request to the server. Downloads will be faster but can slow down your browser. Disable this if you have issues with the add-on or pages freezing.",
+        "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheCheckbox": {
+        "message": "Enable media cache",
+        "description": "The label of the checkbox to enable media cache."
+    },
     "hideSegmentsTitle": {
         "message": "Hide stream segments",
         "description": "The title of the hide stream segments section in the settings tab."

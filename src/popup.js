@@ -136,7 +136,7 @@ function updateDownloadingCount(change) {
     document.querySelector("#clear-list").disabled = false; //Enable clear list button when not downloading
     document.querySelector("#refresh-list").disabled = false; //Enable refresh list button when not downloading
   } else {
-    document.title = `(${downloadingCount} ⏳) Media Downloader Unleashed!!`;
+    document.title = `⬇️ ${downloadingCount} ⏳️`;
     document.querySelector("#clear-list").disabled = true; //Disable clear list button while downloading
     document.querySelector("#refresh-list").disabled = true; //Disable refresh list button while downloading
   }
@@ -875,7 +875,7 @@ async function downloadFile(url, mediaDiv) {
       });
 
       // Send the request by fetching the URL with the appropriate method and headers (referrer can't be set in headers but can be set as a fetch option) so servers will think the request is coming from the same site
-      const response = await fetch(url, {
+      const response = await fetchWithCache(url, {
         method: requests[url][selectedSizeIndex].method,
         headers: headersObject,
         referrer: requests[url][selectedSizeIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value
@@ -910,7 +910,6 @@ async function downloadFile(url, mediaDiv) {
           if (contentLength > 0) {
             const progress = receivedLength / contentLength;
             loadingBar.value = progress;
-            console.log(`Download progress: ${(progress * 100).toFixed(2)}%`);
           }
         }
       } catch (error) {

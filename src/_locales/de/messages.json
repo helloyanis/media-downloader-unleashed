@@ -191,6 +191,18 @@
     "message": "Fetch API",
     "description": "Fetch API label."
   },
+  "mediaCacheTitle": {
+        "message": "Medien-Cache",
+        "description": "The title of the media cache section in the settings tab."
+    },
+    "mediaCacheExplain": {
+        "message": "Versucht, die Medienantwort zu speichern, damit der Download ohne eine Anfrage an den Server erfolgen kann. Downloads werden schneller, können aber Ihren Browser verlangsamen. Deaktivieren Sie dies, wenn Sie Probleme mit dem Add-on oder eingefrorenen Seiten haben.",
+        "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheCheckbox": {
+        "message": "Medien-Cache aktivieren",
+        "description": "The label of the checkbox to enable media cache."
+    },
       "hideSegmentsTitle": {
         "message": "Stream-Segmente ausblenden",
         "description": "The title of the hide stream segments section in the settings tab."

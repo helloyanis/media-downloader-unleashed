@@ -187,6 +187,18 @@
         "message": "API Fetch",
         "description": "The label of the checkbox to enable Fetch API download method."
     },
+    "mediaCacheTitle": {
+        "message": "Cache média",
+        "description": "The title of the media cache section in the settings tab."
+    },
+    "mediaCacheExplain": {
+        "message": "Tente de stocker la réponse média, afin que le téléchargement puisse se faire sans faire de requête au serveur. Les téléchargements seront plus rapides mais peuvent ralentir votre navigateur. Désactivez ceci si vous rencontrez des problèmes avec l'extension ou des pages qui se figent.",
+        "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheCheckbox": {
+        "message": "Activer le cache média",
+        "description": "The label of the checkbox to enable media cache."
+    },
     "hideSegmentsTitle": {
         "message": "Masquer les segments de streams",
         "description": "The title of the hide stream segments section in the settings tab."
