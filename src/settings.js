@@ -173,6 +173,8 @@ async function initializeSettings() {
         }
     })
 
+    browser.runtime.sendMessage({ action: 'initCacheListener' }); // Attempt to initialize the cache listener (will only attach if media-cache is enabled)
+
     // Add event listeners to the checkboxes
     document.querySelectorAll('mdui-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', (event) => {

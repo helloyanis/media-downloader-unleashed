@@ -878,7 +878,8 @@ async function downloadFile(url, mediaDiv) {
       const response = await fetchWithCache(url, {
         method: requests[url][selectedSizeIndex].method,
         headers: headersObject,
-        referrer: requests[url][selectedSizeIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value
+        referrer: requests[url][selectedSizeIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+        body: requests[url][selectedSizeIndex].method !== 'GET' ? requests[url][selectedSizeIndex].requestBody : null,
       });
 
       if (!response.ok) {

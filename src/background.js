@@ -76,6 +76,7 @@ const allExtensions = videoExtensions.concat(audioExtensions, streamExtensions);
 const extPattern = allExtensions.map(e => e.replace(/^\./, '').replace(/\+/g, '\\+')).join('|');
 const detectionRegex = new RegExp('\\.(?:' + extPattern + ')(?:[?#].*)?$', 'i');
 const temporaryHeaderMap = new Map();
+const temporaryRequestBodyMap = new Map();
 
 // helper to interpret setting values (localStorage or browser.storage.local)
 function isFlagEnabled(val) {
@@ -109,6 +110,20 @@ function getSettings(callback) {
     });
 }
 
+// Helper: convert ArrayBuffer to base64 safely in chunks
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000; // 32KB chunks
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+}
+
+let beforeRequestListener, beforeSendHeadersListener;
+
 function initListener() {
     // Clear indexedDB cache on init to avoid stale data
     openCacheDB().then(db => {
@@ -132,13 +147,23 @@ function initListener() {
         if (headersSentListener) {
             try { browser.webRequest.onSendHeaders.removeListener(headersSentListener); } catch (e) { }
         }
+        if (beforeSendHeadersListener) {
+            try { browser.webRequest.onBeforeSendHeaders.removeListener(beforeSendHeadersListener); } catch (e) { }
+        }
         if (headersReceivedListener) {
             try { browser.webRequest.onHeadersReceived.removeListener(headersReceivedListener); } catch (e) { }
+        }
+        if (beforeRequestListener) {
+            try { browser.webRequest.onBeforeRequest.removeListener(beforeRequestListener); } catch (e) { }
+            beforeRequestListener = null;
         }
 
         const cleanupListener = (details) => {
             if (temporaryHeaderMap.has(details.requestId)) {
                 temporaryHeaderMap.delete(details.requestId);
+            }
+            if (temporaryRequestBodyMap.has(details.requestId)) {
+                temporaryRequestBodyMap.delete(details.requestId);
             }
         };
         // Ensure we don't duplicate cleanup listeners if initListener runs multiple times
@@ -147,7 +172,88 @@ function initListener() {
             browser.webRequest.onErrorOccurred.addListener(cleanupListener, { urls: ["<all_urls>"] });
         }
 
-        headersSentListener = function (details) {
+        // NEW: capture request bodies in onBeforeRequest (formData or raw bytes).
+        beforeRequestListener = function (details) {
+            try {
+                if (!details || !details.requestBody) return;
+
+                const rb = details.requestBody;
+
+                if (rb.formData) {
+                    // formData is an object of arrays; safe to store directly
+                    temporaryRequestBodyMap.set(details.requestId, { type: 'formData', data: rb.formData });
+                } else if (rb.raw && rb.raw.length) {
+                    // raw may contain an ArrayBuffer/Uint8Array in .bytes
+                    try {
+                        // Combine all raw parts into one ArrayBuffer (if multiple)
+                        let totalLen = 0;
+                        for (let part of rb.raw) {
+                            if (part && part.bytes) {
+                                totalLen += part.bytes.byteLength || part.bytes.length || 0;
+                            }
+                        }
+                        if (totalLen === 0) {
+                            // nothing to store
+                            return;
+                        }
+                        // create combined buffer
+                        const combined = new Uint8Array(totalLen);
+                        let offset = 0;
+                        for (let part of rb.raw) {
+                            if (!part || !part.bytes) continue;
+                            const src = new Uint8Array(part.bytes);
+                            combined.set(src, offset);
+                            offset += src.length;
+                        }
+                        const base64 = arrayBufferToBase64(combined.buffer);
+                        temporaryRequestBodyMap.set(details.requestId, { type: 'base64', data: base64 });
+                    } catch (e) {
+                        console.warn("Failed to serialize raw request body for requestId", details.requestId, e);
+                    }
+                }
+            } catch (e) {
+                console.error("Error in onBeforeRequest listener (requestBody capture):", e);
+            }
+        };
+
+        // Attach beforeRequest listener to capture requestBody. Guard for availability.
+        try {
+            if (browser.webRequest && browser.webRequest.onBeforeRequest && !browser.webRequest.onBeforeRequest.hasListener(beforeRequestListener)) {
+                browser.webRequest.onBeforeRequest.addListener(
+                    beforeRequestListener,
+                    { urls: urlList },
+                    ['requestBody']
+                );
+            }
+        } catch (e) {
+            console.warn("Failed to attach onBeforeRequest requestBody listener:", e);
+        }
+
+        beforeSendHeadersListener = async function (details) {
+            const protocol = new URL(details.originUrl).protocol
+            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+                // Requests is from extension itself, so try to add cookies
+                const cookies = await browser.cookies.getAll({ url: details.url, partitionKey: {} })
+                    if(cookies && cookies.length > 0) {
+                        let cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+                        let hasCookieHeader = details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie');
+                        if(!hasCookieHeader) {
+                            details.requestHeaders.push({ name: 'Cookie', value: cookieHeader });
+                            console.log("Added cookies to request headers for", details.url);
+                        }
+                    }
+            }
+            return { requestHeaders: details.requestHeaders };
+        };
+
+        browser.webRequest.onBeforeSendHeaders.addListener(
+            beforeSendHeadersListener,
+            { urls: urlList },
+            ['requestHeaders', 'blocking']
+        );
+        console.log("Attached onBeforeSendHeaders listener.");
+
+        headersSentListener = async function (details) {
             try {
                 // [NEW] Always capture headers to the temporary map first
                 if (details.requestHeaders) {
@@ -180,11 +286,17 @@ function initListener() {
                 // - neither flag set (=> save all), or
                 // - urlEnabled && urlMatches (=> save), or
                 // - both enabled and urlMatches (=> save)
+                // [NEW] Retrieve any cached request body
+                const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
+                const cookies = await browser.cookies.getAll({ url: details.url, partitionKey: {} }).catch(() => []);
+
                 let mediaRequest = {
                     url: details.url,
                     method: details.method,
                     requestHeaders: details.requestHeaders,
                     responseHeaders: null,
+                    requestBody: cachedBody,
+                    cookies: cookies,
                     size: null,
                     timeStamp: null
                 };
@@ -262,7 +374,7 @@ function initListener() {
                     // (mimeEnabled && mimeMatches) OR (urlEnabled && urlMatches AND no existing request present)
                     // but guard against duplicates: only push if `updated` is false AND the saving condition matches.
 
-                    getSettings(function (currentSettings) {
+                    getSettings(async function (currentSettings) {
                         const mimeEnabledNow = !!currentSettings.mimeDetection;
                         const urlEnabledNow = !!currentSettings.urlDetection;
 
@@ -274,14 +386,18 @@ function initListener() {
                         })();
 
                         if (!updated && shouldSaveNow) {
-                            // [NEW] Retrieve the stashed request headers using requestId
+                            // [NEW] Retrieve the stashed request headers and request body using requestId
                             const cachedHeaders = temporaryHeaderMap.get(details.requestId) || null;
+                            const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
+                            const cookies = await browser.cookies.getAll({ url: details.url, partitionKey: {} }).catch(() => []);
 
                             let mediaRequest = {
                                 url: details.url,
                                 method: details.method || 'GET',
-                                requestHeaders: cachedHeaders, // Now populated correctly!
+                                requestHeaders: cachedHeaders,
                                 responseHeaders: responseHeaders,
+                                requestBody: cachedBody, // <-- now populated if available
+                                cookies: cookies,
                                 size: size,
                                 timeStamp: details.timeStamp
                             };

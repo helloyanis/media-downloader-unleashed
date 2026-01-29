@@ -70,7 +70,10 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     const res = await fetchWithCache(url, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-      method: request.method
+      method: request.method,
+      referrer:
+        request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
+      body: request.method !== 'GET' ? request.requestBody : null,
     });
     return res.text();
   };
@@ -1105,7 +1108,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       method: request.method,
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer:
-        request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || ""
+        request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
+      body: request.method !== 'GET' ? request.requestBody : null,
     });
     if (!r.ok) {
       throw new Error(`Segment fetch failed: ${url} (status ${r.status})`);
