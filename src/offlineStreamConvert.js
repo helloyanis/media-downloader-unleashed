@@ -541,9 +541,7 @@ async function selectStreamVariant(playlistLines, baseUrl) {
     variants.forEach((v, index) => {
       const option = document.createElement("mdui-menu-item");
       option.setAttribute("value", index);
-
-      const sizeMB = v.estimatedSize ? (v.estimatedSize / (1024 * 1024)).toFixed(2) + " MB" : "Size N/A";
-      option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps, ${sizeMB})`;
+      option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps, ${getHumanReadableSize(v.estimatedSize) || "Size N/A"})`;
       select.appendChild(option);
     });
 
