@@ -13,8 +13,7 @@
     "webRequest",
     "webRequestBlocking",
     "webRequestFilterResponse",
-    "unlimitedStorage",
-    "cookies"
+    "unlimitedStorage"
   ],
   "optional_permissions": [
     "downloads"

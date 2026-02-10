@@ -77,6 +77,7 @@ const extPattern = allExtensions.map(e => e.replace(/^\./, '').replace(/\+/g, '\
 const detectionRegex = new RegExp('\\.(?:' + extPattern + ')(?:[?#].*)?$', 'i');
 const temporaryHeaderMap = new Map();
 const temporaryRequestBodyMap = new Map();
+const temporaryCookieMap = new Map();
 
 // helper to interpret setting values (localStorage or browser.storage.local)
 function isFlagEnabled(val) {
@@ -233,15 +234,29 @@ function initListener() {
             const protocol = new URL(details.originUrl).protocol
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so try to add cookies
-                const cookies = await browser.cookies.getAll({ url: details.url, partitionKey: {} })
-                    if(cookies && cookies.length > 0) {
-                        let cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-                        let hasCookieHeader = details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie');
-                        if(!hasCookieHeader) {
-                            details.requestHeaders.push({ name: 'Cookie', value: cookieHeader });
-                            console.log("Added cookies to request headers for", details.url);
-                        }
+                try {
+                    const cookie = existingRequests.find(r => r.requestId === details.requestId)?.cookie || '';
+                    if (cookie) {
+                        details.requestHeaders.push({ name: 'Cookie', value: cookie });
+                        console.debug("Added Cookie header to extension request:", cookie);
                     }
+                } catch (e) {
+                    console.error("Error adding Cookie header to extension request:", e);
+                }
+            }
+            else{
+                // For non-extension requests, we rely on onHeadersReceived to get cookies from response
+                console.debug("Details:", details);
+
+                const cookie = details.requestHeaders.find(h => h.name.toLowerCase() === 'cookie')?.value || '';
+                if (cookie) {
+                    console.debug("Request already has Cookie header:", cookie);
+                }
+                
+                // TODO Store the cookies from request headers into the corresponding request object in existingRequests
+
+                temporaryCookieMap.set(details.requestId, cookie);
+
             }
             return { requestHeaders: details.requestHeaders };
         };
@@ -288,7 +303,7 @@ function initListener() {
                 // - both enabled and urlMatches (=> save)
                 // [NEW] Retrieve any cached request body
                 const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
-                const cookies = await browser.cookies.getAll({ url: details.url, partitionKey: {} }).catch(() => []);
+                
 
                 let mediaRequest = {
                     url: details.url,
@@ -296,7 +311,7 @@ function initListener() {
                     requestHeaders: details.requestHeaders,
                     responseHeaders: null,
                     requestBody: cachedBody,
-                    cookies: cookies,
+                    cookie: temporaryCookieMap.get(details.requestId) || '',
                     size: null,
                     timeStamp: null
                 };
@@ -389,7 +404,6 @@ function initListener() {
                             // [NEW] Retrieve the stashed request headers and request body using requestId
                             const cachedHeaders = temporaryHeaderMap.get(details.requestId) || null;
                             const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
-                            const cookies = await browser.cookies.getAll({ url: details.url, partitionKey: {} }).catch(() => []);
 
                             let mediaRequest = {
                                 url: details.url,
@@ -397,7 +411,7 @@ function initListener() {
                                 requestHeaders: cachedHeaders,
                                 responseHeaders: responseHeaders,
                                 requestBody: cachedBody, // <-- now populated if available
-                                cookies: cookies,
+                                cookie: temporaryCookieMap.get(details.requestId) || '',
                                 size: size,
                                 timeStamp: details.timeStamp
                             };
