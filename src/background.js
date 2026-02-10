@@ -244,7 +244,7 @@ function initListener() {
                     console.error("Error adding Cookie header to extension request:", e);
                 }
             }
-            else{
+            else {
                 // For non-extension requests, we rely on onHeadersReceived to get cookies from response
                 console.debug("Details:", details);
 
@@ -253,8 +253,7 @@ function initListener() {
                     console.debug("Request already has Cookie header:", cookie);
                 }
                 
-                // TODO Store the cookies from request headers into the corresponding request object in existingRequests
-
+                //Store the cookies from request headers into the corresponding request object in existingRequests
                 temporaryCookieMap.set(details.requestId, cookie);
 
             }
