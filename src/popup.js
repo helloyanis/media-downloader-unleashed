@@ -330,6 +330,14 @@ async function shareDiagnosticData(errorData) {
 async function sendDataToWebhook(errorData, email) {
     try {
       browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
+        /*
+        HELLO MOZILLA REVIEW TEAM!!
+        This function is only called when doing an error report. Before doing so, there is a popup shown to the user, specifying all the data about to be sent.
+        See https://furries.club/system/media_attachments/files/116/052/458/698/436/290/original/bab638f0f729bf0a.png for a screenshot
+        Or try to download something while offline to see it for yourself.
+        If this is not good enough for "a summary of the data transmission", please tell me exactly what's wrong and what would fix it!
+        Thanks!!
+        */
       const res = await fetch("https://discord.com/api/webhooks/1445774786503508009/OyL9ihTolo4ZysbOYfco9VkQYe7QPZzNWdS3S01H_2UUatz4Jo5hYa2g74GUasT20g5a", {
         method: "POST",
         headers: {
