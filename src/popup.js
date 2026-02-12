@@ -338,7 +338,7 @@ async function sendDataToWebhook(errorData, email) {
         If this is not good enough for "a summary of the data transmission", please tell me exactly what's wrong and what would fix it!
         Thanks!!
         */
-      const res = await fetch("https://discord.com/api/webhooks/1445774786503508009/OyL9ihTolo4ZysbOYfco9VkQYe7QPZzNWdS3S01H_2UUatz4Jo5hYa2g74GUasT20g5a", {
+      const res = await fetch(`https://discord.com/api/webhooks/1445774786503508009/${window.atob("T3lMOWloVG9sbzRaeXNiT1lmY285VmtRWWU3UVBaek5XZFMzUzAxSF8yVVVhdHo0Sm81aFlhMmc3NEdVYXNUMjBnNWE=")}`, { // Base64 encoded to prevent scraping bots from messing with the webhook
         method: "POST",
         headers: {
           "Content-Type": "application/json"
