@@ -90,14 +90,24 @@
         <mdui-bottom-app-bar scroll-threshold="30" scroll-behavior="hide">
           <mdui-tooltip>
             <span slot="content" data-translate="helpTooltip">Help</span>
-            <mdui-button-icon variant="tonal"
+            <mdui-button-icon class="bottom-button" variant="tonal"
               href="https://github.com/helloyanis/media-downloader-unleashed/wiki/Start-using-the-add-on"
               target="_blank">
               <mdui-icon>
-                <!-- link SVG -->
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
                   <path
                     d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" />
+                </svg>
+              </mdui-icon>
+            </mdui-button-icon>
+          </mdui-tooltip>
+          <mdui-tooltip>
+            <span slot="content" data-translate="creditsTitle">Credits</span>
+            <mdui-button-icon class="bottom-button" variant="tonal" href="#credits">
+              <mdui-icon>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+                  <path
+                    d="M592-379q49-39 63-101h-83q-12 27-37 43.5T480-420q-30 0-55-16.5T388-480h-83q14 62 63 101t112 39q63 0 112-39ZM405.5-554.5Q420-569 420-590t-14.5-35.5Q391-640 370-640t-35.5 14.5Q320-611 320-590t14.5 35.5Q349-540 370-540t35.5-14.5Zm220 0Q640-569 640-590t-14.5-35.5Q611-640 590-640t-35.5 14.5Q540-611 540-590t14.5 35.5Q569-540 590-540t35.5-14.5ZM480-120l-58-50q-101-88-167-152T150-437q-39-51-54.5-94T80-620q0-94 63-157t157-63q52 0 99 22t81 62q34-40 81-62t99-22q94 0 157 63t63 157q0 46-15.5 89T810-437q-39 51-105 115T538-170l-58 50Zm0-108q96-83 158-141t98-102.5q36-44.5 50-79t14-69.5q0-60-40-100t-100-40q-47 0-87 26.5T518-666h-76q-15-41-55-67.5T300-760q-60 0-100 40t-40 100q0 35 14 69.5t50 79Q260-427 322-369t158 141Zm0-266Z" />
                 </svg>
               </mdui-icon>
             </mdui-button-icon>
@@ -190,7 +200,8 @@
               making a request to the server. Downloads will be faster but can slow down your browser. Disable this if
               you have issues with the add-on or pages freezing.</p>
 
-            <mdui-checkbox id="media-cache" name="media-cache" value="1" data-translate="mediaCacheCheckbox">Enable media
+            <mdui-checkbox id="media-cache" name="media-cache" value="1" data-translate="mediaCacheCheckbox">Enable
+              media
               cache</mdui-checkbox>
 
           </mdui-card>
@@ -297,6 +308,8 @@
           <mdui-card variant="filled">
             <section id="credits">
               <h3 data-translate="creditsTitle">Credits</h3>
+              <div style="display: flex;">
+              <mdui-avatar src="icons/profile.svg" style="margin-right: 10px;"></mdui-avatar>
               <p>
                 <span data-translate="creditsDescription1">Media Downloader Unleashed!! is a </span><a
                   href="https://github.com/helloyanis/media-downloader-unleashed" target="_blank"
@@ -305,6 +318,7 @@
                   target="_blank" data-translate="creditsDescription4">🦊 helloyanis</a><span
                   data-translate="creditsDescription5">.</span>
               </p>
+              </div>
               <mdui-segmented-button-group>
                 <mdui-segmented-button variant="tonal" rel="me"
                   href="https://addons.mozilla.org/addon/media-downloader-unleashed/" target="_blank">

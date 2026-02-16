@@ -402,7 +402,7 @@
       "description": "The title of the dialog shown when an m3u8 stream with split audio and video is downloaded."
   },
   "splitAudioVideoDownloadCompleteDescription": {
-      "message": "Sowohl Video- als auch Audioströme wurden heruntergeladen. Du kannst sie beide mit <a href='https://ffmpeg.org/'>ffmpeg</a> mit folgendem Befehl zusammenführen :<br/><code>ffmpeg -i $BASENAME$_video$VIDEOEXT$ -i $BASENAME$_audio.mp3 -c copy $BASENAME$.mp4</code>",
+      "message": "Sowohl Video- als auch Audioströme wurden heruntergeladen. Du kannst sie beide mit <a href='https://ffmpeg.org/'>ffmpeg</a> mit folgendem Befehl zusammenführen :<br/><code>ffmpeg -i \"$BASENAME$_video$VIDEOEXT$\" -i \"$BASENAME$_audio.mp3\" -c copy \"$BASENAME$.mp4\"</code>",
       "description": "The message of the dialog shown when an m3u8 stream with split audio and video is downloaded.",
       "placeholders": {
           "BASENAME": {

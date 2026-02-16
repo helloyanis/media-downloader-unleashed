@@ -1,7 +1,7 @@
 {
   "name": "Media Downloader Unleashed!!",
   "manifest_version": 3,
-  "version": "3.6.1",
+  "version": "3.6.2",
   "description": "__MSG_extensionDescription__",
   "author": "🦊 helloyanis",
   "developer": {
@@ -40,7 +40,7 @@
       "id": "{dab9a10d-f9c5-4e8d-9351-67531e85b508}",
       "data_collection_permissions": {
         "required": ["none"],
-        "optional": ["technicalAndInteraction"]
+        "optional": ["analytics"]
       }
     }
   },

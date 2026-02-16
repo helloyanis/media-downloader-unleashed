@@ -303,3 +303,18 @@ async function requestOriginsPermission() {
         }
     });
 }
+
+window.navigation.addEventListener("navigate", (event) => {
+    if(document.querySelector("#settings-container").querySelector(new URL(event.destination.url).hash)) {
+        // If the user is navigating to a specific section within the settings, switch to the settings tab
+        document.querySelectorAll("mdui-tab")[1].click(); // Click the settings tab
+        // Highlight the relevant section
+        const targetSection = document.querySelector(new URL(event.destination.url).hash).parentNode;
+        if (targetSection) {
+            targetSection.classList.add("highlighted");
+            setTimeout(() => {
+                targetSection.classList.remove("highlighted");
+            }, 4000); // Remove highlight after 2 seconds
+        }
+    }
+})

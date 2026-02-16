@@ -276,99 +276,19 @@ async function showDialogCustom({
 
 
 async function shareDiagnosticData(errorData) {
-  // Implement the logic to share diagnostic data here
   console.log("Sharing diagnostic data:", errorData);
-  let email="";
-  let mediaRequests = await browser.runtime.sendMessage({ action: 'getMediaRequests' });
-  const userResponse = await showDialogCustom({
-      headline: browser.i18n.getMessage("diagnosticDataEmailTitle"),
-      description: browser.i18n.getMessage("diagnosticDataEmailDescription", [
-        new Option(navigator.userAgent).innerHTML, 
-        new Option(mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A').innerHTML, // Get the referer of the first request for context
-        new Option(errorData.url || 'N/A').innerHTML,
-        new Option(errorData.error || 'N/A').innerHTML
-      ]),
-      confirmText: browser.i18n.getMessage("diagnosticDataEmailOkButton"),
-      cancelText: browser.i18n.getMessage("diagnosticDataEmailCancelButton"),
-      onConfirm: (value) => email = value,
-      onCancel: () => { return false; },
-      textFieldOptions: {
-        type: 'email',
-        label: browser.i18n.getMessage("diagnosticDataEmailLabel"),
-        placeholder: browser.i18n.getMessage("diagnosticDataEmailPlaceholder"),
-      }
-    });
-  if (!userResponse) {
-    console.log("User cancelled diagnostic data submission.");
-    return false;
-  }
-  try {
-    const granted = await browser.permissions.request({
-      data_collection: ["technicalAndInteraction"]
-    });
 
-    if (!granted) {
-      console.log("Permission not granted to share diagnostic data.");
-      mdui.snackbar({
-        message: browser.i18n.getMessage("diagnosticDataPermissionDenied"),
-        closeable: true
-      });
-      return false;
-    }
+  window.open(`https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform`);
 
-    console.log("Permission granted to share diagnostic data.");
-    console.log("Diagnostic data:", errorData);
-    sendDataToWebhook(errorData, email);
-  } catch (err) {
-    console.error("Error requesting permission. Probably on Chrome?", err);
-    sendDataToWebhook(errorData, email);
-    return true;
-  }
+  // For some reason the Mozilla Add-on review team doesn't allow me to pre-fill the form, even though it's just to make it easier for users to report issues and doesn't force them to share any data they don't want to share. As per their e-mail :
+  // > "As your extension is compatible with Firefox 139 and earlier a custom data collection collection and transmission consent screen is required in order to be compliant."
+  // Even though It looked like I was already compliant? See https://furries.club/system/media_attachments/files/116/052/458/698/436/290/original/bab638f0f729bf0a.png for a screenshot.
+  // Anyways now sharing error data has become a chore but hopefully this should at least make the add-on be re-listed on the store.
+  
+  // Below, the ideal solution which prefills the form :
+  // let mediaRequests = await browser.runtime.sendMessage({ action: 'getMediaRequests' });
+  // window.open(`https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=${encodeURIComponent(errorData.error || 'N/A')}&entry.1527093375=${encodeURIComponent(errorData.url || 'N/A')}&entry.713772415=${encodeURIComponent(mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A')}&entry.582473750=${encodeURIComponent(navigator.userAgent)}}`, '_blank');
 }
-
-
-async function sendDataToWebhook(errorData, email) {
-    try {
-      browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
-        /*
-        HELLO MOZILLA REVIEW TEAM!!
-        This function is only called when doing an error report. Before doing so, there is a popup shown to the user, specifying all the data about to be sent.
-        See https://furries.club/system/media_attachments/files/116/052/458/698/436/290/original/bab638f0f729bf0a.png for a screenshot
-        Or try to download something while offline to see it for yourself.
-        If this is not good enough for "a summary of the data transmission", please tell me exactly what's wrong and what would fix it!
-        Thanks!!
-        */
-      const res = await fetch(`https://discord.com/api/webhooks/1445774786503508009/${window.atob("T3lMOWloVG9sbzRaeXNiT1lmY285VmtRWWU3UVBaek5XZFMzUzAxSF8yVVVhdHo0Sm81aFlhMmc3NEdVYXNUMjBnNWE=")}`, { // Base64 encoded to prevent scraping bots from messing with the webhook
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ content: `Hey <@336458121180610560>!\n\`\`\`json\n${JSON.stringify(errorData)}\n\`\`\`🌐 \`${navigator.userAgent}\`${email && `\n📧 \`${email}\``}\nRequest from ${mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A'}` })
-      });
-      if (res.ok) {
-        mdui.snackbar({
-          message: browser.i18n.getMessage("diagnosticDataSent"),
-          closeable: true
-        });
-        return true;
-      } else {
-        mdui.snackbar({
-          message: browser.i18n.getMessage("diagnosticDataSendError"),
-          closeable: true
-        });
-        return false;
-      }
-    });
-
-    } catch (e) {
-      console.error("Error sending diagnostic data:", e);
-      mdui.snackbar({
-        message: browser.i18n.getMessage("diagnosticDataSendError"),
-        closeable: true
-      });
-      return false;
-    }
-  }
 
 /**
  * Load the media list from the background script and display it in the window.
@@ -645,9 +565,9 @@ function loadMediaList() {
       downloadButton.appendChild(mduiDownloadIconContainer);
 
       // Append the buttons to the actions div
+      segmentedButtonGroup.appendChild(downloadButton);
       segmentedButtonGroup.appendChild(copyButton);
       segmentedButtonGroup.appendChild(previewButton);
-      segmentedButtonGroup.appendChild(downloadButton);
 
       // Append the size select and actions div to the media item
       mediaDiv.appendChild(actionsDiv);
@@ -746,13 +666,18 @@ function getFileName(url) {
     // Remove query string from file name
     fileName = fileName.split('?')[0];
 
-    // Replace < and > characters with underscores (to avoid xss attacks on popups)
-    fileName = fileName.replace(/<|>/g, '_');
+    // Replace these characters with underscores as they are not allowed in Windows file names : < > : " / \ | ? * and control characters (0-31)
+    fileName = fileName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
 
     //Limit to 20 characters, but still show the extension
     if (fileName.length > 20) {
       fileName = fileName.substring(0, 20) + '…' + fileName.substring(fileName.lastIndexOf('.'));
     }
+
+    if(fileName === '') {
+      fileName = parsedUrl.hostname; // If there is no file name, use the hostname
+    }
+
     return fileName;
   } catch (error) {
     console.error("Invalid URL", error);

@@ -582,75 +582,45 @@ async function selectStreamVariant(playlistLines, baseUrl) {
  * @param {Object} request          – the single request object (requests[url][selectedSizeIndex])
  */
 async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, request) {
-  // Display a snackbar message informing the user about the separate audio stream
-  const snackbar = document.createElement('mdui-snackbar');
-  snackbar.setAttribute('open', true);
-  snackbar.setAttribute('timeout', 10000);
-  snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
-  document.body.appendChild(snackbar);
-  snackbar.addEventListener('close', () => {
-    snackbar.remove();
-  });
-
-  // --- Helper: sanitize paths for ZIP entries so they never contain '..' or go above the ZIP root.
-  // This does NOT change the original path strings used for URL fetching (we still fetch using the original).
+  // --- Helpers
   function sanitizeZipPath(originalPath) {
     if (!originalPath || typeof originalPath !== "string") return originalPath || "";
-
-    // If it's an absolute URL (http(s): or //), return as-is (we won't place absolute URLs inside the ZIP; caller should avoid).
     if (/^https?:\/\//i.test(originalPath) || /^\/\//.test(originalPath)) {
-      // For ZIP filename safety, strip protocol/host and keep only pathname if desired.
       try {
         const parsed = new URL(originalPath, "http://example.invalid");
-        const p = parsed.pathname.replace(/^\//, ""); // drop leading slash
+        const p = parsed.pathname.replace(/^\//, "");
         return p || parsed.hostname;
       } catch (e) {
-        // fallback: remove characters that would be problematic
         return originalPath.replace(/^https?:\/\//i, "").replace(/[:?#]/g, "_");
       }
     }
-
-    // Split on slash and collapse '.' and '..' safely, but never allow going above root.
     const parts = originalPath.split("/");
     const out = [];
     for (let i = 0; i < parts.length; i++) {
       const seg = parts[i];
-      if (seg === "" || seg === ".") {
-        // skip empty segments and current-dir markers
-        continue;
-      } else if (seg === "..") {
-        if (out.length > 0) {
-          out.pop(); // go up one level (but only if we can)
-        } else {
-          // trying to go above root — drop it (effectively keep at root)
-          continue;
-        }
-      } else {
-        out.push(seg);
-      }
+      if (seg === "" || seg === ".") continue;
+      else if (seg === "..") {
+        if (out.length > 0) out.pop();
+        else continue;
+      } else out.push(seg);
     }
-    // If nothing left, return a safe filename
     if (out.length === 0) {
-      // fallback: use basename of originalPath or a safe token
       const fallback = originalPath.split("/").filter(Boolean).slice(-1)[0] || "file";
       return fallback.replace(/[^a-zA-Z0-9._-]/g, "_");
     }
     return out.join("/");
   }
 
-  // 1) Fetch the MPD manifest text
+  // Fetch MPD manifest
   const resp = await fetchWithCache(mpdUrl, {
     method: request.method,
     headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-    referrer:
-      request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || ""
+    referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || ""
   });
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch MPD manifest: ${resp.status}. Server might be throttling you or the download system is broken for this URL.`);
-  }
+  if (!resp.ok) throw new Error(`Failed to fetch MPD manifest: ${resp.status}.`);
   let mpdXmlText = await resp.text();
 
-  // 2) Parse with DOMParser (namespace-aware)
+  // Parse MPD
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(mpdXmlText, "application/xml");
   const NS = xmlDoc.documentElement.namespaceURI || "urn:mpeg:dash:schema:mpd:2011";
@@ -666,198 +636,301 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     });
   }
 
-  // 3) Find the first <Period>
+  // Locate Period
   const periodList = xmlDoc.getElementsByTagNameNS(NS, "Period");
-  if (!periodList || periodList.length === 0) {
-    throw new Error("MPD has no Period entry. This might mean it’s not a valid MPD (or gets detected as an MPD but isn't).");
-  }
+  if (!periodList || periodList.length === 0) throw new Error("MPD has no Period entry.");
   const period = periodList[0];
 
-  // Determine a "zip base path" from any <BaseURL> inside the Period (or MPD root)
+  // Derive baseURL for ZIP entries
   let baseURLNode = period.getElementsByTagNameNS(NS, "BaseURL")[0];
   let baseURLForZip = baseURLNode ? baseURLNode.textContent.trim() : "";
-
-  // If the BaseURL is absolute, convert to a path portion (so we create that folder in the ZIP)
-  // e.g. "https://example.com/assets/dash/" -> "assets/dash/"
   if (baseURLForZip.match(/^https?:\/\//i)) {
     try {
       const u = new URL(baseURLForZip);
       baseURLForZip = u.pathname.replace(/^\//, "");
-    } catch (e) {
-      console.warn("Could not parse absolute BaseURL:", baseURLForZip, e);
-      baseURLForZip = ""; // fallback
-    }
+    } catch (e) { baseURLForZip = ""; }
   }
-
-  // Normalize: ensure trailing slash if non-empty
   if (baseURLForZip && !baseURLForZip.endsWith("/")) baseURLForZip += "/";
 
-  // 4) Collect all <AdaptationSet> inside that <Period>
-  const allSets = Array.from(
-    period.getElementsByTagNameNS(NS, "AdaptationSet")
-  );
-
-  // Filter to only audio/mp4 or video/mp4 AdaptationSets
+  // Collect AdaptationSets
+  const allSets = Array.from(period.getElementsByTagNameNS(NS, "AdaptationSet"));
   const adaptationSets = allSets.filter(asNode => {
-    // Check mimeType on AdaptationSet
     const mimeType = asNode.getAttribute("mimeType") || "";
-    if (mimeType.startsWith("audio/") || mimeType.startsWith("video/")) {
-      return true;
-    }
-    
-    // Check contentType attribute
     const contentType = asNode.getAttribute("contentType") || "";
-    if (contentType === "audio" || contentType === "video") {
-      return true;
+    if (mimeType.startsWith("audio/") || mimeType.startsWith("video/")) return true;
+    if (contentType === "audio" || contentType === "video") return true;
+    const reps = asNode.getElementsByTagNameNS(NS, "Representation");
+    for (let i = 0; i < reps.length; i++) {
+      const rm = reps[i].getAttribute("mimeType") || "";
+      if (rm.startsWith("audio/") || rm.startsWith("video/")) return true;
     }
-    
-    // If not found on AdaptationSet, check child Representation elements
-    const representations = asNode.getElementsByTagNameNS(NS, "Representation");
-    for (let i = 0; i < representations.length; i++) {
-      const repMimeType = representations[i].getAttribute("mimeType") || "";
-      if (repMimeType.startsWith("audio/") || repMimeType.startsWith("video/")) {
-        return true;
-      }
-    }
-    
     return false;
   });
-  if (adaptationSets.length === 0) {
-    throw new Error("MPD’s Period has no AdaptationSet for audio/video. This might mean it’s not a valid MPD (or gets detected as an MPD but isn't).");
-  }
+  if (adaptationSets.length === 0) throw new Error("MPD’s Period has no AdaptationSet for audio/video.");
 
-  // 5) Build a simpler structure: { contentType, segmentTemplate, representations[] }
-  const parsedAdaptations = adaptationSets.map((asNode) => {
-    // Determine contentType (video or audio)
+  // Normalize adaptation sets
+  const parsedAdaptations = adaptationSets.map(asNode => {
     const declaredType = asNode.getAttribute("contentType");
     let contentType;
-    if (declaredType === "video" || declaredType === "audio") {
-      contentType = declaredType;
-    } else {
+    if (declaredType === "video" || declaredType === "audio") contentType = declaredType;
+    else {
       const mimeType = asNode.getAttribute("mimeType") || "";
-      if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
-        contentType = mimeType.startsWith("video/") ? "video" : "audio";
-      } else {
-        // Check first Representation element for mimeType
-        const representations = asNode.getElementsByTagNameNS(NS, "Representation");
-        if (representations.length > 0) {
-          const repMimeType = representations[0].getAttribute("mimeType") || "";
+      if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) contentType = mimeType.startsWith("video/") ? "video" : "audio";
+      else {
+        const reps = asNode.getElementsByTagNameNS(NS, "Representation");
+        if (reps.length > 0) {
+          const repMimeType = reps[0].getAttribute("mimeType") || "";
           contentType = repMimeType.startsWith("video/") ? "video" : "audio";
-        } else {
-          contentType = "video"; // fallback
-        }
+        } else contentType = "video";
       }
     }
 
-    // Grab the SegmentTemplate from the AdaptationSet:
-    const setSt = asNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
-    if (!setSt) {
-      throw new Error("AdaptationSet missing SegmentTemplate. Downloading this MPD is not supported yet.");
-    }
-    // Build a “base” segmentTemplate object from the AdaptationSet
-    const baseSegTmpl = {
-      media: setSt.getAttribute("media"),
-      initialization: setSt.getAttribute("initialization"),
-      duration: parseInt(setSt.getAttribute("duration") || "0", 10),
-      timescale: parseInt(setSt.getAttribute("timescale") || "1", 10),
-      startNumber: setSt.getAttribute("startNumber") !== null
-        ? parseInt(setSt.getAttribute("startNumber"), 10)
-        : 1,
-    };
+    const setSegTmplNode = asNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
 
-    // Now gather all <Representation> children
-    const repNodes = Array.from(
-      asNode.getElementsByTagNameNS(NS, "Representation")
-    );
-    if (repNodes.length === 0) {
-      throw new Error("AdaptationSet has no Representation elements.");
+    let baseSegTmpl = null;
+    if (setSegTmplNode) {
+      baseSegTmpl = {
+        media: setSegTmplNode.getAttribute("media"),
+        initialization: setSegTmplNode.getAttribute("initialization"),
+        duration: parseInt(setSegTmplNode.getAttribute("duration") || "0", 10),
+        timescale: parseInt(setSegTmplNode.getAttribute("timescale") || "1", 10),
+        startNumber: setSegTmplNode.getAttribute("startNumber") !== null ? parseInt(setSegTmplNode.getAttribute("startNumber"), 10) : 1,
+      };
     }
 
-    const representations = repNodes.map((rNode) => {
-      // See if this particular <Representation> has its own <SegmentTemplate>
-      const repSt = rNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+    const repNodes = Array.from(asNode.getElementsByTagNameNS(NS, "Representation"));
+    if (repNodes.length === 0) throw new Error("AdaptationSet has no Representation elements.");
 
-      // If it does, override fields; otherwise, use the set‐level template
-      const tmplNode = repSt || setSt;
-      const segTmpl = {
-        media: tmplNode.getAttribute("media"),
-        initialization: tmplNode.getAttribute("initialization"),
-        duration: parseInt(tmplNode.getAttribute("duration") || baseSegTmpl.duration.toString(), 10),
-        timescale: parseInt(tmplNode.getAttribute("timescale") || baseSegTmpl.timescale.toString(), 10),
-        startNumber: tmplNode.getAttribute("startNumber") !== null
-          ? parseInt(tmplNode.getAttribute("startNumber"), 10)
-          : baseSegTmpl.startNumber,
-      };
+    const representations = repNodes.map(rNode => {
+      const id = rNode.getAttribute("id");
+      const bandwidth = parseInt(rNode.getAttribute("bandwidth") || "0", 10);
+      const width = parseInt(rNode.getAttribute("width") || "0", 10);
+      const height = parseInt(rNode.getAttribute("height") || "0", 10);
 
-      return {
-        id: rNode.getAttribute("id"),
-        bandwidth: parseInt(rNode.getAttribute("bandwidth") || "0", 10),
-        width: parseInt(rNode.getAttribute("width") || "0", 10),
-        height: parseInt(rNode.getAttribute("height") || "0", 10),
-        segmentTemplate: segTmpl
-      };
+      const repSegTmplNode = rNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+      if (repSegTmplNode || setSegTmplNode) {
+        const tmplNode = repSegTmplNode || setSegTmplNode;
+        const segTmpl = {
+          media: tmplNode.getAttribute("media"),
+          initialization: tmplNode.getAttribute("initialization"),
+          duration: parseInt(tmplNode.getAttribute("duration") || (baseSegTmpl ? baseSegTmpl.duration.toString() : "0"), 10),
+          timescale: parseInt(tmplNode.getAttribute("timescale") || (baseSegTmpl ? baseSegTmpl.timescale.toString() : "1"), 10),
+          startNumber: tmplNode.getAttribute("startNumber") !== null ? parseInt(tmplNode.getAttribute("startNumber"), 10) : (baseSegTmpl ? baseSegTmpl.startNumber : 1),
+        };
+        return { id, bandwidth, width, height, type: "segmentTemplate", segmentTemplate: segTmpl };
+      }
+
+      const repSegBaseNode = rNode.getElementsByTagNameNS(NS, "SegmentBase")[0] || asNode.getElementsByTagNameNS(NS, "SegmentBase")[0];
+      if (repSegBaseNode) {
+        const initNode = repSegBaseNode.getElementsByTagNameNS(NS, "Initialization")[0];
+        const initRange = initNode ? initNode.getAttribute("range") : null;
+        const indexRange = repSegBaseNode.getAttribute("indexRange") || null;
+        const repBaseURLNode = rNode.getElementsByTagNameNS(NS, "BaseURL")[0] || asNode.getElementsByTagNameNS(NS, "BaseURL")[0];
+        const baseURLText = repBaseURLNode ? repBaseURLNode.textContent.trim() : null;
+        return { id, bandwidth, width, height, type: "segmentBase", baseURL: baseURLText, initRange, indexRange };
+      }
+
+      throw new Error("AdaptationSet missing SegmentTemplate/SegmentBase. Downloading this MPD is not supported yet.");
     });
 
-    // Return one object per AdaptationSet
-    return {
-      contentType,
-      segmentTemplate: baseSegTmpl,
-      representations
-    };
+    return { contentType, representations, node: asNode };
   });
 
-  // 6) Separate “video” vs. “audio”
+  // find video/audio and prompt selection
   const videoAdaptation = parsedAdaptations.find(a => a.contentType === "video");
   const audioAdaptation = parsedAdaptations.find(a => a.contentType === "audio");
-  if (!videoAdaptation) {
-    throw new Error("No video AdaptationSet found in MPD.");
+  if (!videoAdaptation) throw new Error("No video AdaptationSet found in MPD.");
+  const chosenVideoRep = await selectMPDVideoRepresentation(videoAdaptation.representations);
+  let chosenAudioRep = null;
+  if (audioAdaptation) chosenAudioRep = await selectMPDAudioRepresentation(audioAdaptation.representations);
+
+  const mpdBase = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
+  const mpdFilename = getFileName(mpdUrl);
+  const baseName = mpdFilename.replace(/\.mpd$/i, "");
+
+  const isSegmentBaseOnly =
+    chosenVideoRep?.type === "segmentBase" &&
+    (!chosenAudioRep || chosenAudioRep.type === "segmentBase");
+
+  // Unified streaming fetch with progress (single GET, no HEAD)
+  // onStart(contentLength) — called once after headers are available (contentLength may be 0 if unknown)
+  // onChunk(receivedBytes, contentLength) — called repeatedly while streaming
+  async function fetchWithProgress(url, { onStart, onChunk } = {}) {
+    const r = await fetchWithCache(url, {
+      method: request.method,
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
+      body: request.method !== 'GET' ? request.requestBody : null,
+    });
+    if (!r.ok) throw new Error(`Fetch failed: ${url} (${r.status})`);
+
+    const contentLength = Number(r.headers.get("Content-Length")) || 0;
+    if (onStart) onStart(contentLength);
+
+    if (!r.body) {
+      if (onChunk) onChunk(0, contentLength);
+      return new ArrayBuffer(0);
+    }
+
+    const reader = r.body.getReader();
+    const chunks = [];
+    let received = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.byteLength;
+        if (onChunk) onChunk(received, contentLength);
+      }
+    } catch (err) {
+      try { reader.cancel(); } catch (e) { }
+      throw new Error(`Error reading response stream: ${err?.message || err}`);
+    }
+
+    // join chunks
+    const buffer = new Uint8Array(received);
+    let offset = 0;
+    for (const c of chunks) {
+      buffer.set(c, offset);
+      offset += c.byteLength;
+    }
+    return buffer.buffer;
   }
 
-  // 7) Ask the user to pick one video Representation (unless they forced highest/lowest)
-  const chosenVideoRep = await selectMPDVideoRepresentation(videoAdaptation.representations);
+  // If SegmentBase-only -> download files directly (no ZIP)
+  if (isSegmentBaseOnly) {
+    const snackbar = document.createElement('mdui-snackbar');
+    snackbar.setAttribute('open', true);
+    snackbar.setAttribute('timeout', 10000);
+    snackbar.textContent = browser.i18n.getMessage("splitDownloadWarningSnackbar")
+    document.body.appendChild(snackbar);
+    snackbar.addEventListener('close', () => {
+      snackbar.remove();
+    });
+    const downloads = [];
+    if (chosenVideoRep) downloads.push({ rep: chosenVideoRep, label: "video" });
+    if (chosenAudioRep) downloads.push({ rep: chosenAudioRep, label: "audio" });
 
-  // 8) For audio, just pick the highest‐bandwidth (if present)
-  let chosenAudioRep = await selectMPDAudioRepresentation(audioAdaptation ? audioAdaptation.representations : []);
+    // Set up loadingBar as byte-tracking (max will grow as we discover Content-Lengths)
+    loadingBar.removeAttribute("indeterminate");
+    loadingBar.setAttribute("value", 0);
+    loadingBar.setAttribute("max", 0);
+    let downloadedBytes = 0;
+    let sawUnknownLength = false;
 
-  console.log("Chosen video Representation:", chosenVideoRep);
-  console.log("Chosen audio Representation:", chosenAudioRep);
+    // Helper to safely add to max
+    function addToMax(n) {
+      const prev = Number(loadingBar.getAttribute("max")) || 0;
+      loadingBar.setAttribute("max", prev + n);
+    }
 
-  // 9) Build “initialization” URL + array of “media segment” URLs for the chosen rep
-  function buildSegmentUrls(rep) {
+    for (const d of downloads) {
+      const url = new URL(d.rep.baseURL, mpdBase).href;
+      // Determine filename: prefer extension from baseURL, otherwise fallback
+      let candidate = baseName;
+      if (!candidate || candidate === "") {
+        candidate = d.label === "video" ? `${baseName}_video.mp4` : `${baseName}_audio.mp4`;
+      } else {
+        candidate += d.label === "video" ? "_video.mp4" : "_audio.mp3";
+      }
+      const filename = candidate;
+
+      console.log(`>>> Direct download ${filename} at ${d.label}:`, url);
+
+      let lastReceivedForFile = 0;
+      const buffer = await fetchWithProgress(url, {
+        onStart: (contentLength) => {
+          if (contentLength && contentLength > 0) {
+            addToMax(contentLength);
+          } else {
+            // unknown content-length — show indeterminate
+            sawUnknownLength = true;
+            loadingBar.setAttribute("indeterminate", "");
+          }
+        },
+        onChunk: (received, contentLength) => {
+          const delta = received - lastReceivedForFile;
+          lastReceivedForFile = received;
+          downloadedBytes += delta;
+          // if we know any max, update value
+          const max = Number(loadingBar.getAttribute("max")) || 0;
+          if (max > 0) {
+            loadingBar.setAttribute("value", downloadedBytes);
+          }
+        }
+      });
+
+      // If we had been indeterminate and now we have bytes, clear indeterminate
+      if (sawUnknownLength) {
+        // If we discovered content-length for this file earlier it would have added to max.
+        // We still remove indeterminate so the bar shows bytes progress accumulation.
+        loadingBar.removeAttribute("indeterminate");
+      }
+
+      // Trigger download for this file
+      const blob = new Blob([buffer]);
+      const objectUrl = URL.createObjectURL(blob);
+      if (downloadMethod === "browser") {
+        await browser.downloads.download({ url: objectUrl, filename: filename });
+      } else {
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      URL.revokeObjectURL(objectUrl);
+    }
+
+    // Finalize progress bar
+    const finalMax = Number(loadingBar.getAttribute("max")) || downloadedBytes || 1;
+    loadingBar.setAttribute("max", finalMax);
+    loadingBar.setAttribute("value", downloadedBytes);
+    loadingBar.removeAttribute("indeterminate");
+
+    console.log("✅ Direct downloads complete.");
+    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseName}".`, url: mpdUrl, request: request, downloadMethod: downloadMethod });
+    return;
+  }
+
+  // --- Otherwise: existing ZIP flow (templates + bases zipped). Keep streaming progress for all resources.
+
+  const snackbar = document.createElement('mdui-snackbar');
+  snackbar.setAttribute('open', true);
+  snackbar.setAttribute('timeout', 10000);
+  snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
+  document.body.appendChild(snackbar);
+  snackbar.addEventListener('close', () => snackbar.remove());
+
+  // Build segment template helper (substituteVars reused)
+  function substituteVars(path, rep, extra = {}) {
+    return path
+      .replace(/\$RepresentationID\$/g, rep.id)
+      .replace(/\$Bandwidth\$/g, rep.bandwidth)
+      .replace(/\$Number\$/g, extra.number !== undefined ? String(extra.number) : "$Number$")
+      .replace(/\$Time\$/g, extra.time !== undefined ? String(extra.time) : "$Time$");
+  }
+
+  function buildSegmentUrlsForTemplate(rep) {
     const tmpl = rep.segmentTemplate;
-    const baseUrl = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
-
-    // Helper: replace common vars (keeps original placeholders for substituting into zip-safe names later)
-    const substituteVars = (path, rep, extra = {}) => {
-      return path
-        .replace(/\$RepresentationID\$/g, rep.id)
-        .replace(/\$Bandwidth\$/g, rep.bandwidth)
-        .replace(/\$Number\$/g, extra.number !== undefined ? String(extra.number) : "$Number$")
-        .replace(/\$Time\$/g, extra.time !== undefined ? String(extra.time) : "$Time$");
-    };
-
-    // 1) initialization (original path used for fetch URL)
+    const baseUrl = mpdBase;
     const initPath = substituteVars(tmpl.initialization, rep, {});
     const initUrl = new URL(initPath, baseUrl).href;
     const initZipPath = sanitizeZipPath(initPath);
 
-    // Detect whether this template uses a SegmentTimeline (look up actual SegmentTemplate node in XML)
+    // find template node to examine SegmentTimeline if present
     let repNode = Array.from(xmlDoc.getElementsByTagNameNS(NS, "Representation")).find(r => r.getAttribute("id") === rep.id);
     let tmplNode = null;
     if (repNode) {
       tmplNode = repNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
-      if (!tmplNode && repNode.parentElement) {
-        tmplNode = repNode.parentElement.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
-      }
-    } else {
-      tmplNode = xmlDoc.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
-    }
+      if (!tmplNode && repNode.parentElement) tmplNode = repNode.parentElement.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+    } else tmplNode = xmlDoc.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
 
-    // If there is a SegmentTimeline, build start times array
-    let segmentStartTimes = null; // in timescale units
+    let segmentStartTimes = null;
     const timelineNode = tmplNode ? tmplNode.getElementsByTagNameNS(NS, "SegmentTimeline")[0] : null;
     if (timelineNode) {
-      // Parse all <S> elements in order
       const sElems = Array.from(timelineNode.getElementsByTagNameNS(NS, "S"));
       segmentStartTimes = [];
       let cursor = null;
@@ -866,20 +939,11 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
         const tAttr = s.getAttribute("t");
         const dAttr = s.getAttribute("d");
         const rAttr = s.getAttribute("r");
-
-        if (!dAttr) {
-          throw new Error("SegmentTimeline S element missing 'd' attribute — cannot compute segments.");
-        }
+        if (!dAttr) throw new Error("SegmentTimeline S element missing 'd' attribute — cannot compute segments.");
         const d = parseInt(dAttr, 10);
         const r = rAttr !== null ? parseInt(rAttr, 10) : 0;
-
-        // If explicit t appears, set cursor to it; otherwise cursor remains at previous cursor (or 0 for first)
-        if (tAttr !== null) {
-          cursor = parseInt(tAttr, 10);
-        } else if (cursor === null) {
-          cursor = 0;
-        }
-
+        if (tAttr !== null) cursor = parseInt(tAttr, 10);
+        else if (cursor === null) cursor = 0;
         const repeatCount = r + 1;
         for (let k = 0; k < repeatCount; k++) {
           segmentStartTimes.push(cursor);
@@ -888,18 +952,16 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       }
     }
 
-    // If template contains $Time$, use the timeline-derived times (or attempt to derive them)
     const usesTimeVar = tmpl.media && tmpl.media.indexOf("$Time$") !== -1;
-    let mediaPaths = [];
-    let mediaZipPaths = [];
-    let segmentUrls = [];
-    let firstIndex = tmpl.startNumber ?? 1;
+    const mediaPaths = [];
+    const mediaZipPaths = [];
+    const segmentUrls = [];
+    const firstIndex = tmpl.startNumber ?? 1;
 
     if (usesTimeVar) {
       if (!segmentStartTimes) {
-        // attempt fallback to duration/timescale and mediaPresentationDuration as before
         if (tmpl.duration && tmpl.duration > 0) {
-          const segLen = tmpl.duration; // units: timescale units
+          const segLen = tmpl.duration;
           const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, "MPD")[0];
           const totalDurationISO = mpdRoot.getAttribute("mediaPresentationDuration");
           const parseISODuration = d => {
@@ -911,24 +973,14 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
             const hours = parseFloat(m[4] || "0");
             const minutes = parseFloat(m[5] || "0");
             const secs = parseFloat(m[6] || "0");
-            return (
-              years * 365 * 24 * 3600 +
-              months * 30 * 24 * 3600 +
-              days * 24 * 3600 +
-              hours * 3600 +
-              minutes * 60 +
-              secs
-            );
+            return (years * 365 * 24 * 3600 + months * 30 * 24 * 3600 + days * 24 * 3600 + hours * 3600 + minutes * 60 + secs);
           };
           const totalSec = parseISODuration(totalDurationISO);
           const segLenSec = segLen / (tmpl.timescale || 1);
           const estimatedCount = Math.ceil(totalSec / segLenSec);
           // Build times as multiples of segLen (in timescale units)
           segmentStartTimes = [];
-          const segLenUnits = segLen;
-          for (let i = 0; i < estimatedCount; i++) {
-            segmentStartTimes.push(i * segLenUnits);
-          }
+          for (let i = 0; i < estimatedCount; i++) segmentStartTimes.push(i * segLen);
         } else {
           throw new Error("Cannot compute $Time$ segments: SegmentTimeline missing and no fixed duration provided.");
         }
@@ -967,23 +1019,13 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
           const hours = parseFloat(m[4] || "0");
           const minutes = parseFloat(m[5] || "0");
           const secs = parseFloat(m[6] || "0");
-          return (
-            years * 365 * 24 * 3600 +
-            months * 30 * 24 * 3600 +
-            days * 24 * 3600 +
-            hours * 3600 +
-            minutes * 60 +
-            secs
-          );
+          return (years * 365 * 24 * 3600 + months * 30 * 24 * 3600 + days * 24 * 3600 + hours * 3600 + minutes * 60 + secs);
         };
         const totalSec = parseISODuration(totalDurationISO);
 
         // segLenSec: if tmpl.duration is 0/absent this will be 0 => guard
         const segLenSec = (tmpl.duration || 0) / (tmpl.timescale || 1);
-        if (!segLenSec || segLenSec <= 0) {
-          throw new Error("Cannot compute number-based segments: no SegmentTimeline and duration/timescale missing or zero.");
-        }
-
+        if (!segLenSec || segLenSec <= 0) throw new Error("Cannot compute number-based segments: no SegmentTimeline and duration/timescale missing or zero.");
         const segmentCount = Math.ceil(totalSec / segLenSec);
         for (let i = 0; i < segmentCount; i++) {
           const number = (tmpl.startNumber ?? 1) + i;
@@ -1006,181 +1048,150 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     };
   }
 
-  // 10) Build URLs (and relative paths) for the chosen video & audio
-  const videoInfo = buildSegmentUrls(chosenVideoRep, videoAdaptation);
-  let audioInfo = null;
-  if (chosenAudioRep) {
-    audioInfo = buildSegmentUrls(chosenAudioRep, audioAdaptation);
-  }
-
-  // 10.5) If mpd fix mode is on, strip unused <Representation> entries AND update SegmentTemplate paths
-  if (localStorage.getItem("mpd-fix") === "1") {
-    console.log("✂️ Stripping unused representations for 'mpd fix' mode...");
-
-    // Helper to remove unselected representations
-    const keepOnlyRepresentation = (adaptationNode, chosenRepId) => {
-      const reps = adaptationNode.getElementsByTagNameNS(NS, "Representation");
-      for (let i = reps.length - 1; i >= 0; i--) {
-        const rep = reps[i];
-        if (rep.getAttribute("id") !== chosenRepId) {
-          adaptationNode.removeChild(rep);
-        }
-      }
-    };
-
-    // Strip unused video representations
-    const videoSet = allSets.find(asNode => {
-      const mimeType = asNode.getAttribute("mimeType") || "";
-      return mimeType.startsWith("video/");
-    });
-    if (videoSet) {
-      keepOnlyRepresentation(videoSet, chosenVideoRep.id);
-    }
-
-    // Strip unused audio representations
-    const audioSet = allSets.find(asNode => {
-      const mimeType = asNode.getAttribute("mimeType") || "";
-      return mimeType.startsWith("audio/");
-    });
-    if (audioSet && chosenAudioRep) {
-      keepOnlyRepresentation(audioSet, chosenAudioRep.id);
-    }
-
-    // Update all SegmentTemplate attributes in the XML to their sanitized (zip-safe) counterparts.
-    // This updates both 'media' and 'initialization' attributes so the MPD inside the ZIP points at the sanitized files.
-    const segTmplNodes = Array.from(xmlDoc.getElementsByTagNameNS(NS, "SegmentTemplate"));
-    for (let i = 0; i < segTmplNodes.length; i++) {
-      const node = segTmplNodes[i];
-      const mediaAttr = node.getAttribute("media");
-      const initAttr = node.getAttribute("initialization");
-      if (mediaAttr) {
-        const sanitized = sanitizeZipPath(mediaAttr);
-        node.setAttribute("media", sanitized);
-      }
-      if (initAttr) {
-        const sanitizedInit = sanitizeZipPath(initAttr);
-        node.setAttribute("initialization", sanitizedInit);
-      }
-    }
-
-    // Update the XML string to only include the kept elements & updated paths
-    const serializer = new XMLSerializer();
-    const strippedMPD = serializer.serializeToString(xmlDoc);
-    mpdXmlText = strippedMPD;  // override the variable used when adding to ZIP
-  }
-
-  // 11) Create the zip entries
+  // Prepare zip entries and tasks
   const zipEntries = [];
+  zipEntries.push({ name: mpdFilename, input: new TextEncoder().encode(mpdXmlText) });
 
-  // 12) Add the original (or fixed) MPD text as “<whatever>.mpd”
-  const mpdFilename = mpdUrl.substring(mpdUrl.lastIndexOf("/") + 1); // e.g. "sintel.mpd"
-
-  // helper to prefix zip path safely:
-  function prefixedName(path) {
-    if (!baseURLForZip) return path;
-    if (path.startsWith(baseURLForZip)) return path;
-    return baseURLForZip + path;
+  const tasks = [];
+  function queueTemplateDownloads(repObj) {
+    const info = buildSegmentUrlsForTemplate(repObj);
+    tasks.push({ type: "template", rep: repObj, info });
+  }
+  function queueBaseDownload(repObj) {
+    const baseURLText = repObj.baseURL || "";
+    const resolvedUrl = new URL(baseURLText, mpdBase).href;
+    let sanitized = sanitizeZipPath(baseURLText || "");
+    if (!sanitized) sanitized = `${baseName}_rep${repObj.id}.mp4`;
+    else if (!sanitized.match(/\.[a-zA-Z0-9]{1,6}$/)) sanitized = sanitized + `.mp4`;
+    tasks.push({ type: "base", rep: repObj, url: resolvedUrl, zipName: sanitized, baseURLText });
   }
 
-  // 12) MPD remains at root (usually fine)
-  zipEntries.push({
-    name: mpdFilename,
-    input: new TextEncoder().encode(mpdXmlText),
-  });
+  // Queue chosen reps
+  if (chosenVideoRep.type === "segmentTemplate") queueTemplateDownloads(chosenVideoRep);
+  else if (chosenVideoRep.type === "segmentBase") queueBaseDownload(chosenVideoRep);
+  else throw new Error("Unsupported video representation type");
 
-  // 13) Prepare to fetch + add every init + media segment to the ZIP.
-  //     Count how many files total so we can show progress in `loadingBar`.
-  const videoCount = 1 + videoInfo.segmentUrls.length; // 1 init + N media
-  const audioCount = audioInfo ? (1 + audioInfo.segmentUrls.length) : 0;
-  const totalFiles = videoCount + audioCount;
+  if (chosenAudioRep) {
+    if (chosenAudioRep.type === "segmentTemplate") queueTemplateDownloads(chosenAudioRep);
+    else if (chosenAudioRep.type === "segmentBase") queueBaseDownload(chosenAudioRep);
+  }
 
+  // Setup dynamic byte-tracking progress for ZIP flow
   loadingBar.removeAttribute("indeterminate");
-  loadingBar.setAttribute("max", totalFiles);
+  loadingBar.setAttribute("max", 0);
   loadingBar.setAttribute("value", 0);
+  let downloadedBytes = 0;
 
-  let downloadedCount = 0;
-
-  // Helper to fetch a URL → ArrayBuffer
-  async function fetchArrayBuffer(url) {
-    const r = await fetchWithCache(url, {
-      method: request.method,
-      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-      referrer:
-        request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
-      body: request.method !== 'GET' ? request.requestBody : null,
-    });
-    if (!r.ok) {
-      throw new Error(`Segment fetch failed: ${url} (status ${r.status})`);
-    }
-    return await r.arrayBuffer();
+  function addToMax(n) {
+    const prev = Number(loadingBar.getAttribute("max")) || 0;
+    loadingBar.setAttribute("max", prev + n);
   }
 
-  // 14) Download Video Init + add to ZIP under its relative (sanitized) path
-  console.log(">>> Fetching video init:", videoInfo.initUrl);
-  const vInitBuf = await fetchArrayBuffer(videoInfo.initUrl);
-  zipEntries.push({
-    name: prefixedName(videoInfo.initZipPath), // sanitized path used for zip entries
-    input: vInitBuf,
-  });
-  downloadedCount++;
-  loadingBar.setAttribute("value", downloadedCount);
+  const mpdFixEnabled = localStorage.getItem("mpd-fix") === "1";
+  const repIdToLocalName = {};
 
-  // 15) Download Audio Init (if any) + add to ZIP
-  let aInitBuf = null;
-  if (audioInfo) {
-    console.log(">>> Fetching audio init:", audioInfo.initUrl);
-    aInitBuf = await fetchArrayBuffer(audioInfo.initUrl);
-    zipEntries.push({
-      name: prefixedName(audioInfo.initZipPath),
-      input: aInitBuf,
-    });
-    downloadedCount++;
-    loadingBar.setAttribute("value", downloadedCount);
-  }
-
-  // 16) Download all video media segments
-  for (let i = 0; i < videoInfo.segmentUrls.length; i++) {
-    const segUrl = videoInfo.segmentUrls[i];
-    const segZipPath = videoInfo.mediaZipPaths[i];
-    console.log(`>>> Fetching video segment #${i + 1}:`, segUrl);
-    const buf = await fetchArrayBuffer(segUrl);
-    zipEntries.push({
-      name: prefixedName(segZipPath),
-      input: buf,
-    });
-    downloadedCount++;
-    loadingBar.setAttribute("value", downloadedCount);
-  }
-
-  // 17) Download all audio media segments (if any)
-  if (audioInfo) {
-    for (let i = 0; i < audioInfo.segmentUrls.length; i++) {
-      const segUrl = audioInfo.segmentUrls[i];
-      const segZipPath = audioInfo.mediaZipPaths[i];
-      console.log(`>>> Fetching audio segment #${i + 1}:`, segUrl);
-      const buf = await fetchArrayBuffer(segUrl);
-      zipEntries.push({
-        name: prefixedName(segZipPath),
-        input: buf,
+  // Process tasks sequentially (streaming)
+  for (const t of tasks) {
+    if (t.type === "template") {
+      // init
+      console.log(">>> Fetching template init:", t.info.initUrl);
+      let lastReceivedForFile = 0;
+      const initBuf = await fetchWithProgress(t.info.initUrl, {
+        onStart: (contentLength) => {
+          if (contentLength && contentLength > 0) addToMax(contentLength);
+          else loadingBar.setAttribute("indeterminate", "");
+        },
+        onChunk: (received) => {
+          const delta = received - lastReceivedForFile;
+          lastReceivedForFile = received;
+          downloadedBytes += delta;
+          const max = Number(loadingBar.getAttribute("max")) || 0;
+          if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+        }
       });
-      downloadedCount++;
-      loadingBar.setAttribute("value", downloadedCount);
+      zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
+
+      // segments
+      for (let i = 0; i < t.info.segmentUrls.length; i++) {
+        const segUrl = t.info.segmentUrls[i];
+        const segZipPath = t.info.mediaZipPaths[i];
+        console.log(`>>> Fetching template segment #${i + 1}:`, segUrl);
+        let lastReceived = 0;
+        const buf = await fetchWithProgress(segUrl, {
+          onStart: (contentLength) => {
+            if (contentLength && contentLength > 0) addToMax(contentLength);
+            else loadingBar.setAttribute("indeterminate", "");
+          },
+          onChunk: (received) => {
+            const delta = received - lastReceived;
+            lastReceived = received;
+            downloadedBytes += delta;
+            const max = Number(loadingBar.getAttribute("max")) || 0;
+            if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+          }
+        });
+        zipEntries.push({ name: prefixedName(segZipPath), input: buf });
+      }
+
+    } else if (t.type === "base") {
+      console.log(">>> Fetching SegmentBase file (single-file MP4):", t.url);
+      let lastReceivedForFile = 0;
+      const arrayBuffer = await fetchWithProgress(t.url, {
+        onStart: (contentLength) => {
+          if (contentLength && contentLength > 0) addToMax(contentLength);
+          else loadingBar.setAttribute("indeterminate", "");
+        },
+        onChunk: (received) => {
+          const delta = received - lastReceivedForFile;
+          lastReceivedForFile = received;
+          downloadedBytes += delta;
+          const max = Number(loadingBar.getAttribute("max")) || 0;
+          if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+        }
+      });
+
+      const finalZipName = prefixedName(t.zipName);
+      zipEntries.push({ name: finalZipName, input: arrayBuffer });
+
+      if (mpdFixEnabled) repIdToLocalName[t.rep.id] = t.zipName;
     }
   }
 
-  console.log("▶️ All segments fetched; generating ZIP…");
+  // mpd-fix rewrite if needed
+  if (mpdFixEnabled) {
+    for (const repId in repIdToLocalName) {
+      const repNode = Array.from(xmlDoc.getElementsByTagNameNS(NS, "Representation")).find(r => r.getAttribute("id") === repId);
+      if (!repNode) continue;
+      const segBases = Array.from(repNode.getElementsByTagNameNS(NS, "SegmentBase"));
+      segBases.forEach(n => n.parentElement && n.parentElement.removeChild(n));
+      let baseNode = repNode.getElementsByTagNameNS(NS, "BaseURL")[0];
+      if (!baseNode) {
+        baseNode = xmlDoc.createElementNS(NS, "BaseURL");
+        if (repNode.firstChild) repNode.insertBefore(baseNode, repNode.firstChild);
+        else repNode.appendChild(baseNode);
+      }
+      baseNode.textContent = repIdToLocalName[repId];
+    }
+    const serializer = new XMLSerializer();
+    mpdXmlText = serializer.serializeToString(xmlDoc);
+    zipEntries[0] = { name: mpdFilename, input: new TextEncoder().encode(mpdXmlText) };
+  }
 
-  // 18) Generate the ZIP Blob and trigger download
+  // finalize progress bar
+  try {
+    const finalMax = Number(loadingBar.getAttribute("max")) || downloadedBytes || 1;
+    loadingBar.setAttribute("max", finalMax);
+    loadingBar.setAttribute("value", downloadedBytes);
+    loadingBar.removeAttribute("indeterminate");
+  } catch (e) { }
+
+  // Generate ZIP and trigger download
+  console.log("▶️ All segments fetched; generating ZIP…");
   const zipBlob = await downloadZip(zipEntries).blob();
-  const baseName = mpdFilename.replace(/\.mpd$/i, "");
   const zipName = `${baseName}.zip`;
 
   if (downloadMethod === "browser") {
-    // Use browser.downloads API to download the ZIP
-    await browser.downloads.download({
-      url: URL.createObjectURL(zipBlob),
-      filename: zipName
-    });
+    await browser.downloads.download({ url: URL.createObjectURL(zipBlob), filename: zipName });
   } else {
     // Use a temporary <a> element to trigger download
     const a = document.createElement("a");
@@ -1189,11 +1200,23 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(a.href); // Clean up the blob URL
+    URL.revokeObjectURL(a.href);
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded ZIP (“${zipName}”).`, urls: { zip: URL.createObjectURL(zipBlob), mpd: mpdUrl }, request: request, downloadMethod: downloadMethod });
+  showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), {
+    error: `✅ Downloaded ZIP (“${zipName}”).`,
+    urls: { zip: URL.createObjectURL(zipBlob), mpd: mpdUrl },
+    request,
+    downloadMethod
+  });
+
+  // Helper: prefix zip path
+  function prefixedName(path) {
+    if (!baseURLForZip) return path;
+    if (path.startsWith(baseURLForZip)) return path;
+    return baseURLForZip + path;
+  }
 }
 
 /**

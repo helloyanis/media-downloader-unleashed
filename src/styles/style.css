@@ -107,3 +107,23 @@ code{
     flex-direction: row;
     flex-wrap: wrap;
 }
+
+.highlighted {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--mdui-color-primary-container), 0.8);
+    }
+    90% {
+        box-shadow: 0 0 0 20px rgba(var(--mdui-color-primary-container), 0.5);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--mdui-color-primary-container), 0);
+    }
+}
+
+.bottom-button {
+    margin-right: 5px;
+}
