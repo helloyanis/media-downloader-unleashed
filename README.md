@@ -4,7 +4,7 @@ A browser add-on to easily download any media (audio, video and streams) played 
 
 Make sure you are on Firefox when clicking on the button.
 
-<a href="https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=github-readme"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
+<a href="https://github.com/helloyanis/media-downloader-unleashed/releases/download/v3.5.5/addon.xpi"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
 > [!IMPORTANT]
 > This add-on is currently only available on the Firefox Add-ons store. Beware of any copies that you may find elsewhere, like on the Chrome web store or the Edge store!
