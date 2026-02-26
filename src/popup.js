@@ -169,7 +169,7 @@ function showDialog(message, title = null, errorData = null) {
   messageElement.innerHTML = message;
   dialog.appendChild(messageElement);
 
-  //Add an buttons to the dialog
+  //Add buttons to the dialog
   const reportButton = document.createElement('mdui-button');
   reportButton.variant = "text"
   reportButton.textContent = browser.i18n.getMessage("reportIssue");
@@ -278,7 +278,7 @@ async function showDialogCustom({
 async function shareDiagnosticData(errorData) {
   console.log("Sharing diagnostic data:", errorData);
 
-  window.open(`https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform`);
+  window.open(`https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting#%EF%B8%8F-the-download-failed-with-an-error`, '_blank');
 
   // For some reason the Mozilla Add-on review team doesn't allow me to pre-fill the form, even though it's just to make it easier for users to report issues and doesn't force them to share any data they don't want to share. As per their e-mail :
   // > "As your extension is compatible with Firefox 139 and earlier a custom data collection collection and transmission consent screen is required in order to be compliant."

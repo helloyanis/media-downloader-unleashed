@@ -36,7 +36,7 @@
         "description": "The error message shown when the user tries to download media while offline."
     },
     "reportIssue": {
-        "message": "Report issue",
+        "message": "Help about this error",
         "description": "The text of the link to report an issue in the error popup."
     },
     "okButton": {
