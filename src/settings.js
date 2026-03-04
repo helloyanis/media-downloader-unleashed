@@ -32,15 +32,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initializeSettings() {
     let isInitialized = false;
-    // Check for detectionMethod setting in localStorage
-    if (localStorage.getItem('detection-method')) {
-        checkAndMigrateLegacyDetectionMethod();;
-    }
-    let urlDetection = localStorage.getItem('url-detection') || '1';
-    localStorage.setItem('url-detection', urlDetection);
 
-    let mimeDetection = localStorage.getItem('mime-detection') || '1';
-    localStorage.setItem('mime-detection', mimeDetection);
+    let urlDetection = await browser.storage.local.get('url-detection').then((result) => result['url-detection']) || '1';
+    browser.storage.local.set({ 'url-detection': urlDetection });
+
+    let mimeDetection = await browser.storage.local.get('mime-detection').then((result) => result['mime-detection']) || '1';
+    browser.storage.local.set({ 'mime-detection': mimeDetection });
 
     // Select the current detectionMethod
     let detectionCheckbox = document.querySelector(`mdui-checkbox[name="detection-method"][value="url"]`);
@@ -52,8 +49,8 @@ async function initializeSettings() {
         detectionCheckbox.setAttribute('checked', true);
     }
 
-    let mpdFix = localStorage.getItem('mpd-fix') || '1';
-    localStorage.setItem('mpd-fix', mpdFix);
+    let mpdFix = await browser.storage.local.get('mpd-fix').then((result) => result['mpd-fix']) || '1';
+    browser.storage.local.set({ 'mpd-fix': mpdFix });
 
     // Select the current mpdFix
     let mpdCheckbox = document.querySelector(`mdui-checkbox[name="mpd-fix"]`);
@@ -63,9 +60,9 @@ async function initializeSettings() {
         }
     }
 
-    // Check for downloadMethod setting in localStorage
-    let downloadMethod = localStorage.getItem('download-method') || 'fetch';
-    localStorage.setItem('download-method', downloadMethod);
+    // Check for downloadMethod setting
+    let downloadMethod = await browser.storage.local.get('download-method').then((result) => result['download-method']) || 'fetch';
+    browser.storage.local.set({ 'download-method': downloadMethod });
 
     // Select the current downloadMethod
     let downloadRadioGroup = document.querySelector(`mdui-radio-group[name="download-method"]`);
@@ -73,9 +70,9 @@ async function initializeSettings() {
         downloadRadioGroup.value = downloadMethod;
     }
 
-    // Check for streamDownload setting in localStorage
-    let streamDownload = localStorage.getItem('stream-download') || 'offline';
-    localStorage.setItem('stream-download', streamDownload);
+    // Check for streamDownload setting
+    let streamDownload = await browser.storage.local.get('stream-download').then((result) => result['stream-download']) || 'offline';
+    browser.storage.local.set({ 'stream-download': streamDownload });
 
     // Select the current downloadMethod
     let streamRadioGroup = document.querySelector(`mdui-radio-group[name="stream-download"]`);
@@ -83,9 +80,9 @@ async function initializeSettings() {
         streamRadioGroup.value = streamDownload;
     }
 
-    // Check for mediaCache setting in localStorage
-    let mediaCache = localStorage.getItem('media-cache') || '1';
-    localStorage.setItem('media-cache', mediaCache);
+    // Check for mediaCache setting
+    let mediaCache = await browser.storage.local.get('media-cache').then((result) => result['media-cache']) || '1';
+    browser.storage.local.set({ 'media-cache': mediaCache });
 
     // Select the current mediaCache
     let mediaCacheCheckbox = document.querySelector(`mdui-checkbox[name="media-cache"]`);
@@ -95,9 +92,9 @@ async function initializeSettings() {
         }
     }
 
-    // Check for hideSegments setting in localStorage
-    let hideSegments = localStorage.getItem('hide-segments') || '1';
-    localStorage.setItem('hide-segments', hideSegments);
+    // Check for hideSegments setting
+    let hideSegments = await browser.storage.local.get('hide-segments').then((result) => result['hide-segments']) || '1';
+    browser.storage.local.set({ 'hide-segments': hideSegments });
 
     // Select the current hideSegments
     let hideSegmentsCheckbox = document.querySelector(`mdui-checkbox[name="hide-segments"]`);
@@ -107,9 +104,9 @@ async function initializeSettings() {
         }
     }
 
-    // Check for the opening preference in localStorage
-    let openPreference = localStorage.getItem('open-preference') || 'tab';
-    localStorage.setItem('open-preference', openPreference);
+    // Check for the opening preference
+    let openPreference = await browser.storage.local.get('open-preference').then((result) => result['open-preference']) || 'tab';
+    browser.storage.local.set({ 'open-preference': openPreference });
 
     // Select the current opening preference
     let openRadioGroup = document.querySelector(`mdui-radio-group[name="open-preference"]`);
@@ -117,9 +114,9 @@ async function initializeSettings() {
         openRadioGroup.value = openPreference;
     }
 
-    // Check for the stream quality preference in localStorage
-    let streamQuality = localStorage.getItem('stream-quality') || 'ask';
-    localStorage.setItem('stream-quality', streamQuality);
+    // Check for the stream quality preference
+    let streamQuality = await browser.storage.local.get('stream-quality').then((result) => result['stream-quality']) || 'ask';
+    browser.storage.local.set({ 'stream-quality': streamQuality });
     // Select the current stream quality preference
     let qualityRadioGroup = document.querySelector(`mdui-radio-group[name="stream-quality"]`);
     if (qualityRadioGroup) {
@@ -135,7 +132,6 @@ async function initializeSettings() {
                 document.querySelector('.mobile-incompatible-warning').open = true;
             }
             if (value !== 'browser') {
-                localStorage.setItem(setting, value);
                 browser.storage.local.set({ [setting]: value });
             }
             else {
@@ -143,7 +139,6 @@ async function initializeSettings() {
                     permissions: ["downloads"]
                 }).then((granted) => {
                     if (granted) {
-                        localStorage.setItem(setting, value);
                         browser.storage.local.set({ [setting]: value });
                     }
 
@@ -163,7 +158,6 @@ async function initializeSettings() {
         if (removedPermissions.permissions.includes("downloads")) {
             // Revert the download method to 'fetch'
             let downloadMethod = 'fetch';
-            localStorage.setItem('download-method', downloadMethod);
             browser.storage.local.set({ 'download-method': downloadMethod });
             document.querySelector(`mdui-radio-group[name="download-method"]`).value = downloadMethod;
         }
@@ -180,7 +174,6 @@ async function initializeSettings() {
         checkbox.addEventListener('change', (event) => {
             let setting = event.target.id;
             let value = event.target.checked ? '1' : '0';
-            localStorage.setItem(setting, value);
             browser.storage.local.set({ [setting]: value });
             switch (setting) {
                 case 'media-cache':
@@ -207,9 +200,9 @@ async function initializeSettings() {
         return hexColor;
     }
 
-    // Check for interfaceColor setting in localStorage
-    let interfaceColor = localStorage.getItem('interfaceColor') || generateSystemColor();
-    localStorage.setItem('interfaceColor', interfaceColor);
+    // Check for interfaceColor setting
+    let interfaceColor = await browser.storage.local.get('interfaceColor').then((result) => result.interfaceColor) || generateSystemColor();
+    browser.storage.local.set({ 'interfaceColor': interfaceColor });
     mdui.setColorScheme(interfaceColor);
 
     // Select color picker element safely
@@ -218,7 +211,7 @@ async function initializeSettings() {
         colorPicker.value = interfaceColor;
         colorPicker.addEventListener('change', (event) => {
             mdui.setColorScheme(event.target.value);
-            localStorage.setItem('interfaceColor', event.target.value);
+            browser.storage.local.set({ 'interfaceColor': event.target.value });
         });
     }
     document.getElementById('loading').setAttribute("style", "display: none;");
@@ -226,54 +219,9 @@ async function initializeSettings() {
     isInitialized = true;
 }
 
-async function checkAndMigrateLegacyDetectionMethod() {
-    // Check if the legacy detection method is set in localStorage
-    let legacyDetectionMethod = localStorage.getItem('detection-method')
-    if (legacyDetectionMethod) {
-        // Migrate to the new detection method
-        localStorage.setItem('url-detection', legacyDetectionMethod === 'url' ? '1' : '0');
-        localStorage.setItem('mime-detection', legacyDetectionMethod === 'mime' ? '1' : '0');
-        localStorage.removeItem('detection-method'); // Remove the legacy detection method
-
-        //Show dialog to the user
-        const dialog = document.createElement('mdui-dialog');
-        dialog.setAttribute('open', true);
-        const titleElement = document.createElement('div');
-        titleElement.setAttribute('slot', 'headline');
-        titleElement.textContent = 'Detection Method Migration';
-        dialog.appendChild(titleElement);
-
-        //Add the message to the dialog
-        const messageElement = document.createElement('div');
-        messageElement.setAttribute('slot', 'content');
-        messageElement.textContent = "There has been an update to how the detection method works. You can now enable multiple detection methods at the same time. Your previous detection method settings were updated. Please check the settings to ensure everything is set up correctly.";
-        dialog.appendChild(messageElement);
-        // Add the action buttons to the dialog
-        const actionsSlot = document.createElement('div');
-        actionsSlot.setAttribute('slot', 'actions');
-        const reportButton = document.createElement('mdui-text-button');
-        reportButton.textContent = 'Open settings';
-        reportButton.addEventListener('click', () => {
-            document.querySelectorAll("mdui-primary-tab")[1].click(); // Click the settings tab
-            dialog.removeAttribute('open'); // Close the dialog
-        });
-        actionsSlot.appendChild(reportButton);
-        dialog.appendChild(actionsSlot);
-
-        const okButton = document.createElement('mdui-text-button');
-        okButton.textContent = 'OK';
-        okButton.addEventListener('click', () => {
-            dialog.removeAttribute('open');
-        });
-        actionsSlot.appendChild(okButton);
-
-        document.body.appendChild(dialog);
-    }
-}
-
 async function requestOriginsPermission() {
     // Request permissions to access all URLs
-    if (localStorage.getItem('originPermissionDismissed') === '1') {
+    if (await browser.storage.local.get('originPermissionDismissed').then((result) => result.originPermissionDismissed) === '1') {
         return; // If the user has dismissed the permission request, do not show it again
     }
     mdui.confirm({
@@ -296,7 +244,7 @@ async function requestOriginsPermission() {
             }
         },
         onCancel: () => {
-            localStorage.setItem('originPermissionDismissed', '1');
+            browser.storage.local.set({ 'originPermissionDismissed': '1' });
             mdui.snackbar({
                 message: browser.i18n.getMessage('permissionDeniedMessage'),
             });
@@ -305,6 +253,7 @@ async function requestOriginsPermission() {
 }
 
 window.navigation.addEventListener("navigate", (event) => {
+    if(!new URL(event.destination.url).hash) return; // If there is no hash in the URL, do nothing
     if(document.querySelector("#settings-container").querySelector(new URL(event.destination.url).hash)) {
         // If the user is navigating to a specific section within the settings, switch to the settings tab
         document.querySelectorAll("mdui-tab")[1].click(); // Click the settings tab

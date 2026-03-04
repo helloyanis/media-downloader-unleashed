@@ -23,7 +23,7 @@ function openCacheDB() {
  */
 async function fetchWithCache(url, options = {}) {
 
-  if (browser.extension.inIncognitoContext || localStorage.getItem("media-cache") !== "1") {
+  if (browser.extension.inIncognitoContext || (await browser.storage.local.get("media-cache").then((result) => result["media-cache"])) !== "1") {
     // Bypass cache in incognito/private mode or if media-cache is disabled
     return fetch(url, options);
   }
@@ -519,7 +519,7 @@ async function selectStreamVariant(playlistLines, baseUrl) {
   // If only one variant, return it
   if (variants.length === 1) return variants[0];
 
-  const preference = localStorage.getItem("stream-quality");
+  const preference = (await browser.storage.local.get("stream-quality").then((result) => result["stream-quality"]));
   if (preference === "highest") return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
   if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
 
@@ -1087,7 +1087,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     loadingBar.setAttribute("max", prev + n);
   }
 
-  const mpdFixEnabled = localStorage.getItem("mpd-fix") === "1";
+  const mpdFixEnabled = (await browser.storage.local.get("mpd-fix").then((result) => result["mpd-fix"])) === "1";
   const repIdToLocalName = {};
 
   // Process tasks sequentially (streaming)
@@ -1234,8 +1234,8 @@ async function selectMPDVideoRepresentation(reps) {
     return reps[0];
   }
 
-  // Check saved preference in localStorage
-  const preference = localStorage.getItem("stream-quality"); // "highest" | "lowest" or null
+  // Check saved preference
+  const preference = (await browser.storage.local.get("stream-quality").then((result) => result["stream-quality"])); // "highest" | "lowest" or "ask"
 
   if (preference === "highest") {
     return reps.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
@@ -1313,8 +1313,8 @@ async function selectMPDAudioRepresentation(reps) {
     return reps[0];
   }
 
-  // Check saved preference in localStorage
-  const preference = localStorage.getItem("stream-quality"); // "highest" | "lowest" or null
+  // Check saved preference
+  const preference = (await browser.storage.local.get("stream-quality").then((result) => result["stream-quality"])); // "highest" | "lowest" or "ask"
 
   if (preference === "highest") {
     return reps.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));

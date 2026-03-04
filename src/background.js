@@ -79,30 +79,13 @@ const temporaryHeaderMap = new Map();
 const temporaryRequestBodyMap = new Map();
 const temporaryCookieMap = new Map();
 
-// helper to interpret setting values (localStorage or browser.storage.local)
+// helper to interpret setting values
 function isFlagEnabled(val) {
     return val === '1' || val === 1 || val === true || val === 'true';
 }
 
-// get local settings: try localStorage first, fallback to browser.storage.local
+// get local settings
 function getSettings(callback) {
-    try {
-        // try localStorage (string values)
-        const mimeVal = (typeof localStorage !== 'undefined') ? localStorage.getItem('mime-detection') : null;
-        const urlVal = (typeof localStorage !== 'undefined') ? localStorage.getItem('url-detection') : null;
-
-        if (mimeVal !== null || urlVal !== null) {
-            callback({
-                mimeDetection: isFlagEnabled(mimeVal),
-                urlDetection: isFlagEnabled(urlVal)
-            });
-            return;
-        }
-    } catch (e) {
-        // localStorage not available in this context -> fallback
-    }
-
-    // fallback to browser.storage.local
     browser.storage.local.get(['mime-detection', 'url-detection'], function (result) {
         callback({
             mimeDetection: isFlagEnabled(result['mime-detection']),
@@ -235,7 +218,7 @@ function initListener() {
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so try to add cookies
                 try {
-                    const cookie = existingRequests.find(r => r.requestId === details.requestId)?.cookie || '';
+                    const cookie = temporaryCookieMap.get(details.requestId) || '';
                     if (cookie) {
                         details.requestHeaders.push({ name: 'Cookie', value: cookie });
                         console.debug("Added Cookie header to extension request:", cookie);

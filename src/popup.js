@@ -30,11 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Remind me later button
-  document.getElementById('remind-me-later-button').addEventListener('click', (event) => {
+  document.getElementById('remind-me-later-button').addEventListener('click', async (event) => {
     const ratingBanner = document.getElementById('rating-banner');
     ratingBanner.style.display = 'none';
     // Reset install date to now so we remind in 7 days
-    localStorage.setItem('install-date', Temporal.Now.plainDateISO().toString());
+    await browser.storage.local.set({ 'install-date': Temporal.Now.plainDateISO().toString() });
   });
 
   document.getElementById('rate-now-button').addEventListener('click', async (event) => {
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ratingCount = data.ratings.count;
     console.log("Current rating count:", ratingCount);
     // Save rating count to local storage, in case the user opens a new extension window after rating
-    localStorage.setItem('ratings-at-attempt', ratingCount)
+    await browser.storage.local.set({ 'ratings-at-attempt': ratingCount });
     // On focus we will check if the rating count increased
     onfocus = async () => {
       res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // User rated, dismiss the banner
         dismissRatingBanner();
       }
-      localStorage.removeItem("ratings-at-attempt")
+      await browser.storage.local.remove("ratings-at-attempt");
       onfocus = null; // Remove the onfocus handler after it's been used
     };
   })
@@ -72,31 +72,31 @@ document.addEventListener('DOMContentLoaded', () => {
 async function checkAndShowRatingBanner() {
 
   if(typeof Temporal !== 'undefined') {
-    if (!localStorage.getItem('install-date')) {
-      localStorage.setItem('install-date', Temporal.Now.plainDateISO().toString());
+    if (!await browser.storage.local.get('install-date')) {
+      await browser.storage.local.set({ 'install-date': Temporal.Now.plainDateISO().toString() });
       return;
     }
 
     let installDate;
     try {
-      installDate = Temporal.PlainDate.from(localStorage.getItem('install-date'));
+      installDate = Temporal.PlainDate.from(await browser.storage.local.get('install-date').then(result => result['install-date']));
     } catch (e) {
       // Fallback: older versions stored epoch-ms as a string. Fall back to today minus 7 days to show the banner immediately
       installDate = Temporal.Now.plainDateISO().subtract({ days: 7 });
-      localStorage.setItem('install-date', installDate.toString());
+      await browser.storage.local.set({ 'install-date': installDate.toString() });
 
     }
-    const hasRated = localStorage.getItem('has-rated');
+    const hasRated = await browser.storage.local.get('has-rated').then(result => result['has-rated']);
     const now = Temporal.Now.plainDateISO();
 
     const daysSinceInstall = now.since(installDate).days
   if (daysSinceInstall >= 7 && !hasRated) {
-    if(localStorage.getItem("ratings-at-attempt")){
+    if(await browser.storage.local.get("ratings-at-attempt")){
       // User has attempted to rate, check if the ratings are higher than the stored ones
       res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
       data = await res.json();
       const newRatingCount = data.ratings.count;
-      const previousRatingCount = parseInt(localStorage.getItem("ratings-at-attempt"), 10);
+      const previousRatingCount = parseInt(await browser.storage.local.get("ratings-at-attempt").then(result => result["ratings-at-attempt"]), 10);
       if (newRatingCount > previousRatingCount) {
         // User rated, do not show the banner
         return dismissRatingBanner();
@@ -107,19 +107,15 @@ async function checkAndShowRatingBanner() {
     ratingBanner.removeAttribute("style"); //Show the banner
   }
   } else {
-    // If Temporal is not supported (Chrome), show the banner immediately
-    if (!localStorage.getItem('has-rated')) {
-      const ratingBanner = document.getElementById('rating-banner');
-      ratingBanner.removeAttribute("style"); //Show the banner
-    }
+    // If Temporal is not supported (Chrome), don't show the banner
   }
 }
 
 // Dismiss the rating banner
-function dismissRatingBanner() {
+async function dismissRatingBanner() {
   const ratingBanner = document.getElementById('rating-banner');
   ratingBanner.style.display = 'none';
-  localStorage.setItem('has-rated', 'true');
+  await browser.storage.local.set({ 'has-rated': 'true' });
 }
 
 
@@ -302,7 +298,7 @@ function loadMediaList() {
   loadingSpinner.style.display = 'block';
   mediaContainer.innerHTML = ''; // Clear previous content
   // Send a message to the background script to get media requests
-  browser.runtime.sendMessage({ action: 'getMediaRequests' }).then((mediaRequests) => {
+  browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
     // Iterate over the media requests and display them
     console.log('Media requests:', mediaRequests);
     for (const url in mediaRequests) {
@@ -331,8 +327,8 @@ function loadMediaList() {
         "applicationdashxml"
       ];
 
-      const useMimeDetection = localStorage.getItem('mime-detection') === '1';
-      const useUrlDetection = localStorage.getItem('url-detection') === '1';
+      const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
+      const useUrlDetection = await browser.storage.local.get('url-detection').then(result => result['url-detection']) === '1';
 
       let mimeMatch = false;
       let urlMatch = false;
@@ -349,7 +345,7 @@ function loadMediaList() {
       }
 
       //Hide segments
-      const hideSegments = localStorage.getItem('hide-segments') === '1';
+      const hideSegments = await browser.storage.local.get('hide-segments').then(result => result['hide-segments']) === '1';
 
 
       // If user doesn't want to hide segments we do nothing special
@@ -592,8 +588,8 @@ function loadMediaList() {
 }
 
 /** Handle media requests from YouTube by showing an alert once per session */
-function handleYoutubeMediaRequest(url) {
-  if (sessionStorage.getItem('shownYoutubeAlert') !== '1' && localStorage.getItem('show-youtube-alert') !== '0') {
+async function handleYoutubeMediaRequest(url) {
+  if (sessionStorage.getItem('shownYoutubeAlert') !== '1' && await browser.storage.local.get('show-youtube-alert').then(result => result['show-youtube-alert']) !== '0') {
     sessionStorage.setItem('shownYoutubeAlert', '1');
     showDialogCustom({
       showTextField: false,
@@ -626,11 +622,11 @@ function handleYoutubeMediaRequest(url) {
       },
       onCancel: () => {},
     });
-    document.getElementById('youtube-dialog-dont-show-again').addEventListener('change', (event) => {
+    document.getElementById('youtube-dialog-dont-show-again').addEventListener('change', async (event) => {
       if (event.target.checked) {
-        localStorage.setItem('show-youtube-alert', '0');
+        await browser.storage.local.set({ 'show-youtube-alert': '0' });
       } else {
-        localStorage.setItem('show-youtube-alert', '1');
+        await browser.storage.local.set({ 'show-youtube-alert': '1' });
       }
     })
   }
@@ -754,8 +750,8 @@ async function downloadFile(url, mediaDiv) {
       !header.name.startsWith('Proxy-')
     );
 
-    const downloadMethod = localStorage.getItem('download-method');
-    const streamDownload = localStorage.getItem('stream-download');
+    const downloadMethod = await browser.storage.local.get('download-method').then(result => result['download-method']);
+    const streamDownload = await browser.storage.local.get('stream-download').then(result => result['stream-download']);
 
     // Change the UI to indicate that the download is in progress
     mediaDiv.querySelector("#download-button").loading = true

@@ -6,11 +6,11 @@ if (typeof browser === 'undefined') {
 document.addEventListener('DOMContentLoaded', async () => {
     // Show the help dialog if it hasn't been dismissed
     document.querySelector("#dontremindme").addEventListener("click", function () {
-        localStorage.setItem('dontremindme', '1');
+        browser.storage.local.set({ 'dontremindme': '1' });
         document.querySelector("#previewhelp").open = false;
     });
-    mdui.setColorScheme(localStorage.getItem('interfaceColor'));
-    document.querySelector("#previewhelp").open = localStorage.getItem('dontremindme') !== '1';
+    mdui.setColorScheme(await browser.storage.local.get('interfaceColor').then(result => result.interfaceColor));
+    document.querySelector("#previewhelp").open = (await browser.storage.local.get({ 'dontremindme': '0' })).dontremindme !== '1';
 
 
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let mediaBlobUrl = mediaUrl; // Default to direct URL
 
-    if (localStorage.getItem('download-method') === 'fetch') {
+    if ((await browser.storage.local.get('download-method').then((result) => result['download-method'])) === 'fetch') {
         try {
             const mediaBlob = await fetchMedia(mediaUrl, mediaSize);
             mediaBlobUrl = URL.createObjectURL(mediaBlob);
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (Hls.isSupported()) {
                 // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API
                 let config = {}
-                if (localStorage.getItem('download-method') === 'fetch') {
+                if ((await browser.storage.local.get('download-method').then((result) => result['download-method'])) === 'fetch') {
                     console.log('Using fetch API for HLS.js')
                     config = {
                         fetchSetup: function (context, initParams) {
