@@ -4,6 +4,8 @@ A browser add-on to easily download any media (audio, video and streams) played 
 
 <a href="https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=github-readme"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
+<img alt="Static Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FRdUJe4wJnP">
+
 > [!IMPORTANT]
 > This add-on is currently only available on the Firefox Add-ons store. Beware of any copies that you may find elsewhere, like on the Chrome web store or the Edge store!
 > It's not on these stores because :
@@ -55,7 +57,7 @@ You can download audios, videos and streams to view offline, from most websites!
 
 ### Tried it? Like it? Please share it with others!
 
-<a rel="me" href="https://mastodonshare.🦊💻.ws/?text=Check+out+Media+Downloader+Unleashed%2C+a+free+and+%23opensource+browser+extension+to+download+videos%2C+audios+and+live+streams+from+many+websites%21+For+%23firefox+and+can+be+sideloaded+on+%23chrome+and+other+%23chromium+browsers%21%0D%0A%0D%0AFirefox+store+%3A+https%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%3Futm_source%3Dmastodon-share%0D%0A%0D%0ASource+code+%3A%0D%0Ahttps%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%0D%0A%0D%0A%23downloader+%23extension+%23foss+%23libre+%23mediadownloaderunleashed&url="><img alt="Share on Mastodon" src="https://img.shields.io/badge/Share-on Mastodon-%236364FF?logo=mastodon&logoColor=white">
+<a rel="me" href="https://mastodonshare.🦊💻.ws/?text=Check+out+Media+Downloader+Unleashed%2C+a+free+and+%23opensource+browser+extension+to+download+videos%2C+audios+and+live+streams+from+many+websites%21+For+%23firefox+and+can+be+sideloaded+on+%23chrome+and+other+%23chromium+browsers%21%0D%0A%0D%0AFirefox+store+%3A+https%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%3Futm_source%3Dmastodon-share%0D%0A%0D%0ASource+code+%3A%0D%0Ahttps%3A%2F%2Faddons.mozilla.org%2Faddon%2Fmedia-downloader-unleashed%0D%0A%0D%0A%23downloader+%23extension+%23foss+%23libre+%23mediadownloaderunleashed&url="><img width="200" alt="Share on Mastodon" src="https://img.shields.io/badge/Share-on Mastodon-%236364FF?logo=mastodon&logoColor=white">
 </a>
 
 ### Screenshots

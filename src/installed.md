@@ -9,7 +9,7 @@ This add-on is a powerful tool that allows you to download files from the web to
 
 It's easy!
 
-> 💡 Note : Sometimes, the browser does not initialize the add-on before you click on it. If nothing appears in the list, then first open a tab with the add-on, then load your media on the page by refreshing it and re-starting playback, and go back to the add-on page and click "Refresh list".
+<img alt="Static Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FRdUJe4wJnP">
 
 ## [If you encounter any error, check here for an explaination!](https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting)
 
