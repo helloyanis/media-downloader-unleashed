@@ -88,7 +88,11 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     const lines = m3u8Text.split("\n");
     const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
 
-    const selectedVariant = await selectStreamVariant(lines, base);
+    const selectedVariant = await selectStreamVariant(lines, base, {
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+      method: request.method
+    });
     videoUrl = selectedVariant.uri;
 
     const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
@@ -479,7 +483,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
   * @param {String} baseUrl - The base URL for relative URIs in the playlist.
   * @return {Promise<Object>} - A promise that resolves to the selected stream variant object containing bandwidth, resolution, and URI.
 */
-async function selectStreamVariant(playlistLines, baseUrl) {
+async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
   const variants = [];
 
   for (let i = 0; i < playlistLines.length; i++) {
@@ -500,7 +504,7 @@ async function selectStreamVariant(playlistLines, baseUrl) {
   // Fetch duration for each variant to estimate size
   await Promise.all(variants.map(async (variant) => {
     try {
-      const res = await fetchWithCache(variant.uri);
+      const res = await fetchWithCache(variant.uri, options);
       const text = await res.text();
       const duration = text.split('\n')
         .filter(line => line.startsWith("#EXTINF:"))
