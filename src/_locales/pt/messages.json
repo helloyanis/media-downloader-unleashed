@@ -506,7 +506,7 @@
         "description": "The title of the warning shown when a DRM-protected MPD is detected."
     },
     "drmWarningDescription": {
-        "message": "This MPD uses DRM (ContentProtection). It can be downloaded, but not played without decrypting the stream. Maybe you can get around this by setting your browser to deny DRM content (e.g. In Firefox: about:preferences#general → Digital Rights Management Content). But on some sites they won't load the media at all if DRM is disabled, so this has a low chance to work.",
+        "message": "This file uses DRM (ContentProtection). It can be downloaded, but not played without decrypting the stream. Maybe you can get around this by setting your browser to deny DRM content (e.g. In Firefox: about:preferences#general → Digital Rights Management Content). But on some sites they won't load the media at all if DRM is disabled, so this has a low chance to work.",
         "description": "The description of the warning shown when a DRM-protected MPD is detected."
     },
     "drmWarningConntinueButton": {

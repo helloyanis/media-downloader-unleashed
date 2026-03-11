@@ -129,9 +129,31 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
     // parse media-sequence if present
     let mediaSeq = 0;
+    let hasDRM, drmAbort = false;
     for (const l of rawLines) {
+      if (/^#EXT-X-KEY:/i.test(l)) {
+        const method = (l.match(/METHOD=([^,]*)/) || [null, null])[1];
+        if (method && method.toUpperCase().includes("SAMPLE-AES")) {
+          hasDRM = true;
+          break;
+        }
+      }
       const m = l.match(/^#EXT-X-MEDIA-SEQUENCE:(\d+)/);
       if (m) { mediaSeq = parseInt(m[1], 10); break; }
+    }
+
+      if (hasDRM) {
+        await mdui.confirm({
+          headline: browser.i18n.getMessage("drmWarningTitle"),
+          description: browser.i18n.getMessage("drmWarningDescription"),
+          confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+          cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+          onCancel: () => { drmAbort = true;},
+        });
+      }
+
+    if (drmAbort) {
+      throw new Error("Download aborted by user due to DRM protection.");
     }
 
     // Build ordered list of playlist "items" so we can process sequentially

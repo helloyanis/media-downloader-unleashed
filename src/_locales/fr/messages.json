@@ -510,7 +510,7 @@
         "description": "The title of the warning shown when a DRM-protected MPD is detected."
     },
     "drmWarningDescription": {
-        "message": "Ce fichier MPD utilise un DRM (ContentProtection). Il peut être téléchargé, mais ne peut pas être lu sans déchiffrer le flux. Vous pouvez peut-être contourner cela en configurant votre navigateur pour refuser le contenu DRM (par exemple, dans Firefox : about:preferences#general → Gestion des droits numériques). Mais sur certains sites, les médias ne chargeront pas si le DRM est désactivé, donc cela a peu de chances de fonctionner.",
+        "message": "Ce fichier utilise un DRM (ContentProtection). Il peut être téléchargé, mais ne peut pas être lu sans déchiffrer le flux. Vous pouvez peut-être contourner cela en configurant votre navigateur pour refuser le contenu DRM (par exemple, dans Firefox : about:preferences#general → Gestion des droits numériques). Mais sur certains sites, les médias ne chargeront pas si le DRM est désactivé, donc cela a peu de chances de fonctionner.",
         "description": "The description of the warning shown when a DRM-protected MPD is detected."
     },
     "drmWarningConntinueButton": {
