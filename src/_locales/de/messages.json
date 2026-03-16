@@ -93,6 +93,10 @@
     "message": "Das ist alles, was gefunden wurde! Wenn der gewünschte Inhalt nicht angezeigt wird, starte die Wiedergabe und aktualisiere anschließend die Liste. Falls der Stream weiterhin nicht erscheint, versuche es mit einer anderen Erkennungsmethode in den Einstellungen. Für weitere Hilfe klicke auf die '?'-Schaltfläche unten links.",
     "description": "End of list text."
   },
+  "endOfMediaListLink": {
+    "message": "Dein Medium nicht gefunden? Hier melden!",
+    "description": "The text of the link shown at the end of the media list in the popup, which leads to a form to submit undetected media."
+  },
   "listLoadError": {
     "message": "Medienanfragen konnten nicht geladen werden. Details: $ERROR$",
     "description": "List load error.",
@@ -142,6 +146,18 @@
   "refreshListButton": {
     "message": "Liste aktualisieren",
     "description": "Refresh list button."
+  },
+  "settingsDetectionSectionTitle": {
+    "message": "Detection settings",
+    "description": "The title of the detection settings section in the settings tab."
+  },
+  "settingsDownloadSectionTitle": {
+      "message": "Download settings",
+      "description": "The title of the download settings section in the settings tab."
+  },
+  "settingsInterfaceSectionTitle": {
+      "message": "Interface settings",
+      "description": "The title of the interface settings section in the settings tab."
   },
   "detectionMethodTitle": {
     "message": "Medienerkennung",
@@ -198,6 +214,10 @@
     "mediaCacheExplain": {
         "message": "Versucht, die Medienantwort zu speichern, damit der Download ohne eine Anfrage an den Server erfolgen kann. Downloads werden schneller, können aber Ihren Browser verlangsamen. Deaktivieren Sie dies, wenn Sie Probleme mit dem Add-on oder eingefrorenen Seiten haben.",
         "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheExplainPrivate": {
+        "message": "❗️ Diese Funktion ist derzeit nicht in Verwendung, da du dich im privaten Modus befindest. Um diese Einstellung zu verwenden oder zu ändern, öffne bitte das Add-on und deine Medien in einem normalen Fenster.",
+        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
     },
     "mediaCacheCheckbox": {
         "message": "Medien-Cache aktivieren",

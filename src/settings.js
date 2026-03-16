@@ -216,6 +216,13 @@ async function initializeSettings() {
     }
     document.getElementById('loading').setAttribute("style", "display: none;");
     document.getElementById('content').removeAttribute("style");
+
+    // Disable media cache checkbox if in private browsing mode
+    if (browser.extension.inIncognitoContext) {
+        document.querySelector(`mdui-checkbox[name="media-cache"]`).setAttribute('disabled', true);
+        document.querySelector(`p[data-translate="mediaCacheExplain"]`).innerText += browser.i18n.getMessage("mediaCacheExplainPrivate");
+    }
+
     isInitialized = true;
 }
 
@@ -253,8 +260,8 @@ async function requestOriginsPermission() {
 }
 
 window.navigation.addEventListener("navigate", (event) => {
-    if(!new URL(event.destination.url).hash) return; // If there is no hash in the URL, do nothing
-    if(document.querySelector("#settings-container").querySelector(new URL(event.destination.url).hash)) {
+    if (!new URL(event.destination.url).hash) return; // If there is no hash in the URL, do nothing
+    if (document.querySelectorAll("#settings-container")[document.querySelectorAll("#settings-container").length - 1].querySelector(new URL(event.destination.url).hash)) {
         // If the user is navigating to a specific section within the settings, switch to the settings tab
         document.querySelectorAll("mdui-tab")[1].click(); // Click the settings tab
         // Highlight the relevant section

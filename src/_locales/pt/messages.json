@@ -93,6 +93,10 @@
         "message": "Foi tudo o que conseguimos encontrar! Se você não encontrar a mídia que procura, tente iniciá-la e atualizar a lista. Se ainda assim não a encontrar, altere o método de detecção de mídia nas configurações. Para obter mais ajuda, clique no botão '?' no canto inferior esquerdo.",
         "description": "The text shown at the end of the media list in the popup."
     },
+    "endOfMediaListLink": {
+        "message": "Não consegue encontrar sua mídia? Envie-a aqui!",
+        "description": "The text of the link shown at the end of the media list in the popup, which leads to a form to submit undetected media."
+    },
     "listLoadError": {
         "message": "Erro ao recuperar solicitações de mídia. Aqui está o que deu errado: $ERROR$",
         "description": "The error message shown when the media list fails to load.",
@@ -142,6 +146,18 @@
     "refreshListButton": {
         "message": "Atualizar lista",
         "description": "The label of the button to refresh the media list."
+    },
+    "settingsDetectionSectionTitle": {
+        "message": "Detection settings",
+        "description": "The title of the detection settings section in the settings tab."
+    },
+    "settingsDownloadSectionTitle": {
+        "message": "Download settings",
+        "description": "The title of the download settings section in the settings tab."
+    },
+    "settingsInterfaceSectionTitle": {
+        "message": "Interface settings",
+        "description": "The title of the interface settings section in the settings tab."
     },
     "detectionMethodTitle": {
         "message": "Método de detecção",
@@ -198,6 +214,10 @@
     "mediaCacheExplain": {
         "message": "Tente armazenar a resposta da mídia, para que o download possa ocorrer sem fazer uma solicitação ao servidor. Os downloads serão mais rápidos, mas podem deixar seu navegador mais lento. Desative isso se você tiver problemas com o complemento ou páginas travando.",
         "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheExplainPrivate": {
+        "message": "❗️ Este recurso não está em uso no momento porque você está no modo de navegação privada. Para usar ou alterar esta configuração, abra o complemento e suas mídias a partir de uma janela não privada.",
+        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
     },
     "mediaCacheCheckbox": {
         "message": "Ativar cache de mídia",

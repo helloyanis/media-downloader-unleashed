@@ -93,6 +93,10 @@
         "message": "C'est tout ce qui a été trouvé. Si vous ne voyez pas le média que vous cherchez, rafraichissez la page où il se trouve, lancez la lecture puis cliquez sur \"Actualiser liste\". Si il n'apparaît toujours pas, changez la méthode de détection dans les options. Pour plus d'aide, cliquez sur le bouton '?' en bas à gauche.",
         "description": "The text shown at the end of the media list."
     },
+    "endOfMediaListLink": {
+        "message": "Vous ne trouvez pas votre média ? Soumettez-le ici !",
+        "description": "The text of the link shown at the end of the media list in the popup, which leads to a form to submit undetected media."
+    },
     "listLoadError": {
         "message": "Erreur lors de la récupération des requêtes de média : $ERROR$",
         "description": "The error message shown when the media list fails to load.",
@@ -143,6 +147,18 @@
         "message": "Actualiser la liste",
         "description": "The label of the button to refresh the media list."
     },
+    "settingsDetectionSectionTitle": {
+        "message": "Paramètres de détection",
+        "description": "The title of the detection settings section in the settings tab."
+    },
+    "settingsDownloadSectionTitle": {
+        "message": "Paramètres de téléchargement",
+        "description": "The title of the download settings section in the settings tab."
+    },
+    "settingsInterfaceSectionTitle": {
+        "message": "Paramètres d'interface",
+        "description": "The title of the interface settings section in the settings tab."
+    },
     "detectionMethodTitle": {
         "message": "Méthode de détection",
         "description": "The title of the detection method section in the settings tab."
@@ -150,6 +166,10 @@
     "needToRefreshListWarning": {
         "message": "⚠️ Vous devez actualiser la liste des médias pour appliquer le changement.",
         "description": "The warning shown below the detection method title in the settings tab."
+    },
+    "detectionDisabledExplain": {
+        "message": "Décochez les deux options pour ne pas filtrer les requêtes, montrant ainsi toutes les requêtes (même les requêtes non-médias !) du navigateur.",
+        "description": "The explanation on how disabling detection works, shown in the settings tab"
     },
     "urlDetectionExplain": {
         "message": "Détection en se basant sur l'URL du média (par exemple .mp4, .m3u8, .mpd). Rapide mais moins fiable car certains sites utilisent des URL personnalisées sans extension.",
@@ -194,6 +214,10 @@
     "mediaCacheExplain": {
         "message": "Tente de stocker la réponse média, afin que le téléchargement puisse se faire sans faire de requête au serveur. Les téléchargements seront plus rapides mais peuvent ralentir votre navigateur. Désactivez ceci si vous rencontrez des problèmes avec l'extension ou des pages qui se figent.",
         "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheExplainPrivate": {
+        "message": "❗️ Cette fonctionnalité n'est actuellement pas utilisée car vous êtes en mode de navigation privée. Pour utiliser ou changer ce paramètre, veuillez ouvrir l'extension et vos médias depuis une fenêtre non privée.",
+        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
     },
     "mediaCacheCheckbox": {
         "message": "Activer le cache média",

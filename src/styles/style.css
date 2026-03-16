@@ -127,3 +127,9 @@ code{
 .bottom-button {
     margin-right: 5px;
 }
+
+.settings-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}

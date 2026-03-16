@@ -93,6 +93,10 @@
         "message": "That's all we could find! If you don't see the media you're looking for, try starting the media then refreshing the list. If you still don't see it, change media detection method in the settings. For more help, click the '?' button at the bottom left.",
         "description": "The text shown at the end of the media list in the popup."
     },
+    "endOfMediaListLink":{
+        "message": "Can't find your media? Submit it here!",
+        "description": "The text of the link shown at the end of the media list in the popup, which leads to a form to submit undetected media."
+    },
     "listLoadError": {
         "message": "Error retrieving media requests. Here's what went wrong: $ERROR$",
         "description": "The error message shown when the media list fails to load.",
@@ -142,6 +146,18 @@
     "refreshListButton": {
         "message": "Refresh list",
         "description": "The label of the button to refresh the media list."
+    },
+    "settingsDetectionSectionTitle": {
+        "message": "Detection settings",
+        "description": "The title of the detection settings section in the settings tab."
+    },
+    "settingsDownloadSectionTitle": {
+        "message": "Download settings",
+        "description": "The title of the download settings section in the settings tab."
+    },
+    "settingsInterfaceSectionTitle": {
+        "message": "Interface settings",
+        "description": "The title of the interface settings section in the settings tab."
     },
     "detectionMethodTitle": {
         "message": "Detection method",
@@ -198,6 +214,10 @@
     "mediaCacheExplain": {
         "message": "Attempt to store the media response, so the download can occur without making a request to the server. Downloads will be faster but can slow down your browser. Disable this if you have issues with the add-on or pages freezing.",
         "description": "The explanation of the media cache option shown in a tooltip."
+    },
+    "mediaCacheExplainPrivate": {
+        "message": "❗️ This feature is currently not in use because you are in private browsing mode. To use or change this setting, please open the add-on and your media from a non-private window.",
+        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
     },
     "mediaCacheCheckbox": {
         "message": "Enable media cache",

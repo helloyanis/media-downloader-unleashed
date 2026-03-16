@@ -581,6 +581,13 @@ function loadMediaList() {
     endOfMediaList.style.textAlign = 'center';
     loadingSpinner.style.display = 'none'; // Hide the loading spinner
     mediaContainer.appendChild(endOfMediaList);
+
+    endOfMediaListLink = document.createElement('a');
+    endOfMediaListLink.textContent = browser.i18n.getMessage("endOfMediaListLink");
+    endOfMediaListLink.target = "_blank";
+    endOfMediaListLink.href = "https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=My+media+is+not+being+detected";
+    endOfMediaList.appendChild(document.createElement('br'));
+    endOfMediaList.appendChild(endOfMediaListLink);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
     showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}`, requests: mediaRequests  });
