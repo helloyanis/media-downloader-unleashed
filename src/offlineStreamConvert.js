@@ -652,14 +652,19 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   const NS = xmlDoc.documentElement.namespaceURI || "urn:mpeg:dash:schema:mpd:2011";
 
   const hasDRM = !!xmlDoc.getElementsByTagNameNS(NS, "ContentProtection").length;
+  let drmAbort = false;
   if (hasDRM) {
     await mdui.confirm({
       headline: browser.i18n.getMessage("drmWarningTitle"),
       description: browser.i18n.getMessage("drmWarningDescription"),
       confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
       cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
-      onCancel: () => { throw new Error("Download cancelled by user due to DRM protection."); },
+      onCancel: () => { drmAbort = true;},
     });
+  }
+
+  if (drmAbort) {
+    throw new Error("Download aborted by user due to DRM protection.");
   }
 
   // Locate Period
