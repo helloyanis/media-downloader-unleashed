@@ -142,15 +142,15 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       if (m) { mediaSeq = parseInt(m[1], 10); break; }
     }
 
-      if (hasDRM) {
-        await mdui.confirm({
-          headline: browser.i18n.getMessage("drmWarningTitle"),
-          description: browser.i18n.getMessage("drmWarningDescription"),
-          confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-          cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
-          onCancel: () => { drmAbort = true;},
-        });
-      }
+    if (hasDRM) {
+      await mdui.confirm({
+        headline: browser.i18n.getMessage("drmWarningTitle"),
+        description: browser.i18n.getMessage("drmWarningDescription"),
+        confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+        cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+        onCancel: () => { drmAbort = true; },
+      });
+    }
 
     if (drmAbort) {
       throw new Error("Download aborted by user due to DRM protection.");
@@ -411,8 +411,12 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
         // update loading bar
         if (loadingBar) {
+          globalProcessedSegments++;
           loadingBar.removeAttribute('indeterminate');
-          loadingBar.setAttribute('value', Math.min(1, processedSegmentIndex / segCount));
+          loadingBar.setAttribute(
+            'value',
+            Math.min(1, globalProcessedSegments / globalTotalSegments)
+          );
         }
 
         continue;
@@ -429,10 +433,44 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     }
   }
 
+  async function countSegments(playlistUrl) {
+    const text = await getText(playlistUrl);
+    return text.split(/\r?\n/).filter(line => line && !line.startsWith('#')).length;
+  }
 
+  let globalTotalSegments = 0;
+  let globalProcessedSegments = 0;
+
+
+  // Count segments first
+  globalTotalSegments += await countSegments(videoUrl);
+
+  if (audioUrl) {
+    globalTotalSegments += await countSegments(audioUrl);
+  }
+
+  // Then download video
   const { blob: videoBlob, ext } = await downloadSegments(videoUrl);
-
   const baseFileName = getFileName(m3u8Url);
+  const videoBlobUrl = URL.createObjectURL(videoBlob);
+
+  if (downloadMethod === "browser") {
+    await browser.downloads.download({
+      url: videoBlobUrl,
+      filename: audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`
+    });
+  } else {
+    const videoAnchor = document.createElement("a");
+    videoAnchor.href = videoBlobUrl;
+    videoAnchor.download = audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`;
+    document.body.appendChild(videoAnchor);
+    videoAnchor.click();
+    document.body.removeChild(videoAnchor);
+  }
+
+  URL.revokeObjectURL(videoBlobUrl); // Clean up the blob URL after download
+
+
   if (audioUrl) {
     loadingBar.setAttribute('aria-label', browser.i18n.getMessage("downloadingAudioSnackbar"));
     const snackbar = document.createElement('mdui-snackbar');
@@ -446,53 +484,24 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     const { blob: audioBlob } = await downloadSegments(audioUrl, true);
 
     // Save both blobs separately
-    const videoBlobUrl = URL.createObjectURL(videoBlob);
     const audioBlobUrl = URL.createObjectURL(audioBlob);
 
     if (downloadMethod === "browser") {
       await browser.downloads.download({
-        url: videoBlobUrl,
-        filename: `${baseFileName}_video${ext}`
-      });
-      await browser.downloads.download({
         url: audioBlobUrl,
-        filename: `${baseFileName}_audio.mp3`
+        filename: `${baseFileName}_audio.mp4`
       });
     } else {
-      const videoAnchor = document.createElement("a");
-      videoAnchor.href = videoBlobUrl;
-      videoAnchor.download = `${baseFileName}_video${ext}`;
-      document.body.appendChild(videoAnchor);
-      videoAnchor.click();
-      document.body.removeChild(videoAnchor);
-
       const audioAnchor = document.createElement("a");
       audioAnchor.href = audioBlobUrl;
-      audioAnchor.download = `${baseFileName}_audio.mp3`;
+      audioAnchor.download = `${baseFileName}_audio.mp4`;
       document.body.appendChild(audioAnchor);
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
     showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [new Option(baseFileName).innerHTML, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseFileName}".`, urls: { video: videoBlobUrl, audio: audioBlobUrl, m3u8: m3u8Url }, request: request, downloadMethod: downloadMethod });
-    URL.revokeObjectURL(videoBlobUrl);
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     return;
-  } else {
-    const videoBlobUrl = URL.createObjectURL(videoBlob);
-
-    if (downloadMethod === "browser") {
-      await browser.downloads.download({
-        url: videoBlobUrl,
-        filename: `${baseFileName}${ext}`
-      });
-    } else {
-      const videoAnchor = document.createElement("a");
-      videoAnchor.href = videoBlobUrl;
-      videoAnchor.download = `${baseFileName}${ext}`;
-      document.body.appendChild(videoAnchor);
-      videoAnchor.click();
-      document.body.removeChild(videoAnchor);
-    }
   }
 }
 
@@ -659,7 +668,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       description: browser.i18n.getMessage("drmWarningDescription"),
       confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
       cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
-      onCancel: () => { drmAbort = true;},
+      onCancel: () => { drmAbort = true; },
     });
   }
 
