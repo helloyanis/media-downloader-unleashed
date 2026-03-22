@@ -1198,20 +1198,21 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       let lastReceivedForFile = 0;
       const initBuf = await fetchWithProgress(t.info.initUrl, {
         onStart: (contentLength) => {
-          if (contentLength && contentLength > 0) addToMax(contentLength);
-          else loadingBar.setAttribute("indeterminate", "");
+          // if (contentLength && contentLength > 0) addToMax(contentLength);
+          // else loadingBar.setAttribute("indeterminate", "");
         },
         onChunk: (received) => {
-          const delta = received - lastReceivedForFile;
-          lastReceivedForFile = received;
-          downloadedBytes += delta;
-          const max = Number(loadingBar.getAttribute("max")) || 0;
-          if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+          // const delta = received - lastReceivedForFile;
+          // lastReceivedForFile = received;
+          // downloadedBytes += delta;
+          // const max = Number(loadingBar.getAttribute("max")) || 0;
+          // if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
         }
       });
       zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
 
       // segments
+      loadingBar.setAttribute("max", t.info.segmentUrls.length);
       for (let i = 0; i < t.info.segmentUrls.length; i++) {
         const segUrl = t.info.segmentUrls[i];
         const segZipPath = t.info.mediaZipPaths[i];
@@ -1219,18 +1220,19 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
         let lastReceived = 0;
         const buf = await fetchWithProgress(segUrl, {
           onStart: (contentLength) => {
-            if (contentLength && contentLength > 0) addToMax(contentLength);
-            else loadingBar.setAttribute("indeterminate", "");
+            // if (contentLength && contentLength > 0) addToMax(contentLength);
+            // else loadingBar.setAttribute("indeterminate", "");
           },
           onChunk: (received) => {
-            const delta = received - lastReceived;
-            lastReceived = received;
-            downloadedBytes += delta;
-            const max = Number(loadingBar.getAttribute("max")) || 0;
-            if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+            // const delta = received - lastReceived;
+            // lastReceived = received;
+            // downloadedBytes += delta;
+            // const max = Number(loadingBar.getAttribute("max")) || 0;
+            // if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
           }
         });
         zipEntries.push({ name: prefixedName(segZipPath), input: buf });
+        loadingBar.setAttribute("value", i + 1); // show segment progress as count (since we don't know sizes)
       }
 
     } else if (t.type === "base") {
