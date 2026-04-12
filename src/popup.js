@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ratingCount = data.ratings.count;
     console.log("Current rating count:", ratingCount);
     // Save rating count to local storage, in case the user opens a new extension window after rating
-    await browser.storage.local.set({ 'ratings-at-attempt': ratingCount });
+    await browser.storage.local.set({ 'ratings-at-attempt': ratingCount.toString() });
     // On focus we will check if the rating count increased
     onfocus = async () => {
       res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
@@ -77,15 +77,7 @@ async function checkAndShowRatingBanner() {
       return;
     }
 
-    let installDate;
-    try {
-      installDate = Temporal.PlainDate.from(await browser.storage.local.get('install-date').then(result => result['install-date']));
-    } catch (e) {
-      // Fallback: older versions stored epoch-ms as a string. Fall back to today minus 7 days to show the banner immediately
-      installDate = Temporal.Now.plainDateISO().subtract({ days: 7 });
-      await browser.storage.local.set({ 'install-date': installDate.toString() });
-
-    }
+    const installDate = Temporal.PlainDate.from(await browser.storage.local.get('install-date').then(result => result['install-date']));
     const hasRated = await browser.storage.local.get('has-rated').then(result => result['has-rated']);
     const now = Temporal.Now.plainDateISO();
 
@@ -324,7 +316,8 @@ function loadMediaList() {
         "audioxmswma",
         "applicationvdnapplempegurl",
         "applicationxmpegurl",
-        "applicationdashxml"
+        "applicationdashxml",
+        "applicationoctetstream"
       ];
 
       const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
@@ -437,7 +430,7 @@ function loadMediaList() {
       //Display request method and referrer
       const descriptionDiv = document.createElement('div');
       console.log(requests)
-      descriptionDiv.textContent = browser.i18n.getMessage("requestText",[requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value ?? browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) ?? "??:??"]);
+      descriptionDiv.textContent = browser.i18n.getMessage("requestText",[requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value) ?? browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) ?? "??:??"]);
       mediaDiv.appendChild(descriptionDiv);
 
       // Create a div to put actions at the end of the media item

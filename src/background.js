@@ -22,7 +22,6 @@ const mediaTypes = [
     "application/x-mpegURL"
 ];
 
-const urlMediaRegex = /\.(mp4|m3u8|ts|mp3|aac|wav|flv|webm|mkv|mov|m4a|m4v)(?:[?#].*)?$/i;
 let urlList = [];
 let headersSentListener, headersReceivedListener;
 
@@ -257,7 +256,7 @@ function initListener() {
                     temporaryHeaderMap.set(details.requestId, details.requestHeaders);
                 }
 
-                const urlMatches = detectionRegex.test(details.url);
+                const urlMatches = detectionRegex.test(decodeURI(details.url));
 
                 // If neither flag is enabled -> save all (original behavior)
                 if (!mimeEnabled && !urlEnabled) {
@@ -332,7 +331,7 @@ function initListener() {
 
                 // Normalize contentType (strip parameters)
                 if (contentType.indexOf(';') !== -1) {
-                    contentType = contentType.split(';')[0].trim();
+                    contentType = contentType.split(';')[0].trim().toLowerCase();
                 }
 
                 const mimeMatches = (
@@ -340,10 +339,11 @@ function initListener() {
                     contentType.startsWith('video/') ||
                     contentType === 'application/vnd.apple.mpegurl' ||
                     contentType === 'application/x-mpegurl' ||
-                    contentType === 'application/dash+xml'
+                    contentType === 'application/dash+xml' ||
+                    contentType === 'application/octet-stream' // <-- treat generic binary as potential media (or segments)
                 );
 
-                const urlMatches = detectionRegex.test(details.url);
+                const urlMatches = detectionRegex.test(decodeURI(details.url));
 
                 // Retrieve existing stored requests for this URL (if any)
                 browser.storage.session.get(details.url, function (result) {
@@ -514,9 +514,6 @@ function attachCacheListener() {
         try {
             // quick checks; avoid any async storage calls here
             if (details.incognito) return;
-
-            // very cheap URL filter: check the regex (precompiled outside if you want)
-            if (!urlMediaRegex.test(details.url)) return;
 
             // attach filter to stream & capture the response body
             let filter;
