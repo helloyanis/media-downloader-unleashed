@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function checkAndShowRatingBanner() {
 
   if(typeof Temporal !== 'undefined') {
-    if (!await browser.storage.local.get('install-date')) {
+    if (!await browser.storage.local.get('install-date') || !(await browser.storage.local.get('install-date')).hasOwnProperty('install-date')) {
       await browser.storage.local.set({ 'install-date': Temporal.Now.plainDateISO().toString() });
       return;
     }
