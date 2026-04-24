@@ -460,7 +460,7 @@
         "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
     },
     "mediaPreviewSnackbar": {
-        "message": "Media preview does not work with all sites and media types. If nothing loads, try to download instead.",
+        "message": "La prévisualisation des médias ne fonctionne pas avec tous les sites et types de médias. Si rien ne se charge, essayez plutôt de télécharger.",
         "description": "The snackbar shown when someone uses the preview mode for the first time."
     },
     "mediaPreviewDontRemindMe": {
