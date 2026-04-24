@@ -328,7 +328,10 @@ function loadMediaList() {
 
       // Check if the request matches the media types or file extensions
       if (useMimeDetection && requests[0]?.responseHeaders) {
-        mimeMatch = requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z]/g, ''))) !== undefined;
+        // Also allow numbers (mp4)
+        mimeMatch = 
+        requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))) !== undefined // Any of the media types match the content type header (with non-alphanumeric characters removed to allow things like "VIDEO-mp4" to match "video/mp4")
+        || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video/") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio/")) !== undefined // Or if any content type header starts with video/ or audio/
       }
 
       const mediaURL = new URL(url);
@@ -651,7 +654,7 @@ function clearMediaList() {
  * @param {String} url The URL of the media file
  * @returns {String} The file name extracted from the URL, limited to 20 characters
 */
-function getFileName(url) {
+function getFileName(url, maxLength = 20) {
   try {
     let parsedUrl = new URL(url);
 
@@ -665,16 +668,16 @@ function getFileName(url) {
     // Replace these characters with underscores as they are not allowed in Windows file names : < > : " / \ | ? * and control characters (0-31)
     fileName = fileName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
 
-    //Limit to 20 characters, but still show the extension
-    if (fileName.length > 20) {
-      fileName = fileName.substring(0, 20) + '…' + fileName.substring(fileName.lastIndexOf('.'));
-    }
-
     if(fileName === '') {
       fileName = parsedUrl.hostname; // If there is no file name, use the hostname
     }
 
-    return fileName;
+    //Limit to xx characters, but still show the extension
+    if (fileName.length > maxLength) {
+      fileName = fileName.substring(0, maxLength) + '…' + fileName.substring(fileName.lastIndexOf('.'));
+    }
+
+    return decodeURIComponent(fileName);
   } catch (error) {
     console.error("Invalid URL", error);
     throw new Error('Invalid URL:', error);

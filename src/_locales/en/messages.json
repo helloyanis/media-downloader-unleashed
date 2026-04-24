@@ -460,7 +460,7 @@
         "description": "The label of the quality selection dropdown in the stream quality dialog for m3u8 streams."
     },
     "mediaPreviewSnackbar": {
-        "message": "If video does not load, make sure the download method is set to \"Fetch\" in the add-on settings. It's slower but works with more sites.",
+        "message": "Media preview does not work with all sites and media types. If nothing loads, try to download instead.",
         "description": "The snackbar shown when someone uses the preview mode for the first time."
     },
     "mediaPreviewDontRemindMe": {

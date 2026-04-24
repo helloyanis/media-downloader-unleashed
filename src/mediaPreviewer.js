@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
-    const isStream = new URLSearchParams(document.location.search).get('isStream');
     const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
     const audioExtensions = [".3ga", ".aac", ".ac3", ".adts", ".aif", ".aiff", ".alac", ".ape", ".asf", ".au", ".dts", ".f4a", ".f4b", ".flac", ".isma", ".it", ".m4a", ".m4b", ".m4r", ".mid", ".mka", ".mod", ".mp1", ".mp2", ".mp3", ".mp4a", ".mpa", ".mpga", ".oga", ".ogg", ".ogx", ".opus", ".ra", ".shn", ".spx", ".vorbis", ".wav", ".weba", ".wma", ".xm"];
     const streamExtensions = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
@@ -34,14 +33,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    if (videoExtensions.includes(mediaExtension) || streamExtensions.includes(mediaExtension) || isStream === '1') {
+    if (videoExtensions.includes(mediaExtension) || streamExtensions.includes(mediaExtension)) {
         const video = document.createElement('video');
         video.controls = true;
         video.style.maxWidth = '100%';
         video.style.maxHeight = '100%';
         document.body.appendChild(video);
 
-        if (isStream === 'true') {
+        if (!video.canPlayType(video.mimeType)) {
+            console.log("Browser can't play this video type natively, trying HLS.js if it's an HLS stream...");
             if (Hls.isSupported()) {
                 // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API
                 let config = {}
@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 hls.loadSource(mediaBlobUrl);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    console.log("HLS manifest parsed, starting playback...");
                     video.play();
                 });
                 hls.on(Hls.Events.ERROR, function (event, data) {
@@ -98,6 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error("Can't play HLS file.");
             }
         } else {
+            console.log("Browser can play this video type natively.");
             video.src = mediaBlobUrl;
         }
     } else if (audioExtensions.includes(mediaExtension)) {

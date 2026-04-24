@@ -695,13 +695,13 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   // Collect AdaptationSets
   const allSets = Array.from(period.getElementsByTagNameNS(NS, "AdaptationSet"));
   const adaptationSets = allSets.filter(asNode => {
-    const mimeType = asNode.getAttribute("mimeType") || "";
-    const contentType = asNode.getAttribute("contentType") || "";
+    const mimeType = asNode.getAttribute("mimeType")?.toLowerCase() || "";
+    const contentType = asNode.getAttribute("contentType")?.toLowerCase() || "";
     if (mimeType.startsWith("audio/") || mimeType.startsWith("video/")) return true;
     if (contentType === "audio" || contentType === "video") return true;
     const reps = asNode.getElementsByTagNameNS(NS, "Representation");
     for (let i = 0; i < reps.length; i++) {
-      const rm = reps[i].getAttribute("mimeType") || "";
+      const rm = reps[i].getAttribute("mimeType")?.toLowerCase() || "";
       if (rm.startsWith("audio/") || rm.startsWith("video/")) return true;
     }
     return false;
@@ -714,12 +714,12 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     let contentType;
     if (declaredType === "video" || declaredType === "audio") contentType = declaredType;
     else {
-      const mimeType = asNode.getAttribute("mimeType") || "";
+      const mimeType = asNode.getAttribute("mimeType")?.toLowerCase() || "";
       if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) contentType = mimeType.startsWith("video/") ? "video" : "audio";
       else {
         const reps = asNode.getElementsByTagNameNS(NS, "Representation");
         if (reps.length > 0) {
-          const repMimeType = reps[0].getAttribute("mimeType") || "";
+          const repMimeType = reps[0].getAttribute("mimeType")?.toLowerCase() || "";
           contentType = repMimeType.startsWith("video/") ? "video" : "audio";
         } else contentType = "video";
       }
