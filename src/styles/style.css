@@ -55,6 +55,7 @@ mdui-bottom-app-bar {
 
 mdui-card {
     margin: 10px;
+    border: 1px solid rgb(var(--mdui-color-outline));
 }
 
 body {
@@ -131,5 +132,32 @@ code{
 .settings-section-title {
     display: flex;
     align-items: center;
+    gap: 10px;
+}
+
+.settings-switch-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    border-top: 1px solid rgb(var(--mdui-color-outline-variant));
+    padding: 5px 0;
+}
+
+.settings-switch-description {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-right: 20px;
+}
+
+.settings-description-text {
+    color: rgb(var(--mdui-color-on-surface-variant));
+    font-size: 0.9em;
+}
+
+.settings-radio-group {
+    display: flex;
+    flex-direction: column;
     gap: 10px;
 }

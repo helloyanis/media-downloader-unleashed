@@ -1,3 +1,12 @@
+<!--
+Copyright © 2026 🦊 helloyanis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
 <!DOCTYPE html>
 <html lang="en" class="mdui-theme-auto">
 
@@ -87,18 +96,18 @@
       <mdui-tab-panel extended slot="panel" value="home">
         <div id="loading-media-list">
           <mdui-linear-progress></mdui-linear-progress>
-            <h1>Now loading the media list</h1>
-            <p>You should not see this screen for more than a few seconds. If you are stuck here :</p>
-            <ul>
-              <li>Click on "Clear list" at the bottom of the screen to reset the media list.</li>
-              <li>This is probably because of an extended navigation session. Since this add-on catches and goes through
-                all the requests of the browser, it might take some time to load the media list.</li>
-              <li>If you get stuck here often, disable "Use media cache" in the extension settings.</li>
-              <li>Uninstall and reinstall the extension</li>
-              <li>Open the browser console with CTRL SHIFT I and check for any errors.</li>
-            </ul>
-            <p>If you are still stuck, feel free to <a href="mailto:mediadownloaderunleashed@xn--3s8h30f.ws">send me an
-                email</a> !</p>
+          <h1>Now loading the media list</h1>
+          <p>You should not see this screen for more than a few seconds. If you are stuck here :</p>
+          <ul>
+            <li>Click on "Clear list" at the bottom of the screen to reset the media list.</li>
+            <li>This is probably because of an extended navigation session. Since this add-on catches and goes through
+              all the requests of the browser, it might take some time to load the media list.</li>
+            <li>If you get stuck here often, disable "Use media cache" in the extension settings.</li>
+            <li>Uninstall and reinstall the extension</li>
+            <li>Open the browser console with CTRL SHIFT I and check for any errors.</li>
+          </ul>
+          <p>If you are still stuck, feel free to <a href="mailto:mediadownloaderunleashed@xn--3s8h30f.ws">send me an
+              email</a> !</p>
         </div>
         <mdui-list id="media-list"></mdui-list>
         <mdui-bottom-app-bar scroll-threshold="30" scroll-behavior="hide">
@@ -163,44 +172,52 @@
           </mdui-icon>
           <span data-translate="settingsDetectionSectionTitle">Detection settings</span>
         </h2>
+        <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
         <div id="settings-container">
           <!-- Detection method -->
           <mdui-card id="detection-method" role="group" variant="filled">
             <h3 data-translate="detectionMethodTitle">Detection method</h3>
-            <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
             <p data-translate="detectionDisabledExplain">Unchecking both options will not filter anything, showing
               all requests (even non-media requests!) of the
               browser.</p>
+            <div class="settings-switch-item">
+              <div class="settings-switch-description">
+                <b data-translate="urlDetectionCheckbox">Detection via URL</b>
+                <span class="settings-description-text" data-translate="urlDetectionExplain">Detection by checking if the URL contains a
+                  known media type (for example .mp4, .m3u8). It's fast, but some
+                  sites don't serve medias through these kind of URLs, so it might not detect everything.</span>
+              </div>
 
-            <mdui-tooltip placement="top-start">
-              <span slot="content" data-translate="urlDetectionExplain">Detection by checking if the URL contains a
-                known media type (for example .mp4, .m3u8). It's fast, but some
-                sites don't serve medias through these kind of URLs, so it might not detect everything.</span>
-              <mdui-checkbox id="url-detection" name="detection-method" value="url"
-                data-translate="urlDetectionCheckbox">Detection via URL</mdui-checkbox>
-            </mdui-tooltip>
+              <mdui-switch id="url-detection" name="detection-method" value="url"></mdui-switch>
+            </div>
 
-            <mdui-tooltip placement="top-start">
-              <span slot="content" data-translate="mimeDetectionExplain">Detection by checking the server's MIME
-                response header to see if it's a known media type (for example video/mp4,
-                application/vnd.apple.mpegurl). It's
-                slower than URL detection as the add-on needs to monitor every request and response, but more
-                reliable.</span>
-              <mdui-checkbox id="mime-detection" name="detection-method" value="mime"
-                data-translate="mimeDetectionCheckbox">Detection via server's MIME
-                response</mdui-checkbox>
-            </mdui-tooltip>
+            <div class="settings-switch-item">
+              <div class="settings-switch-description">
+                <b data-translate="mimeDetectionCheckbox">Detection via server's MIME response</b>
+                <span class="settings-description-text" data-translate="mimeDetectionExplain">Detection by checking the server's MIME
+                  response header to see if it's a known media type (for example video/mp4,
+                  application/vnd.apple.mpegurl). It's
+                  slower than URL detection as the add-on needs to monitor every request and response, but more
+                  reliable.</span>
+              </div>
+
+              <mdui-switch id="mime-detection" name="detection-method" value="mime"></mdui-switch>
+            </div>
           </mdui-card>
 
           <!-- Hide segments -->
           <mdui-card role="group" variant="filled">
             <h3 data-translate="hideSegmentsTitle">Hide stream segments</h3>
-            <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
-            <p data-translate="hideSegmentsExplain">Live streams use multiple segments to deliver content in small
-              parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.</p>
 
-            <mdui-checkbox id="hide-segments" name="hide-segments" value="1" data-translate="hideSegmentsCheckbox">Hide
-              stream segments in the media list</mdui-checkbox>
+            <div class="settings-switch-item">
+              <div class="settings-switch-description">
+                <b data-translate="hideSegmentsCheckbox">Hide stream segments in the media list</b>
+                <span class="settings-description-text" data-translate="hideSegmentsExplain">Live streams use multiple segments to deliver content in small
+                  parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.</span>
+              </div>
+
+              <mdui-switch id="hide-segments" name="hide-segments" value="1"></mdui-switch>
+            </div>
 
           </mdui-card>
 
@@ -218,102 +235,114 @@
 
           <!-- Download method -->
           <mdui-card variant="filled">
-            <mdui-radio-group id="download-method" value="browser" name="download-method">
+            <mdui-radio-group class="settings-radio-group" id="download-method" value="browser" name="download-method">
               <h3 data-translate="downloadMethodTitle">Download method</h3>
 
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="browserDownloadExplain">Download the media using the browser's
-                  native download manager. Fast and handles disconnects, but only works on some sites and on some
-                  browsers (Firefox for PC).</span>
-                <mdui-radio id="browser-download" value="browser" name="download-method"
+              <mdui-radio id="browser-download" value="browser" name="download-method"
                   data-translate="browserDownloadCheckbox">Native browser
                   download</mdui-radio>
-              </mdui-tooltip>
+                  <br />
 
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="fetchDownloadExplain">Download the media using the Fetch API.
-                  Works on most sites and browsers, but can be slower and doesn't handle disconnects well.</span>
+                  <span class="settings-description-text" data-translate="browserDownloadExplain">Download the media using the browser's
+                  native download manager. Fast and handles disconnects, but only works on some sites and on some
+                  browsers (Firefox for PC).</span>
+
+<br />
                 <mdui-radio id="fetch-download" value="fetch" name="download-method"
-                  data-translate="fetchDownloadCheckbox">Fetch API</mdui-radio>
-              </mdui-tooltip>
+                    data-translate="fetchDownloadCheckbox">Fetch API</mdui-radio>
+                    <br />
+  
+                    <span class="settings-description-text" data-translate="fetchDownloadExplain">Download the media using the Fetch API.
+                    Works on most sites and browsers, but can be slower and doesn't handle disconnects well.</span>
+
             </mdui-radio-group>
           </mdui-card>
 
           <!-- Media cache -->
           <mdui-card role="group" variant="filled">
             <h3 data-translate="mediaCacheTitle">Media cache</h3>
-            <p data-translate="mediaCacheExplain">Attempt to store the media response, so the download can occur without
-              making a request to the server. Downloads will be faster but can slow down your browser. Disable this if
-              you have issues with the add-on or pages freezing.</p>
 
-            <mdui-checkbox id="media-cache" name="media-cache" value="1" data-translate="mediaCacheCheckbox">Enable
-              media
-              cache</mdui-checkbox>
+            <div class="settings-switch-item">
+              <div class="settings-switch-description">
+                <b data-translate="mediaCacheCheckbox">Enable media cache</b>
+                <span class="settings-description-text" data-translate="mediaCacheExplain">Attempt to store the media response, so the download can occur without
+                  making a request to the server. Downloads will be faster but can slow down your browser. Disable this if
+                  you have issues with the add-on or pages freezing.</span>
+              </div>
+
+              <mdui-switch id="media-cache" name="media-cache" value="1"></mdui-switch>
+            </div>
 
           </mdui-card>
 
           <!-- Stream download preference -->
           <mdui-card variant="filled">
-            <mdui-radio-group id="stream-download" value="stream" name="stream-download">
+            <mdui-radio-group class="settings-radio-group" id="stream-download" value="stream" name="stream-download">
               <h3 data-translate="streamDownloadTitle">Stream download preference</h3>
 
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="streamFileDownloadExplain">Download the stream manifest file
-                  (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
-                  them. Lighter downloads, but you will need to be online with a working server to play the file. Some
-                  servers also block playback this way.</span>
-                <mdui-radio id="stream-file-download" value="stream" name="stream-download"
-                  data-translate="streamFileDownloadCheckbox">Download stream
-                  manifest</mdui-radio>
-              </mdui-tooltip>
 
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="offlineDownloadExplain">Convert the stream into a single
-                  offline video file (.ts or .zip) after downloading. This takes more time and storage, but the
-                  resulting
-                  file can be watched offline.</span>
+                <mdui-radio id="stream-file-download" value="stream" name="stream-download"
+                    data-translate="streamFileDownloadCheckbox">Download stream
+                    manifest</mdui-radio>
+                    <br />
+  
+                    <span class="settings-description-text" data-translate="streamFileDownloadExplain">Download the stream manifest file
+                    (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
+                    them. Lighter downloads, but you will need to be online with a working server to play the file. Some
+                    servers also block playback this way.</span>
+
+
                 <mdui-radio id="offline-download" value="offline" name="stream-download"
-                  data-translate="offlineDownloadChecbox">Convert to offline video
-                  file</mdui-radio>
-              </mdui-tooltip>
+                    data-translate="offlineDownloadChecbox">Convert to offline video
+                    file</mdui-radio>
+                    <br />
+  
+                    <span class="settings-description-text" data-translate="offlineDownloadExplain">Convert the stream into a single
+                    offline video file (.ts or .zip) after downloading. This takes more time and storage, but the
+                    resulting
+                    file can be watched offline.</span>
             </mdui-radio-group>
           </mdui-card>
 
           <!-- Stream quality -->
           <mdui-card variant="filled">
-            <mdui-radio-group id="stream-quality" value="stream" name="stream-quality">
+            <mdui-radio-group class="settings-radio-group" id="stream-quality" value="stream" name="stream-quality">
               <h3 data-translate="streamQualityTitle">Stream quality preference</h3>
 
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="askStreamQualityExplain">Always ask which quality to
-                  download when downloading a stream.</span>
-                <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality"
+              <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality"
                   data-translate="askStreamQualityCheckbox">Always ask me</mdui-radio>
-              </mdui-tooltip>
+                  <br />
+  
+                  <span class="settings-description-text" data-translate="askStreamQualityExplain">Always ask which quality to
+                    download when downloading a stream.</span>
 
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="highestStreamQualityExplain">Always download the highest
-                  available quality for a stream. Better quality but larger files and slower downloads.</span>
                 <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality"
-                  data-translate="highestStreamQualityCheckbox">Always highest
-                  quality</mdui-radio>
-              </mdui-tooltip>
-              <mdui-tooltip placement="top-start">
-                <span slot="content" data-translate="lowestStreamQualityExplain">Always download the lowest
-                  available quality for a stream. Lower quality but smaller files and faster downloads.</span>
+                    data-translate="highestStreamQualityCheckbox">Always highest
+                    quality</mdui-radio>
+                    <br />
+  
+                    <span class="settings-description-text" data-translate="highestStreamQualityExplain">Always download the highest
+                      available quality for a stream. Better quality but larger files and slower downloads.</span>
+
                 <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality"
-                  data-translate="lowestStreamQualityCheckbox">Always lowest
-                  quality</mdui-radio>
-              </mdui-tooltip>
+                    data-translate="lowestStreamQualityCheckbox">Always lowest
+                    quality</mdui-radio>
+                    <br />
+  
+                    <span class="settings-description-text" data-translate="lowestStreamQualityExplain">Always download the lowest
+                      available quality for a stream. Lower quality but smaller files and faster downloads.</span>
             </mdui-radio-group>
             <br />
-            <mdui-tooltip placement="top-start">
-              <span slot="content" data-translate="mpdFixExplain">This will modify the .mpd file you download to only
-                include the quality you download. Otherwise, players like VLC will not play the file because it will try
-                to request a quality you don't have downloaded.</span>
-              <mdui-checkbox id="mpd-fix" name="mpd-fix" data-translate="mpdFixCheckbox">Fix MPD files
-                (recommended)</mdui-checkbox>
-            </mdui-tooltip>
+            <div class="settings-switch-item">
+              <div class="settings-switch-description">
+                <b data-translate="mpdFixCheckbox">Fix MPD files (recommended)</b>
+                <span class="settings-description-text" data-translate="mpdFixExplain">This will modify the .mpd file you download to only
+                  include the quality you download. Otherwise, players like VLC will not play the file because it will try
+                  to request a quality you don't have downloaded.</span>
+              </div>
+
+              <mdui-switch id="mpd-fix" name="mpd-fix" value="1"></mdui-switch>
+            </div>
           </mdui-card>
         </div>
 
@@ -330,7 +359,7 @@
         <div id="settings-container">
           <!-- Add-on opening preference -->
           <mdui-card variant="filled">
-            <mdui-radio-group id="open-preference" value="tab" name="open-preference">
+            <mdui-radio-group class="settings-radio-group" id="open-preference" value="tab" name="open-preference">
               <h3 data-translate="openPreference">Add-on opening preference</h3>
               <p data-translate="openPreferenceExplain">Choose how the add-on opens when you click on the icon.</p>
               <mdui-radio id="new-tab" value="tab" name="open-preference" data-translate="newTabCheckbox">Open in new

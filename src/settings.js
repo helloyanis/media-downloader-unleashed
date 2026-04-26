@@ -1,3 +1,12 @@
+/*
+Copyright © 2026 🦊 helloyanis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 // Check for the existence of the browser object and use chrome if not found
 if (typeof browser === 'undefined') {
     var browser = chrome;
@@ -40,11 +49,11 @@ async function initializeSettings() {
     browser.storage.local.set({ 'mime-detection': mimeDetection });
 
     // Select the current detectionMethod
-    let detectionCheckbox = document.querySelector(`mdui-checkbox[name="detection-method"][value="url"]`);
+    let detectionCheckbox = document.querySelector(`mdui-switch[name="detection-method"][value="url"]`);
     if (detectionCheckbox && urlDetection === '1') {
         detectionCheckbox.setAttribute('checked', true);
     }
-    detectionCheckbox = document.querySelector(`mdui-checkbox[name="detection-method"][value="mime"]`);
+    detectionCheckbox = document.querySelector(`mdui-switch[name="detection-method"][value="mime"]`);
     if (detectionCheckbox && mimeDetection === '1') {
         detectionCheckbox.setAttribute('checked', true);
     }
@@ -53,7 +62,7 @@ async function initializeSettings() {
     browser.storage.local.set({ 'mpd-fix': mpdFix });
 
     // Select the current mpdFix
-    let mpdCheckbox = document.querySelector(`mdui-checkbox[name="mpd-fix"]`);
+    let mpdCheckbox = document.querySelector(`mdui-switch[name="mpd-fix"]`);
     if (mpdCheckbox) {
         if (mpdFix === '1') {
             mpdCheckbox.setAttribute('checked', true);
@@ -85,7 +94,7 @@ async function initializeSettings() {
     browser.storage.local.set({ 'media-cache': mediaCache });
 
     // Select the current mediaCache
-    let mediaCacheCheckbox = document.querySelector(`mdui-checkbox[name="media-cache"]`);
+    let mediaCacheCheckbox = document.querySelector(`mdui-switch[name="media-cache"]`);
     if (mediaCacheCheckbox) {
         if (mediaCache === '1') {
             mediaCacheCheckbox.setAttribute('checked', true);
@@ -97,7 +106,7 @@ async function initializeSettings() {
     browser.storage.local.set({ 'hide-segments': hideSegments });
 
     // Select the current hideSegments
-    let hideSegmentsCheckbox = document.querySelector(`mdui-checkbox[name="hide-segments"]`);
+    let hideSegmentsCheckbox = document.querySelector(`mdui-switch[name="hide-segments"]`);
     if (hideSegmentsCheckbox) {
         if (hideSegments === '1') {
             hideSegmentsCheckbox.setAttribute('checked', true);
@@ -169,10 +178,10 @@ async function initializeSettings() {
 
     browser.runtime.sendMessage({ action: 'initCacheListener' }); // Attempt to initialize the cache listener (will only attach if media-cache is enabled)
 
-    // Add event listeners to the checkboxes
-    document.querySelectorAll('mdui-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', (event) => {
-            let setting = event.target.id;
+    // Add event listeners to the switches
+    document.querySelectorAll('mdui-switch').forEach(switchElement => {
+        switchElement.addEventListener('change', (event) => {
+            let setting = event.target.name;
             let value = event.target.checked ? '1' : '0';
             browser.storage.local.set({ [setting]: value });
             switch (setting) {
@@ -219,7 +228,7 @@ async function initializeSettings() {
 
     // Disable media cache checkbox if in private browsing mode
     if (browser.extension.inIncognitoContext) {
-        document.querySelector(`mdui-checkbox[name="media-cache"]`).setAttribute('disabled', true);
+        document.querySelector(`mdui-switch[name="media-cache"]`).setAttribute('disabled', true);
         document.querySelector(`p[data-translate="mediaCacheExplain"]`).innerText += browser.i18n.getMessage("mediaCacheExplainPrivate");
     }
 
