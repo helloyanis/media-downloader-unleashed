@@ -296,6 +296,7 @@ function initListener() {
                 
 
                 let mediaRequest = {
+                    requestId: details.requestId,
                     url: details.url,
                     method: details.method,
                     requestHeaders: details.requestHeaders,
@@ -397,6 +398,7 @@ function initListener() {
                             const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
 
                             let mediaRequest = {
+                                requestId: details.requestId,
                                 url: details.url,
                                 method: details.method || 'GET',
                                 requestHeaders: cachedHeaders,

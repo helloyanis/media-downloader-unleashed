@@ -302,35 +302,37 @@ function loadMediaList() {
   browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
     // Iterate over the media requests and display them
     console.log('Media requests:', mediaRequests);
+    const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
+    const audioExtensions = [".3ga", ".aac", ".ac3", ".adts", ".aif", ".aiff", ".alac", ".ape", ".asf", ".au", ".dts", ".f4a", ".f4b", ".flac", ".isma", ".it", ".m4a", ".m4b", ".m4r", ".mid", ".mka", ".mod", ".mp1", ".mp2", ".mp3", ".mp4a", ".mpa", ".mpga", ".oga", ".ogg", ".ogx", ".opus", ".ra", ".shn", ".spx", ".vorbis", ".wav", ".weba", ".wma", ".xm"];
+    const streamExtensions = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
+
+    const fileExtensions = [...videoExtensions, ...audioExtensions, ...streamExtensions];
+
+    const mediaTypes = [
+      "videoxflv",
+      "videoxmsvideo",
+      "videoxmswmv",
+      "videoquicktime",
+      "videomp4",
+      "audioxpcm",
+      "audiowav",
+      "audiompeg",
+      "audioaac",
+      "audioogg",
+      "audioxmswma",
+      "applicationvdnapplempegurl",
+      "applicationxmpegurl",
+      "applicationdashxml",
+      "applicationoctetstream"
+    ];
+
+    const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
+    const useUrlDetection = await browser.storage.local.get('url-detection').then(result => result['url-detection']) === '1';
+
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       //If no content type or wrong content type, skip
-      const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
-      const audioExtensions = [".3ga", ".aac", ".ac3", ".adts", ".aif", ".aiff", ".alac", ".ape", ".asf", ".au", ".dts", ".f4a", ".f4b", ".flac", ".isma", ".it", ".m4a", ".m4b", ".m4r", ".mid", ".mka", ".mod", ".mp1", ".mp2", ".mp3", ".mp4a", ".mpa", ".mpga", ".oga", ".ogg", ".ogx", ".opus", ".ra", ".shn", ".spx", ".vorbis", ".wav", ".weba", ".wma", ".xm"];
-      const streamExtensions = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
-
-      const fileExtensions = [...videoExtensions, ...audioExtensions, ...streamExtensions];
-
-      const mediaTypes = [
-        "videoxflv",
-        "videoxmsvideo",
-        "videoxmswmv",
-        "videoquicktime",
-        "videomp4",
-        "audioxpcm",
-        "audiowav",
-        "audiompeg",
-        "audioaac",
-        "audioogg",
-        "audioxmswma",
-        "applicationvdnapplempegurl",
-        "applicationxmpegurl",
-        "applicationdashxml",
-        "applicationoctetstream"
-      ];
-
-      const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
-      const useUrlDetection = await browser.storage.local.get('url-detection').then(result => result['url-detection']) === '1';
+      const requestIds = requests.map(r => r.requestId) // Use this to preserve state when re-opening the add-on window, as the request objects are the same and we can track them by their ID, even if they have been made at a different time
 
       let mimeMatch = false;
       let urlMatch = false;
