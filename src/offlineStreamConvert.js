@@ -7,24 +7,6 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-// --- IndexedDB Cache Helpers ---
-const DB_NAME = "MediaCacheDB";
-const STORE_NAME = "network-cache";
-
-function openCacheDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onerror = (event) => reject(event.target.error);
-    request.onupgradeneeded = (event) => {
-      // In case this script runs before background (unlikely), create store
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "url" });
-      }
-    };
-    request.onsuccess = (event) => resolve(event.target.result);
-  });
-}
 
 /**
  * Tries to fetch from IndexedDB cache first.
@@ -72,10 +54,14 @@ async function fetchWithCache(url, options = {}) {
  * Downloads and converts an M3U8 stream to an MP4 file for offline use.
  * Uses either browser.downloads API or fetch depending on the download method.
  * Most of the code here is chatGPT so good luck finding out what it does lol (ㆆ_ㆆ)
+ * @params {String} m3u8Url - The URL of the M3U8 manifest to download.
+ * @params {String} fileName - The name of the file to save the downloaded content as.
+ * @params {Array} headers - The headers to include in the request. The headers forbidden by fetch like Sec-* should be omitted from this array before calling this function.
+ * @params {String} downloadMethod - The method to use for downloading. Either "browser" to use browser.downloads API or "fetch" to use fetch and create a blob URL.
+ * @params {Object} request - The request object containing the request details.
  */
-async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar, request) {
+async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request) {
   const getText = async (url) => {
-    // UPDATED
     const res = await fetchWithCache(url, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
@@ -97,11 +83,15 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
     const lines = m3u8Text.split("\n");
     const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
 
-    const selectedVariant = await selectStreamVariant(lines, base, {
+    let  selectedVariant = await selectStreamVariant(lines, base, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method
     });
+    if (!selectedVariant) {
+      //User canceled the variant selection, abort the download
+      throw new Error("Download aborted by user during stream variant selection.");
+    }
     videoUrl = selectedVariant.uri;
 
     const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
@@ -156,7 +146,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
         headline: browser.i18n.getMessage("drmWarningTitle"),
         description: browser.i18n.getMessage("drmWarningDescription"),
         confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-        cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+        cancelText: browser.i18n.getMessage("cancelButton"),
         onCancel: () => { drmAbort = true; },
       });
     }
@@ -418,15 +408,9 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
         parts.push(arr);
         processedSegmentIndex++;
 
-        // update loading bar
-        if (loadingBar) {
-          globalProcessedSegments++;
-          loadingBar.removeAttribute('indeterminate');
-          loadingBar.setAttribute(
-            'value',
-            Math.min(1, globalProcessedSegments / globalTotalSegments)
-          );
-        }
+        // update progress
+        globalProcessedSegments++;
+        browser.runtime.sendMessage({ action: 'updateProgress', progress: Math.round((globalProcessedSegments / globalTotalSegments) * 100), requestId: request.requestId });
 
         continue;
       }
@@ -460,7 +444,7 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
   // Then download video
   const { blob: videoBlob, ext } = await downloadSegments(videoUrl);
-  const baseFileName = getFileName(m3u8Url);
+  const baseFileName = fileName
   const videoBlobUrl = URL.createObjectURL(videoBlob);
 
   if (downloadMethod === "browser") {
@@ -481,7 +465,6 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
 
 
   if (audioUrl) {
-    loadingBar.setAttribute('aria-label', browser.i18n.getMessage("downloadingAudioSnackbar"));
     const snackbar = document.createElement('mdui-snackbar');
     snackbar.setAttribute('open', true);
     snackbar.setAttribute('timeout', 10000);
@@ -508,8 +491,10 @@ async function downloadM3U8Offline(m3u8Url, headers, downloadMethod, loadingBar,
       audioAnchor.click();
       document.body.removeChild(audioAnchor);
     }
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [new Option(baseFileName).innerHTML, ext]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseFileName}".`, urls: { video: videoBlobUrl, audio: audioBlobUrl, m3u8: m3u8Url }, request: request, downloadMethod: downloadMethod });
+    // TODO Handle the dialog for split downloads
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
+    browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId });
+    browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
     return;
   }
 }
@@ -568,46 +553,14 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
   if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
 
   return new Promise((resolve) => {
-    const dialog = document.createElement("mdui-dialog");
-    dialog.headline = browser.i18n.getMessage("streamQualityDialogTitle")
-
-    const content = document.createElement("div");
-    content.className = "mdui-dialog-content";
-    dialog.appendChild(content);
-
-    const label = document.createElement("label");
-    label.textContent = browser.i18n.getMessage("streamQualitySelectLabel")
-    content.appendChild(label);
-
-    const select = document.createElement("mdui-select");
-    select.setAttribute("variant", "outlined");
-
-    variants.forEach((v, index) => {
-      const option = document.createElement("mdui-menu-item");
-      option.setAttribute("value", index);
-      option.textContent = `${v.resolution} (${Math.round(v.bandwidth / 1000)} kbps, ${getHumanReadableSize(v.estimatedSize) || "Size N/A"})`;
-      select.appendChild(option);
+    browser.runtime.sendMessage({ action: 'promptStreamVariant', variants, requestId: options.request?.requestId }, (response, error) => {
+      if (response && response.selectedVariant) {
+        resolve(response.selectedVariant);
+      } else {
+        // If user cancels, stop the download by resolving with null or throwing an error
+        resolve(null);
+      }
     });
-
-    content.appendChild(select);
-
-    const actions = document.createElement("div");
-    actions.className = "mdui-dialog-actions";
-
-    const confirmBtn = document.createElement("mdui-button");
-    confirmBtn.textContent = browser.i18n.getMessage("okButton")
-    confirmBtn.setAttribute("variant", "text");
-    confirmBtn.addEventListener("click", () => {
-      const selectedIndex = select.value || 0;
-      document.body.removeChild(dialog);
-      resolve(variants[selectedIndex]);
-    });
-
-    actions.appendChild(confirmBtn);
-    dialog.appendChild(actions);
-
-    document.body.appendChild(dialog);
-    requestAnimationFrame(() => dialog.open = true);
   });
 }
 
@@ -676,7 +629,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       headline: browser.i18n.getMessage("drmWarningTitle"),
       description: browser.i18n.getMessage("drmWarningDescription"),
       confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-      cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+      cancelText: browser.i18n.getMessage("cancelButton"),
       onCancel: () => { drmAbort = true; },
     });
   }
@@ -1575,3 +1528,16 @@ async function selectMPDAudioRepresentation(reps) {
     requestAnimationFrame(() => { dialog.open = true; });
   })
 }
+
+browser.runtime.onMessage.addListener((message) => {
+  console.log("Received message in content script:", message);
+    if (message && message.action === 'downloadM3U8Offline') {
+        downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).catch((err) => {
+          console.error("Error in downloadM3U8Offline:", err);
+          throw err;
+        });
+    }
+    //TODO Add other media types
+});
+
+console.log("Content script loaded and ready.");

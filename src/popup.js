@@ -12,7 +12,8 @@ if (typeof browser === 'undefined') {
   var browser = chrome;
 }
 
-let downloadingCount = 0;
+let downloadsInProgress = [];
+// Format : [{requestId: requestId, totalBytes: totalBytes, receivedBytes: receivedBytes, url: url, filename: filename}]
 let ratingCount = 0;
 sessionStorage.setItem('shownYoutubeAlert', 0); //To prevent multiple youtube alerts in the same session
 
@@ -123,19 +124,42 @@ async function dismissRatingBanner() {
 /**
  * Update the downloading count and change the title accordingly
  * @param {Number} change The change in downloading count (positive or negative)
+ * @param {Object} downloadInfo Information about the download (requestId, url, filename) to track ongoing downloads
  * @returns {void} Does not return anything, but updates the title and button states
  * */
-function updateDownloadingCount(change) {
-  downloadingCount += change;
-  if (downloadingCount < 0) downloadingCount = 0; // Prevent negative count (should not happen but we never know ¯\_(ツ)_/¯)
-  if(downloadingCount === 0) {
-    document.title = "Media Downloader Unleashed!!";
-    document.querySelector("#clear-list").disabled = false; //Enable clear list button when not downloading
-    document.querySelector("#refresh-list").disabled = false; //Enable refresh list button when not downloading
+function updateDownloadingCount(change, downloadInfo) {
+  if (change > 0 && downloadInfo) {
+    //New download started, add it to the list of ongoing downloads
+    downloadsInProgress.push(downloadInfo);
+  } else if (change < 0 && downloadInfo) {
+    //Download finished, remove it from the list of ongoing downloads
+    downloadsInProgress = downloadsInProgress.filter(d => d.requestId !== downloadInfo.requestId);
+  } else if (change === 0) {
+    // Update without changing the count, find the download and update its info
+    const index = downloadsInProgress.findIndex(d => d.requestId === downloadInfo.requestId);
+    if (index !== -1) {
+      downloadsInProgress[index] = { ...downloadsInProgress[index], ...downloadInfo };
+    }else {
+      // If the download is not found, add it to the list (this can happen if the download was started before the popup was opened)
+      downloadsInProgress.push(downloadInfo);
+    }
   } else {
-    document.title = `⬇️ ${downloadingCount} ⏳️`;
-    document.querySelector("#clear-list").disabled = true; //Disable clear list button while downloading
-    document.querySelector("#refresh-list").disabled = true; //Disable refresh list button while downloading
+    throw new Error("Invalid change value or missing downloadInfo");
+  }
+  // If no more downloads in progress, reset the badge text and title
+  if (downloadsInProgress.length === 0) {
+    browser.action.setBadgeText({ text: '' });
+    document.title = browser.i18n.getMessage("extensionTitle");
+  } else {
+
+    // Update the extension badge with overall percentage of downloads completed
+    const totalBytes = downloadsInProgress.reduce((acc, d) => acc + (d.totalBytes || 0), 0);
+    const receivedBytes = downloadsInProgress.reduce((acc, d) => acc + (d.receivedBytes || 0), 0);
+    const percentage = totalBytes > 0 ? Math.round((receivedBytes / totalBytes) * 100) : 0;
+    browser.action.setBadgeText({ text: percentage > 0 ? `${percentage}%` : '' });
+    // Update the title with the name of the currently downloading file and percentage
+    const currentDownload = downloadsInProgress[0]; // Show the first download in the list (the one that started first)
+    document.title = `${currentDownload.filename} (${percentage}%)`;
   }
 }
 
@@ -300,6 +324,7 @@ function loadMediaList() {
   mediaContainer.innerHTML = ''; // Clear previous content
   // Send a message to the background script to get media requests
   browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
+    //TODO : Process ongoing downloads and show their progress in the list when loading it (for when the page is opened while downloads are in progress)
     // Iterate over the media requests and display them
     console.log('Media requests:', mediaRequests);
     const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
@@ -610,7 +635,7 @@ async function handleYoutubeMediaRequest(url) {
       headline: browser.i18n.getMessage("youtubeDialogAskTitle"),
       description: browser.i18n.getMessage("youtubeDialogAskMessage"),
       confirmText: browser.i18n.getMessage("youtubeDialogAskOkButton"),
-      cancelText: browser.i18n.getMessage("drmWarningCancelButton"),
+      cancelText: browser.i18n.getMessage("cancelButton"),
       onConfirm: () => {
         // Check if the user is on PC or Android
         const isAndroid = /Android/i.test(navigator.userAgent);
@@ -731,14 +756,9 @@ async function downloadFile(url, mediaDiv) {
     console.warn(`Could not activate wake lock due to error ${err.name}, ${err.message}`);
   }
 
-  // Add confirmation to leave the page while downloading
-  window.addEventListener('beforeunload', beforeUnloadHandler);
-  updateDownloadingCount(1);
-
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
   const loadingBar = document.createElement('mdui-linear-progress');
-  try {
-    const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
+  const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
     const forbiddenHeaders = [
       "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
       "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
@@ -747,6 +767,7 @@ async function downloadFile(url, mediaDiv) {
     const selectedValue = sizeSelect.value;
     const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
     let selectedSizeIndex = menuItems.findIndex(item => item.value === selectedValue);
+  try {
 
     // If no size is selected, default to index 0
     if (selectedSizeIndex === -1) {
@@ -768,6 +789,7 @@ async function downloadFile(url, mediaDiv) {
     const streamDownload = await browser.storage.local.get('stream-download').then(result => result['stream-download']);
 
     // Change the UI to indicate that the download is in progress
+    updateDownloadingCount(1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
     mediaDiv.querySelector("#download-button").loading = true
     mediaDiv.querySelector("#download-button").disabled = true
     loadingBar.style.width = '100%';
@@ -777,23 +799,28 @@ async function downloadFile(url, mediaDiv) {
     const lowerPath = new URL(url).pathname.toLowerCase();
     const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationvndapplempegurl";
     const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationdashxml";
+    const fileName = getFileName(url) || 'media';
 
     console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value}`);
 
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
-      await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+      //await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+      await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
       return;
     }
 
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
-      await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+      //await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
+      await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
       return;
     }
 
 
     //At this point the media is not a stream or should not be treated as such, so initiate a regular download
+    
+    /*
     if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
       const fileName = getFileName(url) || 'media';
@@ -873,6 +900,42 @@ async function downloadFile(url, mediaDiv) {
       console.log('Media file downloaded:', blobUrl);
       URL.revokeObjectURL(blobUrl); // Clean up the blob URL
     }
+    */
+
+    browser.runtime.sendMessage({ action: 'downloadRawMedia', url, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+
+    // Listen for  download progress updates from the background script to update the loading bar
+    // 
+//         browser.runtime.sendMessage({ action: 'updateProgress', progress: Math.round((globalProcessedSegments / globalTotalSegments) * 100), requestId: request.requestId });
+    browser.runtime.onMessage.addListener(function progressListener(message, sender, sendResponse) {
+      if (message.action === 'updateProgress' && message.requestId === requests[url][selectedSizeIndex].requestId) {
+        if (message.progress !== undefined) {
+          loadingBar.removeAttribute('indeterminate');
+          loadingBar.value = message.progress;
+        } else {
+          loadingBar.setAttribute('indeterminate', 'true');
+        }
+        if (message.status === 'completed' || message.status === 'failed') {
+          // Remove the loading bar and update the button state
+          mediaDiv.removeChild(loadingBar);
+          mediaDiv.querySelector("#download-button").loading = false;
+          mediaDiv.querySelector("#download-button").disabled = false;
+          updateDownloadingCount(-1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
+          if (message.status === 'completed') {
+            mdui.snackbar({
+              message: browser.i18n.getMessage("downloadComplete"),
+              autoCloseDelay: 5000,
+            });
+          } else {
+            mdui.snackbar({
+              message: browser.i18n.getMessage("downloadFailed"),
+              autoCloseDelay: 5000,
+            });
+          }
+          browser.runtime.onMessage.removeListener(progressListener); // Stop listening for progress updates for this download
+        }
+      }
+    });
   } catch (error) {
     if(!navigator.onLine) {
       mdui.snackbar({
@@ -890,17 +953,81 @@ async function downloadFile(url, mediaDiv) {
         wakeLock = null;
       });
     }
-    window.removeEventListener('beforeunload', beforeUnloadHandler);
-    updateDownloadingCount(-1);
-    mediaDiv.removeChild(loadingBar);
-    mediaDiv.querySelector("#download-button").loading = false;
-    mediaDiv.querySelector("#download-button").disabled = false;
   }
 }
 
-/** * Warn the user if they try to leave the page while a download is in progress
- * @param {Event} event The beforeunload event
- */
-const beforeUnloadHandler = (event) => {
-  event.preventDefault();
-};
+browser.runtime.onMessage.addListener(handleMessage);
+
+function handleMessage(message, sender, sendResponse) {
+  switch (message.action) {
+    case 'promptStreamVariant':
+      return promptStreamVariant(message.variants, message.url)
+        .then(selectedVariant => ({ selectedVariant }));
+    default:
+      console.warn(`Unknown message action: ${message.action}`);
+      return undefined;
+  }
+}
+
+
+async function promptStreamVariant(variants, url) {
+  return new Promise((resolve) => {
+    const variantOptions = variants.map(variant => {
+      const bandwidth = variant.bandwidth ? ` (${getHumanReadableSize(variant.bandwidth)})` : '';
+      return { label: `${variant.resolution || variant.codecs || variant.url}${bandwidth}`, value: variant.url };
+    });
+
+    // Build an MDUI popup with radio buttons for each variant
+    const dialog = document.createElement("mdui-dialog");
+    dialog.headline = browser.i18n.getMessage("streamQualityDialogTitle")
+
+    const form = document.createElement("form");
+    const radioGroup = document.createElement("mdui-radio-group");
+    radioGroup.name = "stream-variant";
+    radioGroup.className = "mdui-dialog-content";
+    form.appendChild(radioGroup);
+    variantOptions.forEach((option, index) => {
+      const radio = document.createElement("mdui-radio");
+      radio.value = index; // Use index as value to identify the selected variant
+
+      radio.innerText = option.label;
+
+      radioGroup.appendChild(radio);
+    });
+
+    dialog.appendChild(form);
+
+    const actions = document.createElement("div");
+    actions.className = "mdui-dialog-actions";
+    dialog.appendChild(actions);
+
+    const cancelBtn = document.createElement("mdui-button");
+    cancelBtn.textContent = browser.i18n.getMessage("cancelButton")
+    cancelBtn.setAttribute("variant", "text");
+    cancelBtn.addEventListener("click", () => {
+      resolve(null); // Resolve with null if the user cancels
+      dialog.open = false;
+    });
+    actions.appendChild(cancelBtn);
+
+    const confirmBtn = document.createElement("mdui-button");
+    confirmBtn.textContent = browser.i18n.getMessage("okButton")
+    confirmBtn.setAttribute("variant", "text");
+    confirmBtn.addEventListener("click", () => {
+      dialog.open = false;
+        const selectedIndex = radioGroup.value;
+
+        if (selectedIndex === undefined) {
+          resolve(null);
+        } else {
+          resolve(variants[selectedIndex]); // return actual variant
+        }
+
+    });
+    actions.appendChild(confirmBtn);
+
+
+    document.body.appendChild(dialog);
+    requestAnimationFrame(() => dialog.open = true);
+  });
+}

@@ -161,3 +161,10 @@ code{
     flex-direction: column;
     gap: 10px;
 }
+
+.mdui-dialog-content {
+    max-height: 50vh;
+    overflow-y: scroll;
+    display: flex;
+    flex-direction: column;
+}

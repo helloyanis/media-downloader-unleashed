@@ -541,7 +541,7 @@
         "message": "Continuer",
         "description": "The text of the OK button in the DRM warning dialog."
     },
-    "drmWarningCancelButton": {
+    "cancelButton": {
         "message": "Annuler",
         "description": "The text of the Cancel button in the DRM warning dialog."
     },
