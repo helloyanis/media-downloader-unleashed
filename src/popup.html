@@ -180,17 +180,17 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               all requests (even non-media requests!) of the
               browser.</p>
             <div class="settings-switch-item">
+              <mdui-switch id="url-detection" name="detection-method" value="url"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="urlDetectionCheckbox">Detection via URL</b>
                 <span class="settings-description-text" data-translate="urlDetectionExplain">Detection by checking if the URL contains a
                   known media type (for example .mp4, .m3u8). It's fast, but some
                   sites don't serve medias through these kind of URLs, so it might not detect everything.</span>
               </div>
-
-              <mdui-switch id="url-detection" name="detection-method" value="url"></mdui-switch>
             </div>
 
             <div class="settings-switch-item">
+              <mdui-switch id="mime-detection" name="detection-method" value="mime"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="mimeDetectionCheckbox">Detection via server's MIME response</b>
                 <span class="settings-description-text" data-translate="mimeDetectionExplain">Detection by checking the server's MIME
@@ -199,8 +199,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
                   slower than URL detection as the add-on needs to monitor every request and response, but more
                   reliable.</span>
               </div>
-
-              <mdui-switch id="mime-detection" name="detection-method" value="mime"></mdui-switch>
             </div>
           </mdui-card>
 
@@ -209,13 +207,12 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             <h3 data-translate="hideSegmentsTitle">Hide stream segments</h3>
 
             <div class="settings-switch-item">
+              <mdui-switch id="hide-segments" name="hide-segments" value="1"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="hideSegmentsCheckbox">Hide stream segments in the media list</b>
                 <span class="settings-description-text" data-translate="hideSegmentsExplain">Live streams use multiple segments to deliver content in small
                   parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.</span>
               </div>
-
-              <mdui-switch id="hide-segments" name="hide-segments" value="1"></mdui-switch>
             </div>
 
           </mdui-card>
@@ -262,14 +259,13 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             <h3 data-translate="mediaCacheTitle">Media cache</h3>
 
             <div class="settings-switch-item">
+              <mdui-switch id="media-cache" name="media-cache" value="1"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="mediaCacheCheckbox">Enable media cache</b>
                 <span class="settings-description-text" data-translate="mediaCacheExplain">Attempt to store the media response, so the download can occur without
                   making a request to the server. Downloads will be faster but can slow down your browser. Disable this if
                   you have issues with the add-on or pages freezing.</span>
               </div>
-
-              <mdui-switch id="media-cache" name="media-cache" value="1"></mdui-switch>
             </div>
 
           </mdui-card>
@@ -289,7 +285,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
                     (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
                     them. Lighter downloads, but you will need to be online with a working server to play the file. Some
                     servers also block playback this way.</span>
-
+<br/>
 
                 <mdui-radio id="offline-download" value="offline" name="stream-download"
                     data-translate="offlineDownloadChecbox">Convert to offline video
@@ -314,6 +310,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
   
                   <span class="settings-description-text" data-translate="askStreamQualityExplain">Always ask which quality to
                     download when downloading a stream.</span>
+                    <br/>
 
                 <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality"
                     data-translate="highestStreamQualityCheckbox">Always highest
@@ -322,6 +319,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
   
                     <span class="settings-description-text" data-translate="highestStreamQualityExplain">Always download the highest
                       available quality for a stream. Better quality but larger files and slower downloads.</span>
+                      <br/>
 
                 <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality"
                     data-translate="lowestStreamQualityCheckbox">Always lowest
@@ -333,14 +331,13 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             </mdui-radio-group>
             <br />
             <div class="settings-switch-item">
+              <mdui-switch id="mpd-fix" name="mpd-fix" value="1"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="mpdFixCheckbox">Fix MPD files (recommended)</b>
                 <span class="settings-description-text" data-translate="mpdFixExplain">This will modify the .mpd file you download to only
                   include the quality you download. Otherwise, players like VLC will not play the file because it will try
                   to request a quality you don't have downloaded.</span>
               </div>
-
-              <mdui-switch id="mpd-fix" name="mpd-fix" value="1"></mdui-switch>
             </div>
           </mdui-card>
         </div>

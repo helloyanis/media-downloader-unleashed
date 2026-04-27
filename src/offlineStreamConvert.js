@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+const ongoingDownloads = new Map(); // requestId -> {abortController, ...}
 /**
  * Tries to fetch from IndexedDB cache first.
  * If missing, falls back to network fetch.
@@ -61,6 +62,7 @@ async function fetchWithCache(url, options = {}) {
  * @params {Object} request - The request object containing the request details.
  */
 async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request) {
+  // Add the current download to the ongoingDownloads map
   const getText = async (url) => {
     const res = await fetchWithCache(url, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
@@ -410,7 +412,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
         // update progress
         globalProcessedSegments++;
-        browser.runtime.sendMessage({ action: 'updateProgress', progress: Math.round((globalProcessedSegments / globalTotalSegments) * 100), requestId: request.requestId });
+        handleProgressUpdate({ action: 'updateProgress', percentage: Math.round((globalProcessedSegments / globalTotalSegments) * 100), requestId: request.requestId, processed: globalProcessedSegments, total: globalTotalSegments });
 
         continue;
       }
@@ -484,6 +486,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         filename: `${baseFileName}_audio.mp4`
       });
     } else {
+      console.log("Triggering audio download with FETCH for", audioBlobUrl); // TODO this is debug, remove
       const audioAnchor = document.createElement("a");
       audioAnchor.href = audioBlobUrl;
       audioAnchor.download = `${baseFileName}_audio.mp4`;
@@ -1529,13 +1532,39 @@ async function selectMPDAudioRepresentation(reps) {
   })
 }
 
+function handleProgressUpdate(message) {
+  browser.runtime.sendMessage(message); // Forward to front-end to update the loading bar there as well
+  const id = message.requestId;
+  const { percentage, processed, total } = message;
+  if (!id) return;
+
+  const existing = ongoingDownloads.get(id);
+  const nextEntry = {
+    id,
+    url: message.url ?? existing?.url,
+    status: 'in-progress',
+    progress: { percentage, processed, total }
+  };
+
+  ongoingDownloads.set(id, existing ? { ...existing, ...nextEntry } : nextEntry);
+
+  // Update the extension badge with global progress percentage from all ongoing downloads
+  const downloads = Array.from(ongoingDownloads.values());
+  const totalPercentage = downloads.length
+    ? Math.round(downloads.reduce((acc, d) => acc + (d.progress?.percentage || 0), 0) / downloads.length)
+    : 0;
+  browser.action.setBadgeText({ text: totalPercentage > 0 ? `${totalPercentage}%` : '' });
+}
+
 browser.runtime.onMessage.addListener((message) => {
   console.log("Received message in content script:", message);
-    if (message && message.action === 'downloadM3U8Offline') {
-        downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).catch((err) => {
-          console.error("Error in downloadM3U8Offline:", err);
-          throw err;
-        });
+    switch (message.action) {
+        case 'downloadM3U8Offline':
+            return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))//.catch(err => ({ success: false, error: err?.message || String(err) })); TODO Restore this when debugging is done
+            break;
+        case 'getOngoingDownloads':
+          return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ id: d.id, url: d.url, status: d.status })));
+            break;
     }
     //TODO Add other media types
 });

@@ -120,49 +120,6 @@ async function dismissRatingBanner() {
   await browser.storage.local.set({ 'has-rated': 'true' });
 }
 
-
-/**
- * Update the downloading count and change the title accordingly
- * @param {Number} change The change in downloading count (positive or negative)
- * @param {Object} downloadInfo Information about the download (requestId, url, filename) to track ongoing downloads
- * @returns {void} Does not return anything, but updates the title and button states
- * */
-function updateDownloadingCount(change, downloadInfo) {
-  if (change > 0 && downloadInfo) {
-    //New download started, add it to the list of ongoing downloads
-    downloadsInProgress.push(downloadInfo);
-  } else if (change < 0 && downloadInfo) {
-    //Download finished, remove it from the list of ongoing downloads
-    downloadsInProgress = downloadsInProgress.filter(d => d.requestId !== downloadInfo.requestId);
-  } else if (change === 0) {
-    // Update without changing the count, find the download and update its info
-    const index = downloadsInProgress.findIndex(d => d.requestId === downloadInfo.requestId);
-    if (index !== -1) {
-      downloadsInProgress[index] = { ...downloadsInProgress[index], ...downloadInfo };
-    }else {
-      // If the download is not found, add it to the list (this can happen if the download was started before the popup was opened)
-      downloadsInProgress.push(downloadInfo);
-    }
-  } else {
-    throw new Error("Invalid change value or missing downloadInfo");
-  }
-  // If no more downloads in progress, reset the badge text and title
-  if (downloadsInProgress.length === 0) {
-    browser.action.setBadgeText({ text: '' });
-    document.title = browser.i18n.getMessage("extensionTitle");
-  } else {
-
-    // Update the extension badge with overall percentage of downloads completed
-    const totalBytes = downloadsInProgress.reduce((acc, d) => acc + (d.totalBytes || 0), 0);
-    const receivedBytes = downloadsInProgress.reduce((acc, d) => acc + (d.receivedBytes || 0), 0);
-    const percentage = totalBytes > 0 ? Math.round((receivedBytes / totalBytes) * 100) : 0;
-    browser.action.setBadgeText({ text: percentage > 0 ? `${percentage}%` : '' });
-    // Update the title with the name of the currently downloading file and percentage
-    const currentDownload = downloadsInProgress[0]; // Show the first download in the list (the one that started first)
-    document.title = `${currentDownload.filename} (${percentage}%)`;
-  }
-}
-
 /**
  * Show a dialog with a message and an optional title.
  * This function creates a dialog element, adds a title and message to it, and provides buttons for reporting an issue or closing the dialog. Used when an error occurs or when the user needs to be informed about something.
@@ -794,7 +751,7 @@ async function downloadFile(url, mediaDiv) {
       if (message.action === 'updateProgress' && message.requestId === requestId) {
         if (message.progress !== undefined) {
           loadingBar.removeAttribute('indeterminate');
-          loadingBar.value = message.progress/100;
+          loadingBar.value = message.percentage/100;
         } else {
           loadingBar.setAttribute('indeterminate', 'true');
         }
@@ -802,7 +759,6 @@ async function downloadFile(url, mediaDiv) {
           mediaDiv.removeChild(loadingBar);
           mediaDiv.querySelector("#download-button").loading = false;
           mediaDiv.querySelector("#download-button").disabled = false;
-          updateDownloadingCount(-1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
           if (message.status === 'completed') {
             mdui.snackbar({
               message: browser.i18n.getMessage("downloadComplete"),
@@ -818,12 +774,18 @@ async function downloadFile(url, mediaDiv) {
           progressListener = null;
         }
       }
+      if(message.action === 'downloadComplete' && message.requestId === requestId) {
+        mediaDiv.removeChild(loadingBar);
+        mediaDiv.querySelector("#download-button").loading = false;
+        mediaDiv.querySelector("#download-button").disabled = false;
+        browser.runtime.onMessage.removeListener(progressListener);
+        progressListener = null;
+      }
     };
 
     browser.runtime.onMessage.addListener(progressListener);
 
     // Change the UI to indicate that the download is in progress
-    updateDownloadingCount(1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
     mediaDiv.querySelector("#download-button").loading = true
     mediaDiv.querySelector("#download-button").disabled = true
     loadingBar.style.width = '100%';
@@ -840,20 +802,26 @@ async function downloadFile(url, mediaDiv) {
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
       //await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+      const result =await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+      if(result && result.error) {
+        throw new Error(result.error);
+      }
       return;
     }
 
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       //await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+      const result =await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+      if(result && result.error) {
+        throw new Error(result.error);
+      }
       return;
     }
 
 
     //At this point the media is not a stream or should not be treated as such, so initiate a regular download
-    
+    // TODO move this to offlinestreamconvert.js
     /*
     if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
@@ -960,6 +928,8 @@ async function downloadFile(url, mediaDiv) {
     }
   }
 }
+
+// Handle messages from the background script
 
 browser.runtime.onMessage.addListener(handleMessage);
 
