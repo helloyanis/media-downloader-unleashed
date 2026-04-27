@@ -748,6 +748,7 @@ function getHumanReadableSize(size) {
 async function downloadFile(url, mediaDiv) {
   console.log('Downloading media file:', url);
   let wakeLock = null
+  let progressListener = null;
   try {
     wakeLock = await navigator.wakeLock.request("screen");
     console.log("Wake Lock is active!");
@@ -784,9 +785,42 @@ async function downloadFile(url, mediaDiv) {
       !header.name.startsWith('Sec-') &&
       !header.name.startsWith('Proxy-')
     );
+    const requestId = requests[url][selectedSizeIndex].requestId;
 
     const downloadMethod = await browser.storage.local.get('download-method').then(result => result['download-method']);
     const streamDownload = await browser.storage.local.get('stream-download').then(result => result['stream-download']);
+
+    progressListener = function progressListener(message, sender, sendResponse) {
+      if (message.action === 'updateProgress' && message.requestId === requestId) {
+        if (message.progress !== undefined) {
+          loadingBar.removeAttribute('indeterminate');
+          loadingBar.value = message.progress/100;
+        } else {
+          loadingBar.setAttribute('indeterminate', 'true');
+        }
+        if (message.status === 'completed' || message.status === 'failed') {
+          mediaDiv.removeChild(loadingBar);
+          mediaDiv.querySelector("#download-button").loading = false;
+          mediaDiv.querySelector("#download-button").disabled = false;
+          updateDownloadingCount(-1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
+          if (message.status === 'completed') {
+            mdui.snackbar({
+              message: browser.i18n.getMessage("downloadComplete"),
+              autoCloseDelay: 5000,
+            });
+          } else {
+            mdui.snackbar({
+              message: browser.i18n.getMessage("downloadFailed"),
+              autoCloseDelay: 5000,
+            });
+          }
+          browser.runtime.onMessage.removeListener(progressListener);
+          progressListener = null;
+        }
+      }
+    };
+
+    browser.runtime.onMessage.addListener(progressListener);
 
     // Change the UI to indicate that the download is in progress
     updateDownloadingCount(1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
@@ -902,41 +936,12 @@ async function downloadFile(url, mediaDiv) {
     }
     */
 
-    browser.runtime.sendMessage({ action: 'downloadRawMedia', url, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
-
-    // Listen for  download progress updates from the background script to update the loading bar
-    // 
-//         browser.runtime.sendMessage({ action: 'updateProgress', progress: Math.round((globalProcessedSegments / globalTotalSegments) * 100), requestId: request.requestId });
-    browser.runtime.onMessage.addListener(function progressListener(message, sender, sendResponse) {
-      if (message.action === 'updateProgress' && message.requestId === requests[url][selectedSizeIndex].requestId) {
-        if (message.progress !== undefined) {
-          loadingBar.removeAttribute('indeterminate');
-          loadingBar.value = message.progress;
-        } else {
-          loadingBar.setAttribute('indeterminate', 'true');
-        }
-        if (message.status === 'completed' || message.status === 'failed') {
-          // Remove the loading bar and update the button state
-          mediaDiv.removeChild(loadingBar);
-          mediaDiv.querySelector("#download-button").loading = false;
-          mediaDiv.querySelector("#download-button").disabled = false;
-          updateDownloadingCount(-1,{ url, size: selectedValue, request: requests[url][selectedSizeIndex] });
-          if (message.status === 'completed') {
-            mdui.snackbar({
-              message: browser.i18n.getMessage("downloadComplete"),
-              autoCloseDelay: 5000,
-            });
-          } else {
-            mdui.snackbar({
-              message: browser.i18n.getMessage("downloadFailed"),
-              autoCloseDelay: 5000,
-            });
-          }
-          browser.runtime.onMessage.removeListener(progressListener); // Stop listening for progress updates for this download
-        }
-      }
-    });
+    await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
   } catch (error) {
+    if (progressListener) {
+      browser.runtime.onMessage.removeListener(progressListener);
+      progressListener = null;
+    }
     if(!navigator.onLine) {
       mdui.snackbar({
         message: browser.i18n.getMessage("offlineError"),
