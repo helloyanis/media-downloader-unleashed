@@ -168,3 +168,8 @@ code{
     display: flex;
     flex-direction: column;
 }
+
+.download-button {
+    background-color: rgb(var(--mdui-color-secondary-container));
+    color: rgb(var(--mdui-color-on-secondary-container));
+}

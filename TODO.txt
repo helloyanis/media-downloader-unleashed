@@ -1,0 +1,19 @@
+[OK] Add licenses
+[OK] Rework settings page (more modern look with switches)
+[OK] Add a background script for downloading when the page is closed
+    [OK] Remove all uses of the DOM in the downloader
+    [OK] Use browser messaging to communicate with the front-end
+[INPROGRESS] allow to reload the list and keep loading (fix progress bar position)
+- Properly remove percentage once all downloads are done
+- Handle downloads failing (remove progress indicator)
+- Handle downloads failing in the background
+[OK] Support for M3U8
+- Support for raw media
+- Support for MPD
+- Allow cancelling downloads
+- Warn/workaround background script getting killed on idle
+- Make the clear list button unavailable when a download is in progress
+- Allow opening the add-on in a floating window
+- Allow renaming files
+- Add numerical progress
+- Remove debug

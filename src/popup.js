@@ -1,4 +1,6 @@
 /*
+Media Downloader Unleashed!! - https://github.com/helloyanis/media-downloader-unleashed/
+
 Copyright © 2026 🦊 helloyanis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -12,8 +14,6 @@ if (typeof browser === 'undefined') {
   var browser = chrome;
 }
 
-let downloadsInProgress = [];
-// Format : [{requestId: requestId, totalBytes: totalBytes, receivedBytes: receivedBytes, url: url, filename: filename}]
 let ratingCount = 0;
 sessionStorage.setItem('shownYoutubeAlert', 0); //To prevent multiple youtube alerts in the same session
 
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Check if we should show the rating banner
 async function checkAndShowRatingBanner() {
 
-  if(typeof Temporal !== 'undefined') {
+  if (typeof Temporal !== 'undefined') {
     if (!await browser.storage.local.get('install-date') || !(await browser.storage.local.get('install-date')).hasOwnProperty('install-date')) {
       await browser.storage.local.set({ 'install-date': Temporal.Now.plainDateISO().toString() });
       return;
@@ -92,22 +92,22 @@ async function checkAndShowRatingBanner() {
     const now = Temporal.Now.plainDateISO();
 
     const daysSinceInstall = now.since(installDate).days
-  if (daysSinceInstall >= 7 && !hasRated) {
-    if(await browser.storage.local.get("ratings-at-attempt")){
-      // User has attempted to rate, check if the ratings are higher than the stored ones
-      res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
-      data = await res.json();
-      const newRatingCount = data.ratings.count;
-      const previousRatingCount = parseInt(await browser.storage.local.get("ratings-at-attempt").then(result => result["ratings-at-attempt"]), 10);
-      if (newRatingCount > previousRatingCount) {
-        // User rated, do not show the banner
-        return dismissRatingBanner();
+    if (daysSinceInstall >= 7 && !hasRated) {
+      if (await browser.storage.local.get("ratings-at-attempt")) {
+        // User has attempted to rate, check if the ratings are higher than the stored ones
+        res = await fetch("https://addons.mozilla.org/api/v5/addons/addon/media-downloader-unleashed/");
+        data = await res.json();
+        const newRatingCount = data.ratings.count;
+        const previousRatingCount = parseInt(await browser.storage.local.get("ratings-at-attempt").then(result => result["ratings-at-attempt"]), 10);
+        if (newRatingCount > previousRatingCount) {
+          // User rated, do not show the banner
+          return dismissRatingBanner();
+        }
       }
+      // Show the rating banner
+      const ratingBanner = document.getElementById('rating-banner');
+      ratingBanner.removeAttribute("style"); //Show the banner
     }
-    // Show the rating banner
-    const ratingBanner = document.getElementById('rating-banner');
-    ratingBanner.removeAttribute("style"); //Show the banner
-  }
   } else {
     // If Temporal is not supported (Chrome), don't show the banner
   }
@@ -132,7 +132,7 @@ function showDialog(message, title = null, errorData = null) {
   //Add the title to the dialog
   const titleElement = document.createElement('div');
   titleElement.setAttribute('slot', 'headline');
-  errorTitles = [browser.i18n.getMessage("errorTitle1"), browser.i18n.getMessage("errorTitle2"), browser.i18n.getMessage("errorTitle3"), browser.i18n.getMessage("errorTitle4"), browser.i18n.getMessage("errorTitle5"),browser.i18n.getMessage("errorTitle6")];
+  errorTitles = [browser.i18n.getMessage("errorTitle1"), browser.i18n.getMessage("errorTitle2"), browser.i18n.getMessage("errorTitle3"), browser.i18n.getMessage("errorTitle4"), browser.i18n.getMessage("errorTitle5"), browser.i18n.getMessage("errorTitle6")];
   if (title) {
     titleElement.textContent = title;
   } else {
@@ -154,7 +154,7 @@ function showDialog(message, title = null, errorData = null) {
   reportButton.slot = 'action';
   reportButton.addEventListener('click', async () => {
     reportButton.disabled = true;
-    if(!await shareDiagnosticData(errorData)) reportButton.disabled = false;
+    if (!await shareDiagnosticData(errorData)) reportButton.disabled = false;
   });
   dialog.appendChild(reportButton);
 
@@ -176,8 +176,8 @@ async function showDialogCustom({
   description = "",
   confirmText = "OK",
   cancelText = "Cancel",
-  onConfirm = () => {},
-  onCancel = () => {},
+  onConfirm = () => { },
+  onCancel = () => { },
   showTextField = true,
   textFieldOptions = {}
 }) {
@@ -204,14 +204,14 @@ async function showDialogCustom({
     dialogBodyElement.appendChild(descriptionElement);
 
     // ----- Text Field -----
-      const textField = document.createElement("mdui-text-field");
-      textField.setAttribute("slot", "description");
+    const textField = document.createElement("mdui-text-field");
+    textField.setAttribute("slot", "description");
 
-      for (const [key, val] of Object.entries(textFieldOptions)) {
-        if (val !== undefined && val !== null) {
-          textField.setAttribute(key, val);
-        }
+    for (const [key, val] of Object.entries(textFieldOptions)) {
+      if (val !== undefined && val !== null) {
+        textField.setAttribute(key, val);
       }
+    }
     if (showTextField) {
       dialogBodyElement.appendChild(textField);
     }
@@ -262,7 +262,7 @@ async function shareDiagnosticData(errorData) {
   // > "As your extension is compatible with Firefox 139 and earlier a custom data collection collection and transmission consent screen is required in order to be compliant."
   // Even though It looked like I was already compliant? See https://furries.club/system/media_attachments/files/116/052/458/698/436/290/original/bab638f0f729bf0a.png for a screenshot.
   // Anyways now sharing error data has become a chore but hopefully this should at least make the add-on be re-listed on the store.
-  
+
   // Below, the ideal solution which prefills the form :
   // let mediaRequests = await browser.runtime.sendMessage({ action: 'getMediaRequests' });
   // window.open(`https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=${encodeURIComponent(errorData.error || 'N/A')}&entry.1527093375=${encodeURIComponent(errorData.url || 'N/A')}&entry.713772415=${encodeURIComponent(mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A')}&entry.582473750=${encodeURIComponent(navigator.userAgent)}}`, '_blank');
@@ -311,6 +311,7 @@ function loadMediaList() {
     const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
     const useUrlDetection = await browser.storage.local.get('url-detection').then(result => result['url-detection']) === '1';
 
+    const ongoingDownloads = await browser.runtime.sendMessage({ action: 'getOngoingDownloads' });
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       //If no content type or wrong content type, skip
@@ -322,9 +323,9 @@ function loadMediaList() {
       // Check if the request matches the media types or file extensions
       if (useMimeDetection && requests[0]?.responseHeaders) {
         // Also allow numbers (mp4)
-        mimeMatch = 
-        requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))) !== undefined // Any of the media types match the content type header (with non-alphanumeric characters removed to allow things like "VIDEO-mp4" to match "video/mp4")
-        || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video/") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio/")) !== undefined // Or if any content type header starts with video/ or audio/
+        mimeMatch =
+          requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))) !== undefined // Any of the media types match the content type header (with non-alphanumeric characters removed to allow things like "VIDEO-mp4" to match "video/mp4")
+          || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video/") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio/")) !== undefined // Or if any content type header starts with video/ or audio/
       }
 
       const mediaURL = new URL(url);
@@ -341,7 +342,7 @@ function loadMediaList() {
       if (hideSegments) {
         // Always show playlists/manifests (.m3u8, .mpd)
         const isPlaylistExt = mediaURL.pathname.toLowerCase().endsWith('.m3u8') ||
-                              mediaURL.pathname.toLowerCase().endsWith('.mpd');
+          mediaURL.pathname.toLowerCase().endsWith('.mpd');
         if (!isPlaylistExt) {
           // Gather response headers from the first request (if available)
           const resHeaders = requests[0]?.responseHeaders || [];
@@ -390,7 +391,7 @@ function loadMediaList() {
       mediaIconContainer.setAttribute('slot', 'icon');
       const hasResponseHeaders = requests[0]?.responseHeaders && requests[0].responseHeaders.length > 0;
       let path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
-      if(hasResponseHeaders) {
+      if (hasResponseHeaders) {
         if (videoExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("video/"))) {
           //Media is a video
           path.setAttribute('d', 'm160-800 80 160h120l-80-160h80l80 160h120l-80-160h80l80 160h120l-80-160h120q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800Zm0 240v320h640v-320H160Zm0 0v320-320Z');
@@ -399,7 +400,7 @@ function loadMediaList() {
           //Media is an audio
           path.setAttribute('d', 'M400-120q-66 0-113-47t-47-113q0-66 47-113t113-47q23 0 42.5 5.5T480-418v-422h240v160H560v400q0 66-47 113t-113 47Z');
         }
-        else if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value ==="application/x-mpegURL" || h.value ==="application/vnd.apple.mpegurl" || h.value ==="application/dash+xml"))) {
+        else if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value === "application/x-mpegURL" || h.value === "application/vnd.apple.mpegurl" || h.value === "application/dash+xml"))) {
           //Media is a stream
           path.setAttribute('d', 'M40-480q0-92 34.5-172T169-791.5q60-59.5 140-94T480-920q91 0 171 34.5t140 94Q851-732 885.5-652T920-480h-80q0-75-28.5-140.5T734-735q-49-49-114.5-77T480-840q-74 0-139.5 28T226-735q-49 49-77.5 114.5T120-480H40Zm160 0q0-118 82-199t198-81q116 0 198 81t82 199h-80q0-83-58.5-141.5T480-680q-83 0-141.5 58.5T280-480h-80ZM360-64l-56-56 136-136v-132q-27-12-43.5-37T380-480q0-42 29-71t71-29q42 0 71 29t29 71q0 30-16.5 55T520-388v132l136 136-56 56-120-120L360-64Z');
         }
@@ -426,7 +427,7 @@ function loadMediaList() {
       //Display request method and referrer
       const descriptionDiv = document.createElement('div');
       console.log(requests)
-      descriptionDiv.textContent = browser.i18n.getMessage("requestText",[requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value) ?? browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) ?? "??:??"]);
+      descriptionDiv.textContent = browser.i18n.getMessage("requestText", [requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value) ?? browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) ?? "??:??"]);
       mediaDiv.appendChild(descriptionDiv);
 
       // Create a div to put actions at the end of the media item
@@ -448,8 +449,30 @@ function loadMediaList() {
       sizeSelect.id = url;
       sizeSelect.classList.add('media-size-select');
 
+      // Add a button to download the selected media file
+      const downloadButton = document.createElement('mdui-segmented-button');
+      downloadButton.textContent = browser.i18n.getMessage("downloadMedia");
+      downloadButton.addEventListener('click', () => {
+        downloadFile(url, mediaDiv);
+      });
+      downloadButton.id = 'download-button';
+      downloadButton.classList.add('download-button');
+
+      // Add an icon to the download button
+      const mduiDownloadIconContainer = document.createElement('mdui-icon');
+      const svgNamespace = "http://www.w3.org/2000/svg";
+      mduiDownloadIconContainer.setAttribute('slot', 'icon');
+      const downloadIcon = document.createElementNS(svgNamespace, 'svg');
+      downloadIcon.setAttribute('viewBox', '0 -960 960 960');
+      const downloadPath = document.createElementNS(svgNamespace, 'path');
+      downloadPath.setAttribute('d', 'M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z');
+      downloadIcon.appendChild(downloadPath);
+      mduiDownloadIconContainer.appendChild(downloadIcon);
+      downloadButton.appendChild(mduiDownloadIconContainer);
+
       // Add options for the media sizes
       let isFirstElement = true;
+      let shouldRestoreLoadingState = false;
       for (const request of requests) {
         const option = document.createElement('mdui-menu-item');
         option.value = request.size;
@@ -459,6 +482,51 @@ function loadMediaList() {
           isFirstElement = false;
         }
         sizeSelect.appendChild(option);
+        ongoingDownloads.forEach(download => {
+          if (download.requestId === request.requestId) {
+            downloadButton.disabled = true;
+        downloadButton.loading = true;
+
+        // If the download is ongoing, we add a loading bar and a listener to update the progress
+        const loadingBar = document.createElement('mdui-linear-progress');
+        loadingBar.setAttribute('indeterminate', 'true');
+        loadingBar.style.width = '100%';
+        mediaDiv.appendChild(loadingBar);
+        progressListener = function progressListener(message, sender, sendResponse) {
+          if (message.action === 'updateProgress' && message.requestId === request.requestId) {
+            if (message.percentage !== undefined) {
+              loadingBar.removeAttribute('indeterminate');
+              loadingBar.value = message.percentage / 100;
+            } else {
+              loadingBar.setAttribute('indeterminate', 'true');
+            }
+            if (message.status === 'downloadComplete' || message.status === 'downloadFailed') {
+              mediaDiv.removeChild(loadingBar);
+              mediaDiv.querySelector("#download-button").loading = false;
+              mediaDiv.querySelector("#download-button").disabled = false;
+              browser.runtime.onMessage.removeListener(progressListener);
+              progressListener = null;
+            }
+          }
+          if (message.action === 'downloadComplete' && message.requestId === requestId) {
+            mediaDiv.removeChild(loadingBar);
+            mediaDiv.querySelector("#download-button").loading = false;
+            mediaDiv.querySelector("#download-button").disabled = false;
+            browser.runtime.onMessage.removeListener(progressListener);
+            progressListener = null;
+          }
+          if (message.action === 'downloadFailed' && message.requestId === requestId) {
+            mediaDiv.removeChild(loadingBar);
+            mediaDiv.querySelector("#download-button").loading = false;
+            mediaDiv.querySelector("#download-button").disabled = false;
+            browser.runtime.onMessage.removeListener(progressListener);
+            progressListener = null;
+          }
+        };
+
+        browser.runtime.onMessage.addListener(progressListener);
+          }
+        });
       }
 
       // Change description based on the selected size
@@ -490,7 +558,6 @@ function loadMediaList() {
       // Add an icon to the copy button
       const mduiCopyIconContainer = document.createElement('mdui-icon');
       mduiCopyIconContainer.setAttribute('slot', 'icon');
-      const svgNamespace = "http://www.w3.org/2000/svg";
       const copyIcon = document.createElementNS(svgNamespace, 'svg');
       copyIcon.setAttribute('viewBox', '0 -960 960 960');
       path = document.createElementNS(svgNamespace, 'path');
@@ -510,7 +577,7 @@ function loadMediaList() {
         let isStream = streamExtensions.some(ext =>
           new URL(url).pathname.toLowerCase().endsWith(ext)
         );
-        if( isStream && new URL(url).pathname.toLowerCase().endsWith('.mpd')) {
+        if (isStream && new URL(url).pathname.toLowerCase().endsWith('.mpd')) {
           // For MPD no need to handle stream differently, just pass the URL
           isStream = '';
         }
@@ -530,25 +597,6 @@ function loadMediaList() {
       mduiPreviewIconContainer.appendChild(previewIcon);
       previewButton.appendChild(mduiPreviewIconContainer);
 
-      // Add a button to download the selected media file
-      const downloadButton = document.createElement('mdui-segmented-button');
-      downloadButton.textContent = browser.i18n.getMessage("downloadMedia");
-      downloadButton.addEventListener('click', () => {
-        downloadFile(url, mediaDiv);
-      });
-      downloadButton.id = 'download-button';
-
-      // Add an icon to the download button
-      const mduiDownloadIconContainer = document.createElement('mdui-icon');
-      mduiDownloadIconContainer.setAttribute('slot', 'icon');
-      const downloadIcon = document.createElementNS(svgNamespace, 'svg');
-      downloadIcon.setAttribute('viewBox', '0 -960 960 960');
-      const downloadPath = document.createElementNS(svgNamespace, 'path');
-      downloadPath.setAttribute('d', 'M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z');
-      downloadIcon.appendChild(downloadPath);
-      mduiDownloadIconContainer.appendChild(downloadIcon);
-      downloadButton.appendChild(mduiDownloadIconContainer);
-
       // Append the buttons to the actions div
       segmentedButtonGroup.appendChild(downloadButton);
       segmentedButtonGroup.appendChild(copyButton);
@@ -556,6 +604,7 @@ function loadMediaList() {
 
       // Append the size select and actions div to the media item
       mediaDiv.appendChild(actionsDiv);
+
 
       // Add the media container to the popup
       mediaContainer.appendChild(mediaDiv);
@@ -579,7 +628,7 @@ function loadMediaList() {
     endOfMediaList.appendChild(endOfMediaListLink);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
-    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}`, requests: mediaRequests  });
+    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}`, requests: mediaRequests });
   });
 }
 
@@ -616,7 +665,7 @@ async function handleYoutubeMediaRequest(url) {
           });
         }
       },
-      onCancel: () => {},
+      onCancel: () => { },
     });
     document.getElementById('youtube-dialog-dont-show-again').addEventListener('change', async (event) => {
       if (event.target.checked) {
@@ -638,7 +687,7 @@ function clearMediaList() {
     loadMediaList(); //Refresh the display
   }).catch((error) => {
     console.error('Error clearing media list:', error);
-    showDialog(browser.i18n.getMessage("listClearError", [error]), null, { error: `Error clearing media list: ${error}`  });
+    showDialog(browser.i18n.getMessage("listClearError", [error]), null, { error: `Error clearing media list: ${error}` });
   });
 }
 
@@ -661,7 +710,7 @@ function getFileName(url, maxLength = 20) {
     // Replace these characters with underscores as they are not allowed in Windows file names : < > : " / \ | ? * and control characters (0-31)
     fileName = fileName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
 
-    if(fileName === '') {
+    if (fileName === '') {
       fileName = parsedUrl.hostname; // If there is no file name, use the hostname
     }
 
@@ -717,14 +766,14 @@ async function downloadFile(url, mediaDiv) {
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
   const loadingBar = document.createElement('mdui-linear-progress');
   const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
-    const forbiddenHeaders = [
-      "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
-      "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
-      "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
-    ]; // List of headers that should not be sent with the download request because fetch doesn't accept them
-    const selectedValue = sizeSelect.value;
-    const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
-    let selectedSizeIndex = menuItems.findIndex(item => item.value === selectedValue);
+  const forbiddenHeaders = [
+    "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
+    "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
+    "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
+  ]; // List of headers that should not be sent with the download request because fetch doesn't accept them
+  const selectedValue = sizeSelect.value;
+  const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
+  let selectedSizeIndex = menuItems.findIndex(item => item.value === selectedValue);
   try {
 
     // If no size is selected, default to index 0
@@ -734,7 +783,7 @@ async function downloadFile(url, mediaDiv) {
     }
 
     // Set the request headers for the download to the same headers that were used to fetch the media file on the site, to reproduce the same request, without the headers forbidden by the fetch api.
-    if(!requests[url] || !requests[url][selectedSizeIndex] || !requests[url][selectedSizeIndex].requestHeaders) {
+    if (!requests[url] || !requests[url][selectedSizeIndex] || !requests[url][selectedSizeIndex].requestHeaders) {
       throw new Error(browser.i18n.getMessage("noRequestFoundError"));
     }
     const headers = requests[url][selectedSizeIndex].requestHeaders.filter(header =>
@@ -749,17 +798,17 @@ async function downloadFile(url, mediaDiv) {
 
     progressListener = function progressListener(message, sender, sendResponse) {
       if (message.action === 'updateProgress' && message.requestId === requestId) {
-        if (message.progress !== undefined) {
+        if (message.percentage !== undefined) {
           loadingBar.removeAttribute('indeterminate');
-          loadingBar.value = message.percentage/100;
+          loadingBar.value = message.percentage / 100;
         } else {
           loadingBar.setAttribute('indeterminate', 'true');
         }
-        if (message.status === 'completed' || message.status === 'failed') {
+        if (message.status === 'downloadComplete' || message.status === 'downloadFailed') {
           mediaDiv.removeChild(loadingBar);
           mediaDiv.querySelector("#download-button").loading = false;
           mediaDiv.querySelector("#download-button").disabled = false;
-          if (message.status === 'completed') {
+          if (message.status === 'downloadComplete') {
             mdui.snackbar({
               message: browser.i18n.getMessage("downloadComplete"),
               autoCloseDelay: 5000,
@@ -774,7 +823,14 @@ async function downloadFile(url, mediaDiv) {
           progressListener = null;
         }
       }
-      if(message.action === 'downloadComplete' && message.requestId === requestId) {
+      if (message.action === 'downloadComplete' && message.requestId === requestId) {
+        mediaDiv.removeChild(loadingBar);
+        mediaDiv.querySelector("#download-button").loading = false;
+        mediaDiv.querySelector("#download-button").disabled = false;
+        browser.runtime.onMessage.removeListener(progressListener);
+        progressListener = null;
+      }
+      if (message.action === 'downloadFailed' && message.requestId === requestId) {
         mediaDiv.removeChild(loadingBar);
         mediaDiv.querySelector("#download-button").loading = false;
         mediaDiv.querySelector("#download-button").disabled = false;
@@ -793,8 +849,8 @@ async function downloadFile(url, mediaDiv) {
     mediaDiv.appendChild(loadingBar);
 
     const lowerPath = new URL(url).pathname.toLowerCase();
-    const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationvndapplempegurl";
-    const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') ==="applicationdashxml";
+    const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationvndapplempegurl";
+    const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationdashxml";
     const fileName = getFileName(url) || 'media';
 
     console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value}`);
@@ -802,8 +858,8 @@ async function downloadFile(url, mediaDiv) {
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
       //await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result =await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
-      if(result && result.error) {
+      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+      if (result && result.error) {
         throw new Error(result.error);
       }
       return;
@@ -812,8 +868,8 @@ async function downloadFile(url, mediaDiv) {
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       //await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result =await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
-      if(result && result.error) {
+      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+      if (result && result.error) {
         throw new Error(result.error);
       }
       return;
@@ -910,7 +966,7 @@ async function downloadFile(url, mediaDiv) {
       browser.runtime.onMessage.removeListener(progressListener);
       progressListener = null;
     }
-    if(!navigator.onLine) {
+    if (!navigator.onLine) {
       mdui.snackbar({
         message: browser.i18n.getMessage("offlineError"),
         autoCloseDelay: 15000,
@@ -918,7 +974,7 @@ async function downloadFile(url, mediaDiv) {
       });
     }
     console.error('Error downloading media file:', error);
-    showDialog(browser.i18n.getMessage("downloadError", [error.message]), null, { error: `Error downloading media file: ${error.message}`, url: url  });
+    showDialog(browser.i18n.getMessage("downloadError", [error.message]), null, { error: `Error downloading media file: ${error.message}`, url: url });
   }
   finally {
     if (wakeLock) {
@@ -968,6 +1024,7 @@ async function promptStreamVariant(variants, url) {
       radio.innerText = option.label;
 
       radioGroup.appendChild(radio);
+      radioGroup.appendChild(document.createElement("br"));
     });
 
     dialog.appendChild(form);
@@ -990,13 +1047,13 @@ async function promptStreamVariant(variants, url) {
     confirmBtn.setAttribute("variant", "text");
     confirmBtn.addEventListener("click", () => {
       dialog.open = false;
-        const selectedIndex = radioGroup.value;
+      const selectedIndex = radioGroup.value;
 
-        if (selectedIndex === undefined) {
-          resolve(null);
-        } else {
-          resolve(variants[selectedIndex]); // return actual variant
-        }
+      if (selectedIndex === undefined) {
+        resolve(null);
+      } else {
+        resolve(variants[selectedIndex]); // return actual variant
+      }
 
     });
     actions.appendChild(confirmBtn);

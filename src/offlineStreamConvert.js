@@ -63,6 +63,7 @@ async function fetchWithCache(url, options = {}) {
  */
 async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request) {
   // Add the current download to the ongoingDownloads map
+  handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
   const getText = async (url) => {
     const res = await fetchWithCache(url, {
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
@@ -497,9 +498,8 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     // TODO Handle the dialog for split downloads
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
     browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId });
-    browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
-    return;
   }
+  browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
 }
 
 
@@ -1540,7 +1540,7 @@ function handleProgressUpdate(message) {
 
   const existing = ongoingDownloads.get(id);
   const nextEntry = {
-    id,
+    requestId: id,
     url: message.url ?? existing?.url,
     status: 'in-progress',
     progress: { percentage, processed, total }
@@ -1563,10 +1563,8 @@ browser.runtime.onMessage.addListener((message) => {
             return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))//.catch(err => ({ success: false, error: err?.message || String(err) })); TODO Restore this when debugging is done
             break;
         case 'getOngoingDownloads':
-          return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ id: d.id, url: d.url, status: d.status })));
+          return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));
             break;
     }
     //TODO Add other media types
 });
-
-console.log("Content script loaded and ready.");
