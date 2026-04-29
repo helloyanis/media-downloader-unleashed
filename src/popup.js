@@ -989,12 +989,19 @@ async function downloadFile(url, mediaDiv) {
 browser.runtime.onMessage.addListener(handleMessage);
 
 function handleMessage(message, sender, sendResponse) {
+  console.log('Received message in popup:', message);
   switch (message.action) {
     case 'promptStreamVariant':
       return promptStreamVariant(message.variants, message.url)
         .then(selectedVariant => ({ selectedVariant }));
     case 'showSplitDownloadDialog':
       return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${message.baseName}".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
+    case 'promptMPDVideoRepresentation':
+      return promptMPDVideoRepresentation(message.reps, "video")
+        .then(selectedRepresentation => ({ selectedRepresentation }));
+    case 'promptMPDAudioRepresentation':
+      return promptMPDVideoRepresentation(message.reps, "audio")
+        .then(selectedRepresentation => ({ selectedRepresentation }));
     default:
       console.warn(`Unknown message action: ${message.action}`);
       return undefined;
@@ -1059,6 +1066,69 @@ async function promptStreamVariant(variants, url) {
     });
     actions.appendChild(confirmBtn);
 
+
+    document.body.appendChild(dialog);
+    requestAnimationFrame(() => dialog.open = true);
+  });
+}
+
+async function promptMPDVideoRepresentation(reps, type) {
+  return new Promise((resolve) => {
+    console.log('Prompting user to select MPD representation:', reps);
+    const dialog = document.createElement("mdui-dialog");
+    if(type === 'audio') {
+      dialog.headline = browser.i18n.getMessage("audioQualityDialogTitle");
+    } else {
+      dialog.headline = browser.i18n.getMessage("videoQualityDialogTitle");
+    }
+
+    const form = document.createElement("form");
+    const radioGroup = document.createElement("mdui-radio-group");
+    radioGroup.name = "video-representation";
+    radioGroup.className = "mdui-dialog-content";
+    form.appendChild(radioGroup);
+    reps.forEach((rep, index) => {
+      const bandwidth = rep.bandwidth ? ` (${getHumanReadableSize(rep.bandwidth)})` : '';
+      const width = rep.width ? ` (${rep.width}x${rep.height})` : '';
+      const radio = document.createElement("mdui-radio");
+      radio.value = index; // Use index as value to identify the selected representation
+
+      radio.innerText = `${width}${bandwidth}`;
+
+      radioGroup.appendChild(radio);
+      radioGroup.appendChild(document.createElement("br"));
+    });
+
+    dialog.appendChild(form);
+
+    const actions = document.createElement("div");
+    actions.className = "mdui-dialog-actions";
+    dialog.appendChild(actions);
+
+    const cancelBtn = document.createElement("mdui-button");
+    cancelBtn.textContent = browser.i18n.getMessage("cancelButton")
+    cancelBtn.setAttribute("variant", "text");
+    cancelBtn.addEventListener("click", () => {
+      resolve(null); // Resolve with null if the user cancels
+      dialog.open = false;
+    });
+    actions.appendChild(cancelBtn);
+
+    const confirmBtn = document.createElement("mdui-button");
+    confirmBtn.textContent = browser.i18n.getMessage("okButton")
+    confirmBtn.setAttribute("variant", "text");
+    confirmBtn.addEventListener("click", () => {
+      dialog.open = false;
+      const selectedIndex = radioGroup.value;
+
+      if (selectedIndex === undefined) {
+        resolve(null);
+      } else {
+        resolve(reps[selectedIndex]); // return actual representation
+      }
+
+    });
+    actions.appendChild(confirmBtn);
 
     document.body.appendChild(dialog);
     requestAnimationFrame(() => dialog.open = true);

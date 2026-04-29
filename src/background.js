@@ -447,21 +447,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Initialize the listener
 initListener();
 
-// Clear local storage when message is received
+// Clear local storage when message is received (clear list button)
 browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'clearStorage') {
-        // browser.storage.session.clear();
-        // // Also clear IndexedDB cache
-        // openCacheDB().then(db => {
-        //     const tx = db.transaction([STORE_NAME], "readwrite");
-        //     const store = tx.objectStore(STORE_NAME);
-        //     store.clear();
-        // }).catch(e => {
-        //     console.error("Failed to clear IndexedDB cache:", e);
-        // });
 
         // Do not clear data for ongoing downloads
-
         const ongoingDownloads = message.ongoingDownloads || [];
         const ongoingIDs = new Set(ongoingDownloads.map(d => d.requestId));
 

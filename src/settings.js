@@ -231,7 +231,7 @@ async function initializeSettings() {
     // Disable media cache checkbox if in private browsing mode
     if (browser.extension.inIncognitoContext) {
         document.querySelector(`mdui-switch[name="media-cache"]`).setAttribute('disabled', true);
-        document.querySelector(`p[data-translate="mediaCacheExplain"]`).innerText += browser.i18n.getMessage("mediaCacheExplainPrivate");
+        document.querySelector(`span[data-translate="mediaCacheExplain"]`).innerText += browser.i18n.getMessage("mediaCacheExplainPrivate");
     }
 
     isInitialized = true;

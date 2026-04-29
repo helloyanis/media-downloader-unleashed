@@ -67,7 +67,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
   handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
   const getText = async (url) => {
     const res = await fetchWithCache(url, {
-      headers: headers,
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method,
       referrer:
@@ -88,7 +88,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
 
     let  selectedVariant = await selectStreamVariant(lines, base, {
-      headers: headers,
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method
     });
@@ -125,7 +125,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
     // helpers for fetch options
     const fetchOpts = {
-      headers: headers,
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method
     };
@@ -622,7 +622,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
   // Fetch MPD manifest
   const resp = await fetchWithCache(mpdUrl, {
     method: request.method,
-    headers: headers,
+    headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
     referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
     body: request.method !== 'GET' ? request.requestBody : null,
   });
@@ -636,19 +636,19 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 
   const hasDRM = !!xmlDoc.getElementsByTagNameNS(NS, "ContentProtection").length;
   let drmAbort = false;
-  if (hasDRM) {
-    await mdui.confirm({
-      headline: browser.i18n.getMessage("drmWarningTitle"),
-      description: browser.i18n.getMessage("drmWarningDescription"),
-      confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-      cancelText: browser.i18n.getMessage("cancelButton"),
-      onCancel: () => { drmAbort = true; },
-    });
-  }
+  // if (hasDRM) {
+  //   await mdui.confirm({
+  //     headline: browser.i18n.getMessage("drmWarningTitle"),
+  //     description: browser.i18n.getMessage("drmWarningDescription"),
+  //     confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+  //     cancelText: browser.i18n.getMessage("cancelButton"),
+  //     onCancel: () => { drmAbort = true; },
+  //   });
+  // }
 
-  if (drmAbort) {
-    throw new Error("Download aborted by user due to DRM protection.");
-  }
+  // if (drmAbort) {
+  //   throw new Error("Download aborted by user due to DRM protection.");
+  // } Todo move this in the popup
 
   // Locate Period
   const periodList = xmlDoc.getElementsByTagNameNS(NS, "Period");
@@ -795,7 +795,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     : null;
 
   const mpdBase = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
-  const mpdFilename = getFileName(mpdUrl);
+  const mpdFilename = fileName
   const baseName = mpdFilename.replace(/\.mpd$/i, "");
 
   const isSegmentBaseOnly =
@@ -809,7 +809,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
   async function fetchWithProgress(url, { onStart, onChunk } = {}) {
     const r = await fetchWithCache(url, {
       method: request.method,
-      headers: headers,
+      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
       body: request.method !== 'GET' ? request.requestBody : null,
     });
@@ -1384,59 +1384,14 @@ async function selectMPDVideoRepresentation(reps) {
     return reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
   }
 
-  // Build and show an MDUI dialog to let user pick one.
   return new Promise((resolve) => {
-    // Create dialog root
-    const dialog = document.createElement("mdui-dialog");
-    dialog.headline = browser.i18n.getMessage("videoQualityDialogTitle");
-
-    // Content: a <div> that holds a label + <mdui-select>
-    const content = document.createElement("div");
-    content.className = "mdui-dialog-content";
-    dialog.appendChild(content);
-
-    const label = document.createElement("label");
-    label.setAttribute("for", "mpd-video-select");
-    label.textContent = browser.i18n.getMessage("videoQualitySelectLabel");
-    content.appendChild(label);
-
-    const select = document.createElement("mdui-select");
-    select.setAttribute("variant", "outlined");
-    select.setAttribute("id", "mpd-video-select");
-    // Default to index 0
-    select.value = "0";
-
-    // Sort reps by bandwidth ascending (so “smallest” is first), just for presentation.
-    const sorted = reps.slice().sort((a, b) => a.bandwidth - b.bandwidth);
-
-    sorted.forEach((r, index) => {
-      const option = document.createElement("mdui-menu-item");
-      option.setAttribute("value", index);
-      const kbps = Math.round(r.bandwidth / 1000);
-      option.textContent = `${r.width}×${r.height} (${kbps} kbps)`;
-      select.appendChild(option);
+    browser.runtime.sendMessage({ action: 'promptMPDVideoRepresentation', reps }, (response, error) => {
+      if (error) {
+        console.error("Error prompting for video representation:", error);
+        throw new Error("Failed to prompt for video representation");
+      }
+      resolve(response.selectedRep);
     });
-
-    content.appendChild(select);
-
-    // Actions: an OK button
-    const actions = document.createElement("div");
-    actions.className = "mdui-dialog-actions";
-    const confirmBtn = document.createElement("mdui-button");
-    confirmBtn.textContent = browser.i18n.getMessage("okButton")
-    confirmBtn.setAttribute("variant", "text");
-    confirmBtn.addEventListener("click", () => {
-      const idx = parseInt(select.value, 10) || 0;
-      document.body.removeChild(dialog);
-      // Resolve with the chosen representation (from sorted[])
-      resolve(sorted[idx]);
-    });
-    actions.appendChild(confirmBtn);
-    dialog.appendChild(actions);
-
-    document.body.appendChild(dialog);
-    // Open the dialog on next frame
-    requestAnimationFrame(() => { dialog.open = true; });
   });
 }
 
@@ -1448,7 +1403,7 @@ async function selectMPDVideoRepresentation(reps) {
  * @returns {Promise<{ id: string, bandwidth: number }>}
  *          Resolves to the chosen representation object.
  */
-async function selectMPDAudioRepresentation(reps) {
+async function selectMPDAudioRepresentation(reps, requestId) {
   // If there's only one rep, no need to ask.
   if (reps.length === 1) {
     return reps[0];
@@ -1463,59 +1418,15 @@ async function selectMPDAudioRepresentation(reps) {
     return reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
   }
 
-  // Build and show an MDUI dialog to let user pick one.
   return new Promise((resolve) => {
-    // Create dialog root
-    const dialog = document.createElement("mdui-dialog");
-    dialog.headline = browser.i18n.getMessage("audioQualityDialogTitle");
-
-    // Content: a <div> that holds a label + <mdui-select>
-    const content = document.createElement("div");
-    content.className = "mdui-dialog-content";
-    dialog.appendChild(content);
-
-    const label = document.createElement("label");
-    label.setAttribute("for", "mpd-audio-select");
-    label.textContent = browser.i18n.getMessage("audioQualitySelectLabel");;
-    content.appendChild(label);
-
-    const select = document.createElement("mdui-select");
-    select.setAttribute("variant", "outlined");
-    select.setAttribute("id", "mpd-audio-select");
-    // Default to index 0
-    select.value = "0";
-
-    // Sort reps by bandwidth ascending (so “smallest” is first), just for presentation.
-    const sorted = reps.slice().sort((a, b) => a.bandwidth - b.bandwidth);
-
-    sorted.forEach((r, index) => {
-      const option = document.createElement("mdui-menu-item");
-      option.setAttribute("value", index);
-      const kbps = Math.round(r.bandwidth / 1000);
-      option.textContent = `${kbps} kbps`;
-      select.appendChild(option);
+    browser.runtime.sendMessage({ action: 'promptMPDAudioRepresentation', reps, requestId }, (response, error) => {
+      if (error) {
+        console.error("Error prompting for audio representation:", error);
+        throw new Error("Failed to prompt for audio representation");
+      }
+      resolve(response.selectedRep);
     });
-
-    content.appendChild(select);
-
-    // Actions: an OK button
-    const actions = document.createElement("div");
-    actions.className = "mdui-dialog-actions";
-    const confirmBtn = document.createElement("mdui-button");
-    confirmBtn.textContent = browser.i18n.getMessage("okButton")
-    confirmBtn.setAttribute("variant", "text");
-    confirmBtn.addEventListener("click", () => {
-      const idx = parseInt(select.value, 10) || 0;
-      document.body.removeChild(dialog);
-      // Resolve with the chosen representation (from sorted[])
-      resolve(sorted[idx]);
-    });
-    actions.appendChild(confirmBtn);
-    dialog.appendChild(actions);
-    document.body.appendChild(dialog);
-    // Open the dialog on next frame
-    requestAnimationFrame(() => { dialog.open = true; });
-  })
+  });
 }
 
 function handleProgressUpdate(message) {
@@ -1560,10 +1471,10 @@ browser.runtime.onMessage.addListener((message) => {
   console.log("Received message in content script:", message);
     switch (message.action) {
         case 'downloadM3U8Offline':
-            return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))//.catch(err => ({ success: false, error: err?.message || String(err) })); TODO Restore this when debugging is done
+            return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
             break;
         case 'downloadMPDOffline':
-            return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))//.catch(err => ({ success: false, error: err?.message || String(err) })); TODO Restore this when debugging is done
+            return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
             break;
         case 'getOngoingDownloads':
           return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));
