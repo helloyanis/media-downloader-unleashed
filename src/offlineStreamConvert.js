@@ -1166,35 +1166,43 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
   for (const t of tasks) {
     if (t.type === "template") {
       // init
-      console.log(">>> Fetching template init:", t.info.initUrl);
-      let lastReceivedForFile = 0;
-      const initBuf = await fetchWithProgress(t.info.initUrl, {
-        onStart: (contentLength) => {
+        console.log(">>> Fetching template init:", t.info.initUrl);
+        // Use a simple count-based progress for template flows (init + N segments)
+        maxBytes = t.info.segmentUrls.length + 1;
+        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
 
-        },
-        onChunk: (received) => {
-
-        }
-      });
-      zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
-
-      // segments
-      maxBytes = t.info.segmentUrls.length;
-      handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
-      for (let i = 0; i < t.info.segmentUrls.length; i++) {
-        const segUrl = t.info.segmentUrls[i];
-        const segZipPath = t.info.mediaZipPaths[i];
-        console.log(`>>> Fetching template segment #${i + 1}:`, segUrl);
-        let lastReceived = 0;
-        const buf = await fetchWithProgress(segUrl, {
+        const initBuf = await fetchWithProgress(t.info.initUrl, {
           onStart: (contentLength) => {
+            // If content-length known, account for it in maxBytes as bytes.
+            // We keep the count-based max for template flows for simplicity.
           },
-          onChunk: (received) => {
+          onChunk: (received, contentLength) => {
+            // We don't use per-byte accounting here; progress is tracked per-file.
           }
         });
-        zipEntries.push({ name: prefixedName(segZipPath), input: buf });
+        zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
+        // mark init file as processed
+        downloadedBytes += 1;
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
-      }
+
+        // segments
+        for (let i = 0; i < t.info.segmentUrls.length; i++) {
+          const segUrl = t.info.segmentUrls[i];
+          const segZipPath = t.info.mediaZipPaths[i];
+          console.log(`>>> Fetching template segment #${i + 1}:`, segUrl);
+          let lastReceived = 0;
+          const buf = await fetchWithProgress(segUrl, {
+            onStart: (contentLength) => {
+              // per-segment start
+            },
+            onChunk: (received, contentLength) => {
+              // not using byte-level accounting here; finalization increments per-file counter
+            }
+          });
+          zipEntries.push({ name: prefixedName(segZipPath), input: buf });
+          downloadedBytes += 1;
+          handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
+        }
 
     } else if (t.type === "base") {
       console.log(">>> Fetching SegmentBase file (single-file MP4):", t.url);
@@ -1249,8 +1257,10 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           onChunk: (received) => {
           }
         });
-        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
         zipEntries.push({ name: prefixedName(segZipPath), input: buf });
+        // count-based progress increment for each segment fetched
+        downloadedBytes += 1;
+        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
       }
       if (mpdFixEnabled) repIdToLocalName[t.rep.id] = { type: "list", init: t.info.initZipPath, segments: t.info.segmentZipPaths };
     }

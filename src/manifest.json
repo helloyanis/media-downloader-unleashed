@@ -25,7 +25,8 @@
   "background": {
     "scripts": [
       "background.js",
-      "offlineStreamConvert.js"
+      "offlineStreamConvert.js",
+      "libraries/client-zip.js"
     ]
   },
   "icons": {
