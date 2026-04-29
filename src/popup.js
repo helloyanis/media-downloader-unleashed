@@ -994,7 +994,7 @@ function handleMessage(message, sender, sendResponse) {
       return promptStreamVariant(message.variants, message.url)
         .then(selectedVariant => ({ selectedVariant }));
     case 'showSplitDownloadDialog':
-      return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseName}".`, url: mpdUrl, request: request, downloadMethod: downloadMethod });
+      return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${message.baseName}".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
     default:
       console.warn(`Unknown message action: ${message.action}`);
       return undefined;

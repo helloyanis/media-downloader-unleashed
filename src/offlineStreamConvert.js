@@ -498,7 +498,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     }
     // TODO Handle the dialog for split downloads
     URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
-    browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId });
+    browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId, baseName: baseFileName, mpdUrl: m3u8Url, downloadMethod: downloadMethod });
   }
   browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
 } catch (e) {
