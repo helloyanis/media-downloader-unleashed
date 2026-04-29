@@ -623,7 +623,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
   const resp = await fetchWithCache(mpdUrl, {
     method: request.method,
     headers: headers,
-    referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || ""
+    referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
+    body: request.method !== 'GET' ? request.requestBody : null,
   });
   if (!resp.ok) throw new Error(`Failed to fetch MPD manifest: ${resp.status}.`);
   let mpdXmlText = await resp.text();
