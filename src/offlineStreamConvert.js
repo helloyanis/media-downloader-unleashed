@@ -67,7 +67,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
   handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
   const getText = async (url) => {
     const res = await fetchWithCache(url, {
-      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      headers: headers,
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method,
       referrer:
@@ -88,7 +88,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
 
     let  selectedVariant = await selectStreamVariant(lines, base, {
-      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      headers: headers,
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method
     });
@@ -125,7 +125,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
     // helpers for fetch options
     const fetchOpts = {
-      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      headers: headers,
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
       method: request.method
     };
@@ -146,13 +146,14 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     }
 
     if (hasDRM) {
-      await mdui.confirm({
-        headline: browser.i18n.getMessage("drmWarningTitle"),
-        description: browser.i18n.getMessage("drmWarningDescription"),
-        confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-        cancelText: browser.i18n.getMessage("cancelButton"),
-        onCancel: () => { drmAbort = true; },
-      });
+      // await mdui.confirm({
+      //   headline: browser.i18n.getMessage("drmWarningTitle"),
+      //   description: browser.i18n.getMessage("drmWarningDescription"),
+      //   confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+      //   cancelText: browser.i18n.getMessage("cancelButton"),
+      //   onCancel: () => { drmAbort = true; },
+      // });
+      //TODO Move this to popup
     }
 
     if (drmAbort) {
@@ -588,7 +589,7 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
  * @param {HTMLElement} loadingBar  – the <mdui-linear-progress> element
  * @param {Object} request          – the single request object (requests[url][selectedSizeIndex])
  */
-async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, request) {
+async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request) {
   // --- Helpers
   function sanitizeZipPath(originalPath) {
     if (!originalPath || typeof originalPath !== "string") return originalPath || "";
@@ -621,7 +622,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   // Fetch MPD manifest
   const resp = await fetchWithCache(mpdUrl, {
     method: request.method,
-    headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+    headers: headers,
     referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || ""
   });
   if (!resp.ok) throw new Error(`Failed to fetch MPD manifest: ${resp.status}.`);
@@ -807,7 +808,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   async function fetchWithProgress(url, { onStart, onChunk } = {}) {
     const r = await fetchWithCache(url, {
       method: request.method,
-      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+      headers: headers,
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
       body: request.method !== 'GET' ? request.requestBody : null,
     });
@@ -861,17 +862,16 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     if (chosenVideoRep) downloads.push({ rep: chosenVideoRep, label: "video" });
     if (chosenAudioRep) downloads.push({ rep: chosenAudioRep, label: "audio" });
 
-    // Set up loadingBar as byte-tracking (max will grow as we discover Content-Lengths)
-    loadingBar.removeAttribute("indeterminate");
-    loadingBar.setAttribute("value", 0);
-    loadingBar.setAttribute("max", 0);
+    // Set up byte-tracking (max will grow as we discover Content-Lengths)
+    handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: 0, total: 0 });
     let downloadedBytes = 0;
+    let maxBytes = 0;
     let sawUnknownLength = false;
 
     // Helper to safely add to max
     function addToMax(n) {
-      const prev = Number(loadingBar.getAttribute("max")) || 0;
-      loadingBar.setAttribute("max", prev + n);
+      maxBytes += n;
+      handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes });
     }
 
     for (const d of downloads) {
@@ -895,7 +895,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
           } else {
             // unknown content-length — show indeterminate
             sawUnknownLength = true;
-            loadingBar.setAttribute("indeterminate", "");
+            handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: null, percentage: null });
           }
         },
         onChunk: (received, contentLength) => {
@@ -905,7 +905,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
           // if we know any max, update value
           const max = Number(loadingBar.getAttribute("max")) || 0;
           if (max > 0) {
-            loadingBar.setAttribute("value", downloadedBytes);
+            handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max , percentage: Math.round((downloadedBytes / max) * 100) });
           }
         }
       });
@@ -914,7 +914,7 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       if (sawUnknownLength) {
         // If we discovered content-length for this file earlier it would have added to max.
         // We still remove indeterminate so the bar shows bytes progress accumulation.
-        loadingBar.removeAttribute("indeterminate");
+          handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
       }
 
       // Trigger download for this file
@@ -933,25 +933,25 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       URL.revokeObjectURL(objectUrl);
     }
 
-    // Finalize progress bar
-    const finalMax = Number(loadingBar.getAttribute("max")) || downloadedBytes || 1;
-    loadingBar.setAttribute("max", finalMax);
-    loadingBar.setAttribute("value", downloadedBytes);
-    loadingBar.removeAttribute("indeterminate");
+    // Finalize progress
+    const finalMax = sawUnknownLength ? null : maxBytes;
+    handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: finalMax, percentage: finalMax ? Math.round((downloadedBytes / finalMax) * 100) : null });
 
     console.log("✅ Direct downloads complete.");
-    showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseName}".`, url: mpdUrl, request: request, downloadMethod: downloadMethod });
+    //showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseName}".`, url: mpdUrl, request: request, downloadMethod: downloadMethod }); TODO move this
+    browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
     return;
   }
 
   // --- Otherwise: existing ZIP flow (templates + bases zipped). Keep streaming progress for all resources.
 
-  const snackbar = document.createElement('mdui-snackbar');
-  snackbar.setAttribute('open', true);
-  snackbar.setAttribute('timeout', 10000);
-  snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
-  document.body.appendChild(snackbar);
-  snackbar.addEventListener('close', () => snackbar.remove());
+  // const snackbar = document.createElement('mdui-snackbar');
+  // snackbar.setAttribute('open', true);
+  // snackbar.setAttribute('timeout', 10000);
+  // snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
+  // document.body.appendChild(snackbar);
+  // snackbar.addEventListener('close', () => snackbar.remove());
+  browser.runtime.sendMessage({ action: 'showMPDZipSnackbar', requestId: request.requestId });
 
   // Build segment template helper (substituteVars reused)
   function substituteVars(path, rep, extra = {}) {
@@ -1149,14 +1149,13 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   // Setup dynamic byte-tracking progress for ZIP flow
-  loadingBar.removeAttribute("indeterminate");
-  loadingBar.setAttribute("max", 0);
-  loadingBar.setAttribute("value", 0);
+  handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: 0, total: tasks.length, percentage: 0 });
   let downloadedBytes = 0;
+  let maxBytes = 0;
 
   function addToMax(n) {
-    const prev = Number(loadingBar.getAttribute("max")) || 0;
-    loadingBar.setAttribute("max", prev + n);
+    maxBytes += n;
+    handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
   }
 
   const mpdFixEnabled = (await browser.storage.local.get("mpd-fix").then((result) => result["mpd-fix"])) === "1";
@@ -1170,21 +1169,17 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       let lastReceivedForFile = 0;
       const initBuf = await fetchWithProgress(t.info.initUrl, {
         onStart: (contentLength) => {
-          // if (contentLength && contentLength > 0) addToMax(contentLength);
-          // else loadingBar.setAttribute("indeterminate", "");
+
         },
         onChunk: (received) => {
-          // const delta = received - lastReceivedForFile;
-          // lastReceivedForFile = received;
-          // downloadedBytes += delta;
-          // const max = Number(loadingBar.getAttribute("max")) || 0;
-          // if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+
         }
       });
       zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
 
       // segments
-      loadingBar.setAttribute("max", t.info.segmentUrls.length);
+      maxBytes = t.info.segmentUrls.length;
+      handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
       for (let i = 0; i < t.info.segmentUrls.length; i++) {
         const segUrl = t.info.segmentUrls[i];
         const segZipPath = t.info.mediaZipPaths[i];
@@ -1192,19 +1187,12 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
         let lastReceived = 0;
         const buf = await fetchWithProgress(segUrl, {
           onStart: (contentLength) => {
-            // if (contentLength && contentLength > 0) addToMax(contentLength);
-            // else loadingBar.setAttribute("indeterminate", "");
           },
           onChunk: (received) => {
-            // const delta = received - lastReceived;
-            // lastReceived = received;
-            // downloadedBytes += delta;
-            // const max = Number(loadingBar.getAttribute("max")) || 0;
-            // if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
           }
         });
         zipEntries.push({ name: prefixedName(segZipPath), input: buf });
-        loadingBar.setAttribute("value", i + 1); // show segment progress as count (since we don't know sizes)
+        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
       }
 
     } else if (t.type === "base") {
@@ -1213,14 +1201,14 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       const arrayBuffer = await fetchWithProgress(t.url, {
         onStart: (contentLength) => {
           if (contentLength && contentLength > 0) addToMax(contentLength);
-          else loadingBar.setAttribute("indeterminate", "");
+          else handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: null, percentage: null });
         },
         onChunk: (received) => {
           const delta = received - lastReceivedForFile;
           lastReceivedForFile = received;
           downloadedBytes += delta;
-          const max = Number(loadingBar.getAttribute("max")) || 0;
-          if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+          const max = maxBytes || 0
+          if (max > 0) handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round(((downloadedBytes) / max) * 100) });
         }
       });
 
@@ -1234,19 +1222,20 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
       const initBuf = await fetchWithProgress(t.info.initUrl, {
         onStart: (contentLength) => {
           if (contentLength && contentLength > 0) addToMax(contentLength);
-          else loadingBar.setAttribute("indeterminate", "");
+          else handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: null, percentage: null });
         },
         onChunk: (received) => {
           const delta = received - lastReceivedForFile;
           lastReceivedForFile = received;
           downloadedBytes += delta;
-          const max = Number(loadingBar.getAttribute("max")) || 0;
-          if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
+          const max = maxBytes || 0;
+          if (max > 0) handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round(((downloadedBytes) / max) * 100) });
         }
       });
 
       zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
-      loadingBar.setAttribute("max", t.info.segmentUrls.length);  
+      maxBytes = t.info.segmentUrls.length;
+      handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
       for (let i = 0; i < t.info.segmentUrls.length; i++) {
         const segUrl = t.info.segmentUrls[i];
         const segZipPath = t.info.segmentZipPaths[i];
@@ -1255,18 +1244,11 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
         let lastReceived = 0;
         const buf = await fetchWithProgress(segUrl, {
           onStart: (contentLength) => {
-            // if (contentLength && contentLength > 0) addToMax(contentLength);
-            // else loadingBar.setAttribute("indeterminate", "");
           },
           onChunk: (received) => {
-            // const delta = received - lastReceived;
-            // lastReceived = received;
-            // downloadedBytes += delta;
-            // const max = Number(loadingBar.getAttribute("max")) || 0;
-            // if (max > 0) loadingBar.setAttribute("value", downloadedBytes);
           }
         });
-        loadingBar.setAttribute("value", i + 1); // show segment progress as count (since we don't know sizes)
+        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
         zipEntries.push({ name: prefixedName(segZipPath), input: buf });
       }
       if (mpdFixEnabled) repIdToLocalName[t.rep.id] = { type: "list", init: t.info.initZipPath, segments: t.info.segmentZipPaths };
@@ -1339,13 +1321,8 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
     zipEntries[0] = { name: mpdFilename, input: new TextEncoder().encode(mpdXmlText) };
   }
 
-  // finalize progress bar
-  try {
-    const finalMax = Number(loadingBar.getAttribute("max")) || downloadedBytes || 1;
-    loadingBar.setAttribute("max", finalMax);
-    loadingBar.setAttribute("value", downloadedBytes);
-    loadingBar.removeAttribute("indeterminate");
-  } catch (e) { }
+  // finalize progress
+  handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: maxBytes ? Math.round((downloadedBytes / maxBytes) * 100) : null });
 
   // Generate ZIP and trigger download
   console.log("▶️ All segments fetched; generating ZIP…");
@@ -1366,12 +1343,13 @@ async function downloadMPDOffline(mpdUrl, headers, downloadMethod, loadingBar, r
   }
 
   console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-  showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), {
-    error: `✅ Downloaded ZIP (“${zipName}”).`,
-    urls: { zip: URL.createObjectURL(zipBlob), mpd: mpdUrl },
-    request,
-    downloadMethod
-  });
+  // showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), {
+  //   error: `✅ Downloaded ZIP (“${zipName}”).`,
+  //   urls: { zip: URL.createObjectURL(zipBlob), mpd: mpdUrl },
+  //   request,
+  //   downloadMethod
+  // }); TODO move this
+  browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId});
 
   // Helper: prefix zip path
   function prefixedName(path) {
@@ -1582,6 +1560,9 @@ browser.runtime.onMessage.addListener((message) => {
     switch (message.action) {
         case 'downloadM3U8Offline':
             return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))//.catch(err => ({ success: false, error: err?.message || String(err) })); TODO Restore this when debugging is done
+            break;
+        case 'downloadMPDOffline':
+            return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))//.catch(err => ({ success: false, error: err?.message || String(err) })); TODO Restore this when debugging is done
             break;
         case 'getOngoingDownloads':
           return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));
