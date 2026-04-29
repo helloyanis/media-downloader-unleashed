@@ -450,12 +450,50 @@ initListener();
 // Clear local storage when message is received
 browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'clearStorage') {
-        browser.storage.session.clear();
-        // Also clear IndexedDB cache
+        // browser.storage.session.clear();
+        // // Also clear IndexedDB cache
+        // openCacheDB().then(db => {
+        //     const tx = db.transaction([STORE_NAME], "readwrite");
+        //     const store = tx.objectStore(STORE_NAME);
+        //     store.clear();
+        // }).catch(e => {
+        //     console.error("Failed to clear IndexedDB cache:", e);
+        // });
+
+        // Do not clear data for ongoing downloads
+
+        const ongoingDownloads = message.ongoingDownloads || [];
+        const ongoingIDs = new Set(ongoingDownloads.map(d => d.requestId));
+
+        browser.storage.session.get(null, function (items) {
+            for (let url in items) {
+                const requests = items[url];
+                const filteredRequests = requests.filter(r => ongoingIDs.has(r.requestId));
+                if (filteredRequests.length > 0) {
+                    let obj = {};
+                    obj[url] = filteredRequests;
+                    browser.storage.session.set(obj);
+                } else {
+                    browser.storage.session.remove(url);
+                }
+            }
+        });
+
+        // Also clear IndexedDB entries that are not related to ongoing downloads
         openCacheDB().then(db => {
             const tx = db.transaction([STORE_NAME], "readwrite");
             const store = tx.objectStore(STORE_NAME);
-            store.clear();
+            const request = store.openCursor();
+            request.onsuccess = function (event) {
+                const cursor = event.target.result;
+                if (cursor) {
+                    if (!ongoingURLs.has(cursor.value.url)) {
+                        // No ongoing download for this URL, safe to delete
+                        store.delete(cursor.primaryKey);
+                    }
+                    cursor.continue();
+                }
+            };
         }).catch(e => {
             console.error("Failed to clear IndexedDB cache:", e);
         });

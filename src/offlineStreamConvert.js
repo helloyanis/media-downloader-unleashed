@@ -62,6 +62,7 @@ async function fetchWithCache(url, options = {}) {
  * @params {Object} request - The request object containing the request details.
  */
 async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request) {
+  try {
   // Add the current download to the ongoingDownloads map
   handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
   const getText = async (url) => {
@@ -500,6 +501,12 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId });
   }
   browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+} catch (e) {
+    console.error("Error during M3U8 offline download:", e);
+    browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, message: e.message || String(e) });
+} finally {
+  handleDownloadCompletion(request.requestId);
+}
 }
 
 
@@ -1554,6 +1561,20 @@ function handleProgressUpdate(message) {
     ? Math.round(downloads.reduce((acc, d) => acc + (d.progress?.percentage || 0), 0) / downloads.length)
     : 0;
   browser.action.setBadgeText({ text: totalPercentage > 0 ? `${totalPercentage}%` : '' });
+}
+
+function handleDownloadCompletion(id) {
+
+  const existing = ongoingDownloads.get(id);
+  if (existing) {
+    // Remove from ongoing downloads
+    ongoingDownloads.delete(id);
+  }
+
+  // Clear badge if no more in-progress downloads
+  if (ongoingDownloads.size === 0) {
+    browser.action.setBadgeText({ text: '' });
+  }
 }
 
 browser.runtime.onMessage.addListener((message) => {

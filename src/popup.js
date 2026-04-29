@@ -470,6 +470,9 @@ function loadMediaList() {
       mduiDownloadIconContainer.appendChild(downloadIcon);
       downloadButton.appendChild(mduiDownloadIconContainer);
 
+      //Placeholder loading bar
+      let loadingBar = null;
+
       // Add options for the media sizes
       let isFirstElement = true;
       let shouldRestoreLoadingState = false;
@@ -488,10 +491,9 @@ function loadMediaList() {
         downloadButton.loading = true;
 
         // If the download is ongoing, we add a loading bar and a listener to update the progress
-        const loadingBar = document.createElement('mdui-linear-progress');
+        loadingBar = document.createElement('mdui-linear-progress');
         loadingBar.setAttribute('indeterminate', 'true');
         loadingBar.style.width = '100%';
-        mediaDiv.appendChild(loadingBar);
         progressListener = function progressListener(message, sender, sendResponse) {
           if (message.action === 'updateProgress' && message.requestId === request.requestId) {
             if (message.percentage !== undefined) {
@@ -508,14 +510,14 @@ function loadMediaList() {
               progressListener = null;
             }
           }
-          if (message.action === 'downloadComplete' && message.requestId === requestId) {
+          if (message.action === 'downloadComplete' && message.requestId === request.requestId) {
             mediaDiv.removeChild(loadingBar);
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
             browser.runtime.onMessage.removeListener(progressListener);
             progressListener = null;
           }
-          if (message.action === 'downloadFailed' && message.requestId === requestId) {
+          if (message.action === 'downloadFailed' && message.requestId === request.requestId) {
             mediaDiv.removeChild(loadingBar);
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
@@ -605,6 +607,11 @@ function loadMediaList() {
       // Append the size select and actions div to the media item
       mediaDiv.appendChild(actionsDiv);
 
+      // If a loading bar was created for this media item, append it below the actions
+      if (loadingBar) {
+        mediaDiv.appendChild(loadingBar);
+      }
+
 
       // Add the media container to the popup
       mediaContainer.appendChild(mediaDiv);
@@ -643,27 +650,14 @@ async function handleYoutubeMediaRequest(url) {
       confirmText: browser.i18n.getMessage("youtubeDialogAskOkButton"),
       cancelText: browser.i18n.getMessage("cancelButton"),
       onConfirm: () => {
-        // Check if the user is on PC or Android
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        if (isAndroid) {
-          // Show Seal download page on Android
-          mdui.confirm({
-            headline: browser.i18n.getMessage("youtubeDialogDownloaderAndroidTitle"),
-            description: browser.i18n.getMessage("youtubeDialogDownloaderAndroidMessage"),
-            onConfirm: () => {
-              window.open('https://github.com/JunkFood02/Seal?tab=readme-ov-file#%EF%B8%8F-download', '_blank');
-            }
-          })
-        } else {
-          // Show yt-dlp page on PC
-          mdui.confirm({
-            headline: browser.i18n.getMessage("youtubeDialogDownloaderPCTitle"),
-            description: browser.i18n.getMessage("youtubeDialogDownloaderPCMessage"),
-            onConfirm: () => {
-              window.open('https://github.com/yt-dlp/yt-dlp?tab=readme-ov-file#installation', '_blank');
-            }
-          });
-        }
+        // Show Invidious download page on Android
+        mdui.confirm({
+          headline: browser.i18n.getMessage("youtubeDialogDownloaderTitle"),
+          description: browser.i18n.getMessage("youtubeDialogDownloaderAndroidMessage"),
+          onConfirm: () => {
+            window.open('https://inv.nadeko.net', '_blank');
+          }
+        });
       },
       onCancel: () => { },
     });
@@ -678,16 +672,21 @@ async function handleYoutubeMediaRequest(url) {
 }
 
 /**
- * Clear the media list from the local storage and refresh the display of the media list
+ * Clear the media list from the local storage and refresh the display of the media list. Will not clear ongoing downloads.
  * @returns {null} Does not return anything, but throws on error
  */
 function clearMediaList() {
-  browser.runtime.sendMessage({ action: 'clearStorage' }).then(() => {
-    console.log('Media list cleared');
-    loadMediaList(); //Refresh the display
+  browser.runtime.sendMessage({ action: 'getOngoingDownloads' }).then((ongoingDownloads) => {
+    browser.runtime.sendMessage({ action: 'clearStorage', ongoingDownloads }).then(() => {
+      console.log('Media list cleared');
+      loadMediaList(); //Refresh the display
+    }).catch((error) => {
+      console.error('Error clearing media list:', error);
+      showDialog(browser.i18n.getMessage("listClearError", [error]), null, { error: `Error clearing media list: ${error}` });
+    });
   }).catch((error) => {
-    console.error('Error clearing media list:', error);
-    showDialog(browser.i18n.getMessage("listClearError", [error]), null, { error: `Error clearing media list: ${error}` });
+    console.error('Error retrieving ongoing downloads:', error);
+    showDialog(browser.i18n.getMessage("listClearError", [error]), null, { error: `Error retrieving ongoing downloads: ${error}` });
   });
 }
 
@@ -994,6 +993,8 @@ function handleMessage(message, sender, sendResponse) {
     case 'promptStreamVariant':
       return promptStreamVariant(message.variants, message.url)
         .then(selectedVariant => ({ selectedVariant }));
+    case 'showSplitDownloadDialog':
+      return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseName}".`, url: mpdUrl, request: request, downloadMethod: downloadMethod });
     default:
       console.warn(`Unknown message action: ${message.action}`);
       return undefined;

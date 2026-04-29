@@ -577,20 +577,12 @@
         "message": "Yes",
         "description": "The text of the OK button in the YouTube media request dialog."
     },
-    "youtubeDialogDownloaderPCTitle": {
-        "message": "Try with yt-dlp",
-        "description": "The title of the dialog shown when guiding the user to download YouTube videos on PC."
+    "youtubeDialogDownloaderTitle": {
+        "message": "Try with Invidious",
+        "description": "The title of the dialog shown when guiding the user to download YouTube videos"
     },
-    "youtubeDialogDownloaderPCMessage": {
-        "message": "You can use yt-dlp, a powerful command-line tool to download videos from YouTube and many other platforms. You can find installation instructions on their GitHub page.",
-        "description": "The message of the dialog shown when guiding the user to download YouTube videos on PC."
-    },
-    "youtubeDialogDownloaderAndroidTitle": {
-        "message": "Try with Seal",
-        "description": "The title of the dialog shown when guiding the user to download YouTube videos on Android."
-    },
-    "youtubeDialogDownloaderAndroidMessage": {
-        "message": "You can use Seal, an Android app that allows you to download videos from YouTube and other platforms. You can find the download link on their GitHub page.",
-        "description": "The message of the dialog shown when guiding the user to download YouTube videos on Android."
+    "youtubeDialogDownloaderMessage": {
+        "message": "Search and play your video on an Invidious instance (a privacy-focused YouTube front-end) and try downloading it from there. Invidious often uses more standard streaming methods that are compatible with this extension. Click on OK to open Nadeko, an invidious instance.",
+        "description": "The message of the dialog shown when guiding the user to download YouTube videos"
     }
   }
