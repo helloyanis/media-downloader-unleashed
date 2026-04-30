@@ -23,6 +23,8 @@ A browser add-on to easily download any media (audio, video and streams) played 
    - Click `Load unpacked extension` and chose the folder you just extracted earlier. It should have a `manifest.json` file in it.
 
 > [!WARNING]
+> The add-on is currently being rewritten and will not work on Chromium browsers. To use on Chromium, use [version 3.6.8](https://github.com/helloyanis/media-downloader-unleashed/releases/tag/v3.6.8).
+>
 > If you use the add-on on Chromium based browsers, these features are known to be broken :
 > - The extension shows a default icon, or no icon
 > - The detected media list does not show which website made the request, nor the time it happened at.
