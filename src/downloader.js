@@ -1555,7 +1555,7 @@ async function selectMPDVideoRepresentation(reps) {
         console.error("Error prompting for video representation:", error);
         throw new Error("Failed to prompt for video representation");
       }
-      resolve(response.selectedRep);
+      resolve(response.selectedRepresentation);
     });
   });
 }
@@ -1589,7 +1589,7 @@ async function selectMPDAudioRepresentation(reps, requestId) {
         console.error("Error prompting for audio representation:", error);
         throw new Error("Failed to prompt for audio representation");
       }
-      resolve(response.selectedRep);
+      resolve(response.selectedRepresentation);
     });
   });
 }
