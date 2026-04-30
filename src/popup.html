@@ -93,7 +93,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
       <!-- panels -->
       <mdui-tab-panel extended slot="panel" value="home">
-          <mdui-linear-progress id="loading-media-list"></mdui-linear-progress>
+        <mdui-linear-progress id="loading-media-list"></mdui-linear-progress>
         <mdui-list id="media-list"></mdui-list>
         <mdui-bottom-app-bar scroll-threshold="30" scroll-behavior="hide">
           <mdui-tooltip>
@@ -169,7 +169,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <mdui-switch id="url-detection" name="detection-method" value="url"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="urlDetectionCheckbox">Detection via URL</b>
-                <span class="settings-description-text" data-translate="urlDetectionExplain">Detection by checking if the URL contains a
+                <span class="settings-description-text" data-translate="urlDetectionExplain">Detection by checking if
+                  the URL contains a
                   known media type (for example .mp4, .m3u8). It's fast, but some
                   sites don't serve medias through these kind of URLs, so it might not detect everything.</span>
               </div>
@@ -179,7 +180,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <mdui-switch id="mime-detection" name="detection-method" value="mime"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="mimeDetectionCheckbox">Detection via server's MIME response</b>
-                <span class="settings-description-text" data-translate="mimeDetectionExplain">Detection by checking the server's MIME
+                <span class="settings-description-text" data-translate="mimeDetectionExplain">Detection by checking the
+                  server's MIME
                   response header to see if it's a known media type (for example video/mp4,
                   application/vnd.apple.mpegurl). It's
                   slower than URL detection as the add-on needs to monitor every request and response, but more
@@ -196,8 +198,10 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <mdui-switch id="hide-segments" name="hide-segments" value="1"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="hideSegmentsCheckbox">Hide stream segments in the media list</b>
-                <span class="settings-description-text" data-translate="hideSegmentsExplain">Live streams use multiple segments to deliver content in small
-                  parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.</span>
+                <span class="settings-description-text" data-translate="hideSegmentsExplain">Live streams use multiple
+                  segments to deliver content in small
+                  parts. Usually you only need the stream manifest, so the segments can be hidden to reduce
+                  clutter.</span>
               </div>
             </div>
 
@@ -221,21 +225,23 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <h3 data-translate="downloadMethodTitle">Download method</h3>
 
               <mdui-radio id="browser-download" value="browser" name="download-method"
-                  data-translate="browserDownloadCheckbox">Native browser
-                  download</mdui-radio>
-                  <br />
+                data-translate="browserDownloadCheckbox">Native browser
+                download</mdui-radio>
+              <br />
 
-                  <span class="settings-description-text" data-translate="browserDownloadExplain">Download the media using the browser's
-                  native download manager. Fast and handles disconnects, but only works on some sites and on some
-                  browsers (Firefox for PC).</span>
+              <span class="settings-description-text" data-translate="browserDownloadExplain">Download the media using
+                the browser's
+                native download manager. Fast and handles disconnects, but only works on some sites and on some
+                browsers (Firefox for PC).</span>
 
-<br />
-                <mdui-radio id="fetch-download" value="fetch" name="download-method"
-                    data-translate="fetchDownloadCheckbox">Fetch API</mdui-radio>
-                    <br />
-  
-                    <span class="settings-description-text" data-translate="fetchDownloadExplain">Download the media using the Fetch API.
-                    Works on most sites and browsers, but can be slower and doesn't handle disconnects well.</span>
+              <br />
+              <mdui-radio id="fetch-download" value="fetch" name="download-method"
+                data-translate="fetchDownloadCheckbox">Fetch API</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="fetchDownloadExplain">Download the media using the
+                Fetch API.
+                Works on most sites and browsers, but can be slower and doesn't handle disconnects well.</span>
 
             </mdui-radio-group>
           </mdui-card>
@@ -248,12 +254,28 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <mdui-switch id="media-cache" name="media-cache" value="1"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="mediaCacheCheckbox">Enable media cache</b>
-                <span class="settings-description-text" data-translate="mediaCacheExplain">Attempt to store the media response, so the download can occur without
-                  making a request to the server. Downloads will be faster but can slow down your browser. Disable this if
+                <span class="settings-description-text" data-translate="mediaCacheExplain">Attempt to store the media
+                  response, so the download can occur without
+                  making a request to the server. Downloads will be faster but can slow down your browser. Disable this
+                  if
                   you have issues with the add-on or pages freezing.</span>
               </div>
             </div>
 
+          </mdui-card>
+
+          <!-- Renaming downloads -->
+          <mdui-card variant="filled">
+            <h3 data-translate="renameDownloadsTitle">Renaming downloads</h3>
+            <div class="settings-switch-item">
+              <mdui-switch id="rename-downloads" name="rename-downloads" value="1"></mdui-switch>
+              <div class="settings-switch-description">
+                <b data-translate="renameDownloadsCheckbox">Rename downloaded files</b>
+                <span class="settings-description-text" data-translate="renameDownloadsExplain">By default, downloaded
+                  files are named after the last part of their URL. Enabling this option will allow you to specify a
+                  custom name for each downloaded file.</span>
+              </div>
+            </div>
           </mdui-card>
 
           <!-- Stream download preference -->
@@ -262,26 +284,28 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <h3 data-translate="streamDownloadTitle">Stream download preference</h3>
 
 
-                <mdui-radio id="stream-file-download" value="stream" name="stream-download"
-                    data-translate="streamFileDownloadCheckbox">Download stream
-                    manifest</mdui-radio>
-                    <br />
-  
-                    <span class="settings-description-text" data-translate="streamFileDownloadExplain">Download the stream manifest file
-                    (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
-                    them. Lighter downloads, but you will need to be online with a working server to play the file. Some
-                    servers also block playback this way.</span>
-<br/>
+              <mdui-radio id="stream-file-download" value="stream" name="stream-download"
+                data-translate="streamFileDownloadCheckbox">Download stream
+                manifest</mdui-radio>
+              <br />
 
-                <mdui-radio id="offline-download" value="offline" name="stream-download"
-                    data-translate="offlineDownloadChecbox">Convert to offline video
-                    file</mdui-radio>
-                    <br />
-  
-                    <span class="settings-description-text" data-translate="offlineDownloadExplain">Convert the stream into a single
-                    offline video file (.ts or .zip) after downloading. This takes more time and storage, but the
-                    resulting
-                    file can be watched offline.</span>
+              <span class="settings-description-text" data-translate="streamFileDownloadExplain">Download the stream
+                manifest file
+                (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
+                them. Lighter downloads, but you will need to be online with a working server to play the file. Some
+                servers also block playback this way.</span>
+              <br />
+
+              <mdui-radio id="offline-download" value="offline" name="stream-download"
+                data-translate="offlineDownloadChecbox">Convert to offline video
+                file</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="offlineDownloadExplain">Convert the stream into a
+                single
+                offline video file (.ts or .zip) after downloading. This takes more time and storage, but the
+                resulting
+                file can be watched offline.</span>
             </mdui-radio-group>
           </mdui-card>
 
@@ -291,37 +315,42 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               <h3 data-translate="streamQualityTitle">Stream quality preference</h3>
 
               <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality"
-                  data-translate="askStreamQualityCheckbox">Always ask me</mdui-radio>
-                  <br />
-  
-                  <span class="settings-description-text" data-translate="askStreamQualityExplain">Always ask which quality to
-                    download when downloading a stream.</span>
-                    <br/>
+                data-translate="askStreamQualityCheckbox">Always ask me</mdui-radio>
+              <br />
 
-                <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality"
-                    data-translate="highestStreamQualityCheckbox">Always highest
-                    quality</mdui-radio>
-                    <br />
-  
-                    <span class="settings-description-text" data-translate="highestStreamQualityExplain">Always download the highest
-                      available quality for a stream. Better quality but larger files and slower downloads.</span>
-                      <br/>
+              <span class="settings-description-text" data-translate="askStreamQualityExplain">Always ask which quality
+                to
+                download when downloading a stream.</span>
+              <br />
 
-                <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality"
-                    data-translate="lowestStreamQualityCheckbox">Always lowest
-                    quality</mdui-radio>
-                    <br />
-  
-                    <span class="settings-description-text" data-translate="lowestStreamQualityExplain">Always download the lowest
-                      available quality for a stream. Lower quality but smaller files and faster downloads.</span>
+              <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality"
+                data-translate="highestStreamQualityCheckbox">Always highest
+                quality</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="highestStreamQualityExplain">Always download the
+                highest
+                available quality for a stream. Better quality but larger files and slower downloads.</span>
+              <br />
+
+              <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality"
+                data-translate="lowestStreamQualityCheckbox">Always lowest
+                quality</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="lowestStreamQualityExplain">Always download the
+                lowest
+                available quality for a stream. Lower quality but smaller files and faster downloads.</span>
             </mdui-radio-group>
             <br />
             <div class="settings-switch-item">
               <mdui-switch id="mpd-fix" name="mpd-fix" value="1"></mdui-switch>
               <div class="settings-switch-description">
                 <b data-translate="mpdFixCheckbox">Fix MPD files (recommended)</b>
-                <span class="settings-description-text" data-translate="mpdFixExplain">This will modify the .mpd file you download to only
-                  include the quality you download. Otherwise, players like VLC will not play the file because it will try
+                <span class="settings-description-text" data-translate="mpdFixExplain">This will modify the .mpd file
+                  you download to only
+                  include the quality you download. Otherwise, players like VLC will not play the file because it will
+                  try
                   to request a quality you don't have downloaded.</span>
               </div>
             </div>

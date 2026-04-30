@@ -38,7 +38,7 @@ mdui-bottom-app-bar {
 
 #settings-container {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: wrap;
     justify-content: space-around;
 }

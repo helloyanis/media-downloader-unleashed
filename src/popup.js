@@ -311,7 +311,9 @@ function loadMediaList() {
     const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
     const useUrlDetection = await browser.storage.local.get('url-detection').then(result => result['url-detection']) === '1';
 
-    const ongoingDownloads = await browser.runtime.sendMessage({ action: 'getOngoingDownloads' });
+    const ongoingDownloads = await browser.runtime.sendMessage({ action: 'getOngoingDownloads' }) || [];
+    const completedDownloads = await browser.storage.session.get('completedDownloads');
+    const failedDownloads = await browser.storage.session.get('failedDownloads');
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       //If no content type or wrong content type, skip
@@ -465,7 +467,18 @@ function loadMediaList() {
       const downloadIcon = document.createElementNS(svgNamespace, 'svg');
       downloadIcon.setAttribute('viewBox', '0 -960 960 960');
       const downloadPath = document.createElementNS(svgNamespace, 'path');
-      downloadPath.setAttribute('d', 'M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z');
+      // Check if the media is in the completed or failed downloads, and change the icon accordingly
+      if (Object.keys(completedDownloads).length !== 0 && completedDownloads.includes(requestIds[0])) {
+        // Completed download icon (checkmark)
+        downloadPath.setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
+      } else if (Object.keys(failedDownloads).length !== 0 && failedDownloads.includes(requestIds[0])) {
+        // Failed download icon (cross)
+        downloadPath.setAttribute('d', 'M508.5-291.5Q520-303 520-320t-11.5-28.5Q497-360 480-360t-28.5 11.5Q440-337 440-320t11.5 28.5Q463-280 480-280t28.5-11.5ZM440-440h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
+      } else {
+        // Default download icon
+        downloadPath.setAttribute('d', 'M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z');
+      }
+      downloadPath.setAttribute('id', 'download-icon-path');
       downloadIcon.appendChild(downloadPath);
       mduiDownloadIconContainer.appendChild(downloadIcon);
       downloadButton.appendChild(mduiDownloadIconContainer);
@@ -496,24 +509,18 @@ function loadMediaList() {
         loadingBar.style.width = '100%';
         progressListener = function progressListener(message, sender, sendResponse) {
           if (message.action === 'updateProgress' && message.requestId === request.requestId) {
-            if (message.percentage !== undefined) {
+            if (message.percentage !== null) {
               loadingBar.removeAttribute('indeterminate');
               loadingBar.value = message.percentage / 100;
             } else {
               loadingBar.setAttribute('indeterminate', 'true');
-            }
-            if (message.status === 'downloadComplete' || message.status === 'downloadFailed') {
-              mediaDiv.removeChild(loadingBar);
-              mediaDiv.querySelector("#download-button").loading = false;
-              mediaDiv.querySelector("#download-button").disabled = false;
-              browser.runtime.onMessage.removeListener(progressListener);
-              progressListener = null;
             }
           }
           if (message.action === 'downloadComplete' && message.requestId === request.requestId) {
             mediaDiv.removeChild(loadingBar);
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
+            downloadPath.setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
             browser.runtime.onMessage.removeListener(progressListener);
             progressListener = null;
           }
@@ -521,6 +528,7 @@ function loadMediaList() {
             mediaDiv.removeChild(loadingBar);
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
+            downloadPath.setAttribute('d', 'M508.5-291.5Q520-303 520-320t-11.5-28.5Q497-360 480-360t-28.5 11.5Q440-337 440-320t11.5 28.5Q463-280 480-280t28.5-11.5ZM440-440h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
             browser.runtime.onMessage.removeListener(progressListener);
             progressListener = null;
           }
@@ -635,7 +643,7 @@ function loadMediaList() {
     endOfMediaList.appendChild(endOfMediaListLink);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
-    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}`, requests: mediaRequests });
+    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}` });
   });
 }
 
@@ -797,29 +805,11 @@ async function downloadFile(url, mediaDiv) {
 
     progressListener = function progressListener(message, sender, sendResponse) {
       if (message.action === 'updateProgress' && message.requestId === requestId) {
-        if (message.percentage !== undefined) {
+        if (message.percentage !== null) {
           loadingBar.removeAttribute('indeterminate');
           loadingBar.value = message.percentage / 100;
         } else {
           loadingBar.setAttribute('indeterminate', 'true');
-        }
-        if (message.status === 'downloadComplete' || message.status === 'downloadFailed') {
-          mediaDiv.removeChild(loadingBar);
-          mediaDiv.querySelector("#download-button").loading = false;
-          mediaDiv.querySelector("#download-button").disabled = false;
-          if (message.status === 'downloadComplete') {
-            mdui.snackbar({
-              message: browser.i18n.getMessage("downloadComplete"),
-              autoCloseDelay: 5000,
-            });
-          } else {
-            mdui.snackbar({
-              message: browser.i18n.getMessage("downloadFailed"),
-              autoCloseDelay: 5000,
-            });
-          }
-          browser.runtime.onMessage.removeListener(progressListener);
-          progressListener = null;
         }
       }
       if (message.action === 'downloadComplete' && message.requestId === requestId) {
@@ -827,6 +817,7 @@ async function downloadFile(url, mediaDiv) {
         mediaDiv.querySelector("#download-button").loading = false;
         mediaDiv.querySelector("#download-button").disabled = false;
         browser.runtime.onMessage.removeListener(progressListener);
+        mediaDiv.querySelector("#download-icon-path").setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
         progressListener = null;
       }
       if (message.action === 'downloadFailed' && message.requestId === requestId) {
@@ -834,6 +825,7 @@ async function downloadFile(url, mediaDiv) {
         mediaDiv.querySelector("#download-button").loading = false;
         mediaDiv.querySelector("#download-button").disabled = false;
         browser.runtime.onMessage.removeListener(progressListener);
+        mediaDiv.querySelector("#download-icon-path").setAttribute('d', 'M508.5-291.5Q520-303 520-320t-11.5-28.5Q497-360 480-360t-28.5 11.5Q440-337 440-320t11.5 28.5Q463-280 480-280t28.5-11.5ZM440-440h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
         progressListener = null;
       }
     };
@@ -850,7 +842,31 @@ async function downloadFile(url, mediaDiv) {
     const lowerPath = new URL(url).pathname.toLowerCase();
     const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationvndapplempegurl";
     const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationdashxml";
-    const fileName = getFileName(url) || 'media';
+    let fileName = null;
+    const shouldPromptForRename = await browser.storage.local.get('rename-downloads').then(result => result['rename-downloads'] === '1');
+    if (shouldPromptForRename) {
+      try{
+      fileName = await mdui.prompt({
+        headline: browser.i18n.getMessage("fileNamePromptTitle"),
+        description: browser.i18n.getMessage("fileNamePromptDescription"),
+        cancelText: browser.i18n.getMessage("cancelButton"),
+        textFieldOptions: {
+          label: browser.i18n.getMessage("fileNamePromptFieldLabel"),
+          placeholder: getFileName(url).substring(0, getFileName(url).lastIndexOf('.')),
+          required: true,
+          suffix: isM3U8 ? '.m3u8' : isMPD ? '.mpd' : url.substring(url.lastIndexOf('.')),
+        }
+      });
+    } catch (error) {
+      // If the user cancels the prompt, we catch the error and return without downloading
+      mediaDiv.removeChild(loadingBar);
+      mediaDiv.querySelector("#download-button").loading = false;
+      mediaDiv.querySelector("#download-button").disabled = false;
+      return;
+    }
+    } else {
+      fileName = getFileName(url);
+    }
 
     console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value}`);
 
@@ -876,90 +892,10 @@ async function downloadFile(url, mediaDiv) {
 
 
     //At this point the media is not a stream or should not be treated as such, so initiate a regular download
-    // TODO move this to offlinestreamconvert.js
-    /*
-    if (downloadMethod === 'browser') {
-      // Use the browser.downloads API to download the file
-      const fileName = getFileName(url) || 'media';
-
-      browser.downloads.download({
-        url,
-        filename: fileName,
-        headers: headers,
-        method: requests[url][selectedSizeIndex].method
-      }).then((downloadId) => {
-        console.log('Media file downloaded:', downloadId);
-      }).catch((error) => {
-        throw new Error('Error downloading media file with browser download method:', error);
-      });
-
-    } else {
-      // Use fetch to download the file
-      // Get the request headers as an object to spoof the request
-      const headersObject = {};
-      headers.forEach(header => {
-        headersObject[header.name] = header.value;
-      });
-
-      // Send the request by fetching the URL with the appropriate method and headers (referrer can't be set in headers but can be set as a fetch option) so servers will think the request is coming from the same site
-      const response = await fetchWithCache(url, {
-        method: requests[url][selectedSizeIndex].method,
-        headers: headersObject,
-        referrer: requests[url][selectedSizeIndex].requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-        body: requests[url][selectedSizeIndex].method !== 'GET' ? requests[url][selectedSizeIndex].requestBody : null,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error downloading media file with fetch: ${response.status}`);
-      }
-
-      // Get the total size from Content-Length header
-      const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-      
-      // Update loading bar to show determinate progress
-      loadingBar.removeAttribute('indeterminate');
-      loadingBar.value = 0;
-
-      // Read the response body as a stream to track progress
-      const reader = response.body.getReader();
-      const chunks = [];
-      let receivedLength = 0;
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) break;
-          
-          chunks.push(value);
-          receivedLength += value.length;
-          
-          // Update progress bar if we know the total size
-          if (contentLength > 0) {
-            const progress = receivedLength / contentLength;
-            loadingBar.value = progress;
-          }
-        }
-      } catch (error) {
-        reader.cancel();
-        throw new Error(`Error reading response stream: ${error.message}`);
-      }
-
-      // Create a blob from the chunks and trigger a download
-      const blob = new Blob(chunks);
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = getFileName(url) || 'media';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      console.log('Media file downloaded:', blobUrl);
-      URL.revokeObjectURL(blobUrl); // Clean up the blob URL
+    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
+    if (result && result.error) {
+      throw new Error(result.error);
     }
-    */
-
-    await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, headers, downloadMethod, request: requests[url][selectedSizeIndex] });
   } catch (error) {
     if (progressListener) {
       browser.runtime.onMessage.removeListener(progressListener);
@@ -994,14 +930,39 @@ function handleMessage(message, sender, sendResponse) {
     case 'promptStreamVariant':
       return promptStreamVariant(message.variants, message.url)
         .then(selectedVariant => ({ selectedVariant }));
+        break;
     case 'showSplitDownloadDialog':
       return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${message.baseName}".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
+      break;
     case 'promptMPDVideoRepresentation':
       return promptMPDVideoRepresentation(message.reps, "video")
         .then(selectedRepresentation => ({ selectedRepresentation }));
+        break;
     case 'promptMPDAudioRepresentation':
       return promptMPDVideoRepresentation(message.reps, "audio")
         .then(selectedRepresentation => ({ selectedRepresentation }));
+        break;
+    case 'showMPDDownloadCompleteDialog':
+      return showDialog(browser.i18n.getMessage("mpdDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded MPD file "${message.baseName}.mp4".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
+      break;
+    case 'promptDRMWarning':
+      return new Promise((resolve) => {
+        mdui.confirm({
+          headline: browser.i18n.getMessage("drmWarningTitle"),
+          description: browser.i18n.getMessage("drmWarningDescription"),
+          confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+          cancelText: browser.i18n.getMessage("cancelButton"),
+          onCancel: () => { resolve({ continue: false }); },
+          onConfirm: () => { resolve({ continue: true }); },
+        });
+      });
+    case 'showAudioStreamSnackbar':
+      mdui.snackbar({
+        message: browser.i18n.getMessage("splitDownloadWarningSnackbar"),
+        autoCloseDelay: 10000,
+        closeable: true,
+      });
+      return Promise.resolve();
     default:
       console.warn(`Unknown message action: ${message.action}`);
       return undefined;

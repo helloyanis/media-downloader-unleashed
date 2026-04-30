@@ -223,6 +223,18 @@
         "message": "Medien-Cache aktivieren",
         "description": "The label of the checkbox to enable media cache."
     },
+    "renameDownloadsTitle": {
+        "message": "Renaming downloaded files",
+        "description": "The title of the renaming downloaded files section in the settings tab."
+    },
+    "renameDownloadsExplain": {
+        "message": "By default, downloaded files are named after the last part of their URL. Enabling this option will allow you to specify a custom name for each downloaded file.",
+        "description": "The explanation of the renaming downloaded files option shown in a tooltip."
+    },
+    "renameDownloadsCheckbox": {
+        "message": "Rename downloaded files",
+        "description": "The label of the checkbox to enable renaming downloaded files."
+    },
       "hideSegmentsTitle": {
         "message": "Stream-Segmente ausblenden",
         "description": "The title of the hide stream segments section in the settings tab."

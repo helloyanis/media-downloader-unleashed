@@ -223,6 +223,18 @@
         "message": "Enable media cache",
         "description": "The label of the checkbox to enable media cache."
     },
+    "renameDownloadsTitle": {
+        "message": "Renaming downloaded files",
+        "description": "The title of the renaming downloaded files section in the settings tab."
+    },
+    "renameDownloadsExplain": {
+        "message": "By default, downloaded files are named after the last part of their URL. Enabling this option will allow you to specify a custom name for each downloaded file.",
+        "description": "The explanation of the renaming downloaded files option shown in a tooltip."
+    },
+    "renameDownloadsCheckbox": {
+        "message": "Rename downloaded files",
+        "description": "The label of the checkbox to enable renaming downloaded files."
+    },
     "hideSegmentsTitle": {
         "message": "Hide stream segments",
         "description": "The title of the hide stream segments section in the settings tab."
@@ -584,5 +596,17 @@
     "youtubeDialogDownloaderMessage": {
         "message": "Search and play your video on an Invidious instance (a privacy-focused YouTube front-end) and try downloading it from there. Invidious often uses more standard streaming methods that are compatible with this extension. Click on OK to open Nadeko, an invidious instance.",
         "description": "The message of the dialog shown when guiding the user to download YouTube videos"
+    },
+    "fileNamePromptTitle": {
+        "message": "Enter file name",
+        "description": "The title of the prompt to enter a file name for the downloaded media."
+    },
+    "fileNamePromptDescription": {
+        "message": "Please enter a name for the downloaded file. It will be saved with this name in your default download folder. You can disable this screen in the settings if you prefer to always use the default name.",
+        "description": "The description of the prompt to enter a file name for the downloaded media."
+    },
+    "fileNamePromptLabel": {
+        "message": "File name",
+        "description": "The label of the text field to enter a file name for the downloaded media."
     }
 }

@@ -17,6 +17,7 @@ async function fetchWithCache(url, options = {}) {
 
   if (browser.extension.inIncognitoContext || (await browser.storage.local.get("media-cache").then((result) => result["media-cache"])) !== "1") {
     // Bypass cache in incognito/private mode or if media-cache is disabled
+    console.log("⚡ Bypassing cache for:", url);
     return fetch(url, options);
   }
 
@@ -50,6 +51,97 @@ async function fetchWithCache(url, options = {}) {
   return fetch(url, options);
 }
 // ----------------------------------------
+
+async function downloadRawMedia(url, fileName, headers, downloadMethod, request) {
+  try {
+      handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
+      if (downloadMethod === 'browser') {
+      // Use the browser.downloads API to download the file
+      browser.downloads.download({
+        url,
+        filename: fileName,
+        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+        method: request.method
+      }).then((downloadId) => {
+        console.log('Media file downloaded:', downloadId);
+      }).catch((error) => {
+        throw new Error('Error downloading media file with browser download method:', error);
+      });
+
+    } else {
+      // Use fetch to download the file
+      // Get the request headers as an object to spoof the request
+      const headersObject = {};
+      headers.forEach(header => {
+        headersObject[header.name] = header.value;
+      });
+
+      // Send the request by fetching the URL with the appropriate method and headers (referrer can't be set in headers but can be set as a fetch option) so servers will think the request is coming from the same site
+      const response = await fetchWithCache(url, {
+        method: request.method,
+        headers: headersObject,
+        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
+        body: request.method !== 'GET' ? request.requestBody : null,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error downloading media file with fetch: ${response.status}`);
+      }
+
+      // Get the total size from Content-Length header
+      const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+      
+      // Update loading bar to show determinate progress
+        if (contentLength > 0) {
+          handleProgressUpdate({ action: 'updateProgress', percentage: 0, requestId: request.requestId, processed: 0, total: contentLength });
+        }
+
+      // Read the response body as a stream to track progress
+      const reader = response.body.getReader();
+      const chunks = [];
+      let receivedLength = 0;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          chunks.push(value);
+          receivedLength += value.length;
+          
+          // Update progress bar if we know the total size
+          if (contentLength > 0) {
+            const progress = receivedLength / contentLength;
+            handleProgressUpdate({ action: 'updateProgress', percentage: Math.round(progress * 100), requestId: request.requestId, processed: receivedLength, total: contentLength });
+          }
+        }
+      } catch (error) {
+        reader.cancel();
+        throw new Error(`Error reading response stream: ${error.message}`);
+      }
+
+      // Create a blob from the chunks and trigger a download
+      const blob = new Blob(chunks);
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      console.log('Media file downloaded:', blobUrl);
+      URL.revokeObjectURL(blobUrl); // Clean up the blob URL
+      browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      handleDownloadCompletion(request.requestId);
+    }
+  } catch (e) {
+    console.error("Error during raw media download:", e);
+    browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, message: e.message || String(e) });
+    handleDownloadCompletion(request.requestId, true);
+    throw e; // Re-throw to allow popup.js to handle it as well
+  }
+}
 
 /**
  * Downloads and converts an M3U8 stream to an MP4 file for offline use.
@@ -109,14 +201,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     }
     if (audioUrl) {
       // Display a snackbar message informing the user about the separate audio stream
-      const snackbar = document.createElement('mdui-snackbar');
-      snackbar.setAttribute('open', true);
-      snackbar.setAttribute('timeout', 10000);
-      snackbar.textContent = browser.i18n.getMessage("splitDownloadWarningSnackbar")
-      document.body.appendChild(snackbar);
-      snackbar.addEventListener('close', () => {
-        snackbar.remove();
-      });
+      browser.runtime.sendMessage({ action: 'showAudioStreamSnackbar', requestId: request.requestId });
     }
 
     async function downloadSegments(playlistUrl) {
@@ -146,14 +231,16 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       }
 
       if (hasDRM) {
-        // await mdui.confirm({
-        //   headline: browser.i18n.getMessage("drmWarningTitle"),
-        //   description: browser.i18n.getMessage("drmWarningDescription"),
-        //   confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-        //   cancelText: browser.i18n.getMessage("cancelButton"),
-        //   onCancel: () => { drmAbort = true; },
-        // });
-        //TODO Move this to popup
+        await new Promise((resolve) => {
+          browser.runtime.sendMessage({ action: 'promptDRMWarning', requestId: request.requestId }, (response, error) => {
+            if (response && response.continue) {
+              resolve();
+            } else {
+              drmAbort = true;
+              resolve();
+            }
+          });
+        });
       }
 
       if (drmAbort) {
@@ -502,11 +589,12 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId, baseName: baseFileName, mpdUrl: m3u8Url, downloadMethod: downloadMethod });
     }
     browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+    handleDownloadCompletion(request.requestId);
   } catch (e) {
     console.error("Error during M3U8 offline download:", e);
     browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, message: e.message || String(e) });
-  } finally {
-    handleDownloadCompletion(request.requestId);
+    handleDownloadCompletion(request.requestId, true);
+    throw e; // Re-throw to allow popup.js to handle it as well
   }
 }
 
@@ -586,7 +674,6 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
  * @param {String} mpdUrl
  * @param {Array<{name:string,value:string}>} headers
  * @param {String} downloadMethod   – (ignored here; always uses fetch)
- * @param {HTMLElement} loadingBar  – the <mdui-linear-progress> element
  * @param {Object} request          – the single request object (requests[url][selectedSizeIndex])
  */
 async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request) {
@@ -637,19 +724,22 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 
     const hasDRM = !!xmlDoc.getElementsByTagNameNS(NS, "ContentProtection").length;
     let drmAbort = false;
-    // if (hasDRM) {
-    //   await mdui.confirm({
-    //     headline: browser.i18n.getMessage("drmWarningTitle"),
-    //     description: browser.i18n.getMessage("drmWarningDescription"),
-    //     confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-    //     cancelText: browser.i18n.getMessage("cancelButton"),
-    //     onCancel: () => { drmAbort = true; },
-    //   });
-    // }
+    if (hasDRM) {
+      await new Promise((resolve) => {
+        browser.runtime.sendMessage({ action: 'promptDRMWarning', requestId: request.requestId }, (response, error) => {
+          if (response && response.continue) {
+            resolve();
+          } else {
+            drmAbort = true;
+            resolve();
+          }
+        });
+      });
+    }
 
-    // if (drmAbort) {
-    //   throw new Error("Download aborted by user due to DRM protection.");
-    // } Todo move this in the popup
+    if (drmAbort) {
+      throw new Error("Download aborted by user due to DRM protection.");
+    }
 
     // Locate Period
     const periodList = xmlDoc.getElementsByTagNameNS(NS, "Period");
@@ -905,7 +995,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             lastReceivedForFile = received;
             downloadedBytes += delta;
             // if we know any max, update value
-            const max = Number(loadingBar.getAttribute("max")) || 0;
+            const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
             if (max > 0) {
               handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round((downloadedBytes / max) * 100) });
             }
@@ -940,8 +1030,12 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: finalMax, percentage: finalMax ? Math.round((downloadedBytes / finalMax) * 100) : null });
 
       console.log("✅ Direct downloads complete.");
-      //showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${baseName}".`, url: mpdUrl, request: request, downloadMethod: downloadMethod }); TODO move this
+      if(downloads.length > 1) {
+        browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId, baseName: baseName, mpdUrl: mpdUrl, downloadMethod: downloadMethod });
+      }
+      
       browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      handleDownloadCompletion(request.requestId);
       return;
     }
 
@@ -1354,14 +1448,10 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       URL.revokeObjectURL(a.href);
     }
 
-    console.log(`✅ Downloaded ZIP (“${zipName}”).`);
-    // showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [baseName]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), {
-    //   error: `✅ Downloaded ZIP (“${zipName}”).`,
-    //   urls: { zip: URL.createObjectURL(zipBlob), mpd: mpdUrl },
-    //   request,
-    //   downloadMethod
-    // }); TODO move this
+
+    browser.runtime.sendMessage({ action: 'showMPDDownloadCompleteDialog', requestId: request.requestId, baseName: baseName, mpdUrl: mpdUrl, downloadMethod: downloadMethod, zipUrl: URL.createObjectURL(zipBlob) });
     browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+    handleDownloadCompletion(request.requestId);
 
     // Helper: prefix zip path
     function prefixedName(path) {
@@ -1373,8 +1463,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     console.error("Error during MPD download process:", err);
     // showDialog(browser.i18n.getMessage("mpdDownloadErrorMessage", [err.message]), browser.i18n.getMessage("mpdDownloadErrorTitle"), { error: err.message, url: mpdUrl, request, downloadMethod }); TODO move this
     browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, error: err.message });
-  } finally {
-    handleDownloadCompletion(request.requestId);
+    handleDownloadCompletion(request.requestId, true);
   }
 }
 
@@ -1471,7 +1560,7 @@ function handleProgressUpdate(message) {
   browser.action.setBadgeText({ text: totalPercentage > 0 ? `${totalPercentage}%` : '' });
 }
 
-function handleDownloadCompletion(id) {
+async function handleDownloadCompletion(id, failed = false) {
 
   const existing = ongoingDownloads.get(id);
   if (existing) {
@@ -1483,11 +1572,37 @@ function handleDownloadCompletion(id) {
   if (ongoingDownloads.size === 0) {
     browser.action.setBadgeText({ text: '' });
   }
+
+  // Add request ID to session storage completed downloads list. Replace the existing id if it exists in session storage, otherwise add new (in case a failed download is retried.)
+  const completedDownloads = await browser.storage.session.get('completedDownloads');
+  const failedDownloads = await browser.storage.session.get('failedDownloads');
+  if (!failed) {
+    completedDownloads.push(id);
+    // Remove from failed downloads if it exists there (in case of retry)
+    const failedIndex = failedDownloads.indexOf(id);
+    if (failedIndex !== -1) {
+      failedDownloads.splice(failedIndex, 1);
+      browser.storage.session.set('failedDownloads', JSON.stringify(failedDownloads));
+    }
+  } else {
+    failedDownloads.push(id);
+    // Remove from completed downloads if it exists there (in case of retry)
+    const completedIndex = completedDownloads.indexOf(id);
+    if (completedIndex !== -1) {
+      completedDownloads.splice(completedIndex, 1);
+      browser.storage.session.set('completedDownloads', completedDownloads);
+    }
+  }
+  browser.storage.session.set('completedDownloads', completedDownloads);
+  browser.storage.session.set('failedDownloads', failedDownloads);
 }
 
 browser.runtime.onMessage.addListener((message) => {
   console.log("Received message in content script:", message);
   switch (message.action) {
+    case 'downloadRawMedia':
+      return downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
+      break;
     case 'downloadM3U8Offline':
       return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
       break;
@@ -1498,5 +1613,4 @@ browser.runtime.onMessage.addListener((message) => {
       return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));
       break;
   }
-  //TODO Add other media types
 });

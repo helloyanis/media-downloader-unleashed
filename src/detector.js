@@ -36,7 +36,7 @@ const mediaTypes = [
 let urlList = [];
 let headersSentListener, headersReceivedListener;
 
-// ---------- IndexedDB helpers (same DB used by offlineStreamConvert.js) ----------
+// ---------- IndexedDB helpers ----------
 const DB_NAME = "MediaCacheDB";
 const STORE_NAME = "network-cache";
 

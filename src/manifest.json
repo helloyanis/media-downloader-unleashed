@@ -24,8 +24,8 @@
   "homepage_url": "https://github.com/helloyanis/media-downloader-unleashed",
   "background": {
     "scripts": [
-      "background.js",
-      "offlineStreamConvert.js",
+      "detector.js",
+      "downloader.js",
       "libraries/client-zip.js"
     ]
   },
