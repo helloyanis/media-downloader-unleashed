@@ -734,7 +734,7 @@ async function handleYoutubeMediaRequest(url) {
         // Show Invidious download page on Android
         mdui.confirm({
           headline: browser.i18n.getMessage("youtubeDialogDownloaderTitle"),
-          description: browser.i18n.getMessage("youtubeDialogDownloaderAndroidMessage"),
+          description: browser.i18n.getMessage("youtubeDialogDownloaderMessage"),
           onConfirm: () => {
             window.open('https://inv.nadeko.net', '_blank');
           }
@@ -1043,7 +1043,7 @@ function handleMessage(message, sender, sendResponse) {
         .then(selectedRepresentation => ({ selectedRepresentation }));
         break;
     case 'showMPDDownloadCompleteDialog':
-      return showDialog(browser.i18n.getMessage("mpdDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded MPD file "${message.baseName}.mp4".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
+      return showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [message.baseName, ".mp4"]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded MPD file "${message.baseName}.mp4".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
       break;
     case 'promptDRMWarning':
       return new Promise((resolve) => {
