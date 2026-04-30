@@ -1573,28 +1573,39 @@ async function handleDownloadCompletion(id, failed = false) {
     browser.action.setBadgeText({ text: '' });
   }
 
-  // Add request ID to session storage completed downloads list. Replace the existing id if it exists in session storage, otherwise add new (in case a failed download is retried.)
-  const completedDownloads = await browser.storage.session.get('completedDownloads');
-  const failedDownloads = await browser.storage.session.get('failedDownloads');
+  // Add request ID to session storage completed/failed lists.
+  // Storage values may be missing, wrapped in an object, or legacy JSON strings.
+  const toArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const completedRaw = await browser.storage.session.get('completedDownloads');
+  const failedRaw = await browser.storage.session.get('failedDownloads');
+  const completedDownloads = toArray(completedRaw?.completedDownloads);
+  const failedDownloads = toArray(failedRaw?.failedDownloads);
+
+  // Replace existing entries instead of duplicating when a retry flips status.
+  const existingCompletedIndex = completedDownloads.indexOf(id);
+  if (existingCompletedIndex !== -1) completedDownloads.splice(existingCompletedIndex, 1);
+  const existingFailedIndex = failedDownloads.indexOf(id);
+  if (existingFailedIndex !== -1) failedDownloads.splice(existingFailedIndex, 1);
+
   if (!failed) {
     completedDownloads.push(id);
-    // Remove from failed downloads if it exists there (in case of retry)
-    const failedIndex = failedDownloads.indexOf(id);
-    if (failedIndex !== -1) {
-      failedDownloads.splice(failedIndex, 1);
-      browser.storage.session.set('failedDownloads', JSON.stringify(failedDownloads));
-    }
   } else {
     failedDownloads.push(id);
-    // Remove from completed downloads if it exists there (in case of retry)
-    const completedIndex = completedDownloads.indexOf(id);
-    if (completedIndex !== -1) {
-      completedDownloads.splice(completedIndex, 1);
-      browser.storage.session.set('completedDownloads', completedDownloads);
-    }
   }
-  browser.storage.session.set('completedDownloads', completedDownloads);
-  browser.storage.session.set('failedDownloads', failedDownloads);
+
+  await browser.storage.session.set({ completedDownloads, failedDownloads });
 }
 
 browser.runtime.onMessage.addListener((message) => {

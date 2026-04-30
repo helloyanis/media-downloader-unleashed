@@ -268,6 +268,19 @@ async function shareDiagnosticData(errorData) {
   // window.open(`https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=${encodeURIComponent(errorData.error || 'N/A')}&entry.1527093375=${encodeURIComponent(errorData.url || 'N/A')}&entry.713772415=${encodeURIComponent(mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A')}&entry.582473750=${encodeURIComponent(navigator.userAgent)}}`, '_blank');
 }
 
+function normalizeSessionList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+}
+
 /**
  * Load the media list from the background script and display it in the window.
  * This function retrieves media requests from the background script, filters them based on MIME types and file extensions, and displays them in a list format.
@@ -312,8 +325,10 @@ function loadMediaList() {
     const useUrlDetection = await browser.storage.local.get('url-detection').then(result => result['url-detection']) === '1';
 
     const ongoingDownloads = await browser.runtime.sendMessage({ action: 'getOngoingDownloads' }) || [];
-    const completedDownloads = await browser.storage.session.get('completedDownloads');
-    const failedDownloads = await browser.storage.session.get('failedDownloads');
+    const completedRaw = await browser.storage.session.get('completedDownloads');
+    const failedRaw = await browser.storage.session.get('failedDownloads');
+    const completedDownloads = normalizeSessionList(completedRaw?.completedDownloads);
+    const failedDownloads = normalizeSessionList(failedRaw?.failedDownloads);
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       //If no content type or wrong content type, skip
@@ -468,10 +483,10 @@ function loadMediaList() {
       downloadIcon.setAttribute('viewBox', '0 -960 960 960');
       const downloadPath = document.createElementNS(svgNamespace, 'path');
       // Check if the media is in the completed or failed downloads, and change the icon accordingly
-      if (Object.keys(completedDownloads).length !== 0 && completedDownloads.includes(requestIds[0])) {
+      if (completedDownloads.length !== 0 && completedDownloads.includes(requestIds[0])) {
         // Completed download icon (checkmark)
         downloadPath.setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
-      } else if (Object.keys(failedDownloads).length !== 0 && failedDownloads.includes(requestIds[0])) {
+      } else if (failedDownloads.length !== 0 && failedDownloads.includes(requestIds[0])) {
         // Failed download icon (cross)
         downloadPath.setAttribute('d', 'M508.5-291.5Q520-303 520-320t-11.5-28.5Q497-360 480-360t-28.5 11.5Q440-337 440-320t11.5 28.5Q463-280 480-280t28.5-11.5ZM440-440h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
       } else {
