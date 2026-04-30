@@ -281,6 +281,50 @@ function normalizeSessionList(value) {
   return [];
 }
 
+function isDownloadCancelledError(error) {
+  const message = (error && error.message) ? error.message : String(error || '');
+  return message.includes('DOWNLOAD_CANCELLED') || /abort|cancel/i.test(message);
+}
+
+function createProgressUI(requestId) {
+  const progressContainer = document.createElement('div');
+  progressContainer.style.display = 'flex';
+  progressContainer.style.alignItems = 'center';
+  progressContainer.style.gap = '8px';
+  progressContainer.style.width = '100%';
+
+  const loadingBar = document.createElement('mdui-linear-progress');
+  loadingBar.setAttribute('indeterminate', 'true');
+  loadingBar.style.width = '100%';
+
+  const cancelButton = document.createElement('mdui-button-icon');
+  cancelButton.variant = 'standard';
+  cancelButton.setAttribute('title', 'Cancel download');
+  cancelButton.addEventListener('click', async () => {
+    cancelButton.disabled = true;
+    try {
+      await browser.runtime.sendMessage({ action: 'cancelDownload', requestId });
+    } catch (error) {
+      cancelButton.disabled = false;
+      console.error('Error cancelling download:', error);
+    }
+  });
+
+  const cancelIconContainer = document.createElement('mdui-icon');
+  const cancelIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const cancelPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  cancelIcon.setAttribute('viewBox', '0 -960 960 960');
+  cancelPath.setAttribute('d', 'M256-200 200-256l224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z');
+  cancelIcon.appendChild(cancelPath);
+  cancelIconContainer.appendChild(cancelIcon);
+  cancelButton.appendChild(cancelIconContainer);
+
+  progressContainer.appendChild(loadingBar);
+  progressContainer.appendChild(cancelButton);
+
+  return { progressContainer, loadingBar, cancelButton };
+}
+
 /**
  * Load the media list from the background script and display it in the window.
  * This function retrieves media requests from the background script, filters them based on MIME types and file extensions, and displays them in a list format.
@@ -500,6 +544,7 @@ function loadMediaList() {
 
       //Placeholder loading bar
       let loadingBar = null;
+      let progressContainer = null;
 
       // Add options for the media sizes
       let isFirstElement = true;
@@ -518,10 +563,10 @@ function loadMediaList() {
             downloadButton.disabled = true;
         downloadButton.loading = true;
 
-        // If the download is ongoing, we add a loading bar and a listener to update the progress
-        loadingBar = document.createElement('mdui-linear-progress');
-        loadingBar.setAttribute('indeterminate', 'true');
-        loadingBar.style.width = '100%';
+        // If the download is ongoing, we add a loading bar and a cancel button
+        const progressUI = createProgressUI(request.requestId);
+        progressContainer = progressUI.progressContainer;
+        loadingBar = progressUI.loadingBar;
         progressListener = function progressListener(message, sender, sendResponse) {
           if (message.action === 'updateProgress' && message.requestId === request.requestId) {
             if (message.percentage !== null) {
@@ -532,7 +577,9 @@ function loadMediaList() {
             }
           }
           if (message.action === 'downloadComplete' && message.requestId === request.requestId) {
-            mediaDiv.removeChild(loadingBar);
+            if (progressContainer && progressContainer.parentElement === mediaDiv) {
+              mediaDiv.removeChild(progressContainer);
+            }
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
             downloadPath.setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
@@ -540,10 +587,21 @@ function loadMediaList() {
             progressListener = null;
           }
           if (message.action === 'downloadFailed' && message.requestId === request.requestId) {
-            mediaDiv.removeChild(loadingBar);
+            if (progressContainer && progressContainer.parentElement === mediaDiv) {
+              mediaDiv.removeChild(progressContainer);
+            }
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
             downloadPath.setAttribute('d', 'M508.5-291.5Q520-303 520-320t-11.5-28.5Q497-360 480-360t-28.5 11.5Q440-337 440-320t11.5 28.5Q463-280 480-280t28.5-11.5ZM440-440h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
+            browser.runtime.onMessage.removeListener(progressListener);
+            progressListener = null;
+          }
+          if (message.action === 'downloadCancelled' && message.requestId === request.requestId) {
+            if (progressContainer && progressContainer.parentElement === mediaDiv) {
+              mediaDiv.removeChild(progressContainer);
+            }
+            mediaDiv.querySelector("#download-button").loading = false;
+            mediaDiv.querySelector("#download-button").disabled = false;
             browser.runtime.onMessage.removeListener(progressListener);
             progressListener = null;
           }
@@ -631,8 +689,8 @@ function loadMediaList() {
       mediaDiv.appendChild(actionsDiv);
 
       // If a loading bar was created for this media item, append it below the actions
-      if (loadingBar) {
-        mediaDiv.appendChild(loadingBar);
+      if (progressContainer) {
+        mediaDiv.appendChild(progressContainer);
       }
 
 
@@ -786,7 +844,8 @@ async function downloadFile(url, mediaDiv) {
   }
 
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
-  const loadingBar = document.createElement('mdui-linear-progress');
+  let loadingBar = null;
+  let progressContainer = null;
   const requests = await browser.runtime.sendMessage({ action: 'getMediaRequests', url: url }); // Get the media requests for the given URL from the background script
   const forbiddenHeaders = [
     "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
@@ -828,7 +887,9 @@ async function downloadFile(url, mediaDiv) {
         }
       }
       if (message.action === 'downloadComplete' && message.requestId === requestId) {
-        mediaDiv.removeChild(loadingBar);
+        if (progressContainer && progressContainer.parentElement === mediaDiv) {
+          mediaDiv.removeChild(progressContainer);
+        }
         mediaDiv.querySelector("#download-button").loading = false;
         mediaDiv.querySelector("#download-button").disabled = false;
         browser.runtime.onMessage.removeListener(progressListener);
@@ -836,11 +897,22 @@ async function downloadFile(url, mediaDiv) {
         progressListener = null;
       }
       if (message.action === 'downloadFailed' && message.requestId === requestId) {
-        mediaDiv.removeChild(loadingBar);
+        if (progressContainer && progressContainer.parentElement === mediaDiv) {
+          mediaDiv.removeChild(progressContainer);
+        }
         mediaDiv.querySelector("#download-button").loading = false;
         mediaDiv.querySelector("#download-button").disabled = false;
         browser.runtime.onMessage.removeListener(progressListener);
         mediaDiv.querySelector("#download-icon-path").setAttribute('d', 'M508.5-291.5Q520-303 520-320t-11.5-28.5Q497-360 480-360t-28.5 11.5Q440-337 440-320t11.5 28.5Q463-280 480-280t28.5-11.5ZM440-440h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
+        progressListener = null;
+      }
+      if (message.action === 'downloadCancelled' && message.requestId === requestId) {
+        if (progressContainer && progressContainer.parentElement === mediaDiv) {
+          mediaDiv.removeChild(progressContainer);
+        }
+        mediaDiv.querySelector("#download-button").loading = false;
+        mediaDiv.querySelector("#download-button").disabled = false;
+        browser.runtime.onMessage.removeListener(progressListener);
         progressListener = null;
       }
     };
@@ -850,9 +922,10 @@ async function downloadFile(url, mediaDiv) {
     // Change the UI to indicate that the download is in progress
     mediaDiv.querySelector("#download-button").loading = true
     mediaDiv.querySelector("#download-button").disabled = true
-    loadingBar.style.width = '100%';
-    loadingBar.setAttribute('indeterminate', 'true');
-    mediaDiv.appendChild(loadingBar);
+    const progressUI = createProgressUI(requestId);
+    progressContainer = progressUI.progressContainer;
+    loadingBar = progressUI.loadingBar;
+    mediaDiv.appendChild(progressContainer);
 
     const lowerPath = new URL(url).pathname.toLowerCase();
     const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationvndapplempegurl";
@@ -874,7 +947,9 @@ async function downloadFile(url, mediaDiv) {
       });
     } catch (error) {
       // If the user cancels the prompt, we catch the error and return without downloading
-      mediaDiv.removeChild(loadingBar);
+      if (progressContainer && progressContainer.parentElement === mediaDiv) {
+        mediaDiv.removeChild(progressContainer);
+      }
       mediaDiv.querySelector("#download-button").loading = false;
       mediaDiv.querySelector("#download-button").disabled = false;
       return;
@@ -916,6 +991,16 @@ async function downloadFile(url, mediaDiv) {
       browser.runtime.onMessage.removeListener(progressListener);
       progressListener = null;
     }
+    if (progressContainer && progressContainer.parentElement === mediaDiv) {
+      mediaDiv.removeChild(progressContainer);
+    }
+    mediaDiv.querySelector("#download-button").loading = false;
+    mediaDiv.querySelector("#download-button").disabled = false;
+
+    if (isDownloadCancelledError(error)) {
+      return;
+    }
+
     if (!navigator.onLine) {
       mdui.snackbar({
         message: browser.i18n.getMessage("offlineError"),

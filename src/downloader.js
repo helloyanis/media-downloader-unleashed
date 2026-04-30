@@ -9,6 +9,32 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 */
 
 const ongoingDownloads = new Map(); // requestId -> {abortController, ...}
+
+function isAbortError(error) {
+  return !!(
+    error && (
+      error.name === 'AbortError' ||
+      (typeof error.message === 'string' && /abort|cancel/i.test(error.message))
+    )
+  );
+}
+
+function createAbortError() {
+  return new DOMException('Download cancelled by user.', 'AbortError');
+}
+
+function registerAbortController(requestId, url) {
+  const existing = ongoingDownloads.get(requestId) || {};
+  const abortController = new AbortController();
+  ongoingDownloads.set(requestId, {
+    ...existing,
+    requestId,
+    url,
+    status: 'in-progress',
+    abortController
+  });
+  return abortController;
+}
 /**
  * Tries to fetch from IndexedDB cache first.
  * If missing, falls back to network fetch.
@@ -54,6 +80,8 @@ async function fetchWithCache(url, options = {}) {
 
 async function downloadRawMedia(url, fileName, headers, downloadMethod, request) {
   try {
+  const abortController = registerAbortController(request.requestId, url);
+  const signal = abortController.signal;
       handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
       if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
@@ -82,6 +110,7 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
         headers: headersObject,
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         body: request.method !== 'GET' ? request.requestBody : null,
+        signal,
       });
 
       if (!response.ok) {
@@ -103,6 +132,9 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
 
       try {
         while (true) {
+          if (signal.aborted) {
+            throw createAbortError();
+          }
           const { done, value } = await reader.read();
           
           if (done) break;
@@ -136,6 +168,11 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
       handleDownloadCompletion(request.requestId);
     }
   } catch (e) {
+    if (isAbortError(e)) {
+      browser.runtime.sendMessage({ action: 'downloadCancelled', requestId: request.requestId });
+      await handleDownloadCompletion(request.requestId, false, true);
+      throw new Error('DOWNLOAD_CANCELLED');
+    }
     console.error("Error during raw media download:", e);
     browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, message: e.message || String(e) });
     handleDownloadCompletion(request.requestId, true);
@@ -155,6 +192,8 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
  */
 async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request) {
   try {
+    const abortController = registerAbortController(request.requestId, m3u8Url);
+    const signal = abortController.signal;
     // Add the current download to the ongoingDownloads map
     handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
     const getText = async (url) => {
@@ -165,6 +204,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         referrer:
           request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
         body: request.method !== 'GET' ? request.requestBody : null,
+        signal,
       });
       return res.text();
     };
@@ -212,7 +252,8 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       const fetchOpts = {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-        method: request.method
+        method: request.method,
+        signal
       };
 
       // parse media-sequence if present
@@ -359,6 +400,9 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
       // process items sequentially
       for (let idx = 0; idx < items.length; idx++) {
+        if (signal.aborted) {
+          throw createAbortError();
+        }
         const it = items[idx];
 
         if (it.type === 'key') {
@@ -591,6 +635,11 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
     handleDownloadCompletion(request.requestId);
   } catch (e) {
+    if (isAbortError(e)) {
+      browser.runtime.sendMessage({ action: 'downloadCancelled', requestId: request.requestId });
+      await handleDownloadCompletion(request.requestId, false, true);
+      throw new Error('DOWNLOAD_CANCELLED');
+    }
     console.error("Error during M3U8 offline download:", e);
     browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, message: e.message || String(e) });
     handleDownloadCompletion(request.requestId, true);
@@ -678,6 +727,8 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
  */
 async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request) {
   try {
+    const abortController = registerAbortController(request.requestId, mpdUrl);
+    const signal = abortController.signal;
     // --- Helpers
     function sanitizeZipPath(originalPath) {
       if (!originalPath || typeof originalPath !== "string") return originalPath || "";
@@ -713,6 +764,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
       body: request.method !== 'GET' ? request.requestBody : null,
+      signal,
     });
     if (!resp.ok) throw new Error(`Failed to fetch MPD manifest: ${resp.status}.`);
     let mpdXmlText = await resp.text();
@@ -903,6 +955,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
         body: request.method !== 'GET' ? request.requestBody : null,
+        signal,
       });
       if (!r.ok) throw new Error(`Fetch failed: ${url} (${r.status})`);
 
@@ -919,6 +972,9 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       let received = 0;
       try {
         while (true) {
+          if (signal.aborted) {
+            throw createAbortError();
+          }
           const { done, value } = await reader.read();
           if (done) break;
           chunks.push(value);
@@ -1259,6 +1315,9 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 
     // Process tasks sequentially (streaming)
     for (const t of tasks) {
+      if (signal.aborted) {
+        throw createAbortError();
+      }
       if (t.type === "template") {
         // init
         console.log(">>> Fetching template init:", t.info.initUrl);
@@ -1460,6 +1519,11 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       return baseURLForZip + path;
     }
   } catch (err) {
+    if (isAbortError(err)) {
+      browser.runtime.sendMessage({ action: 'downloadCancelled', requestId: request.requestId });
+      await handleDownloadCompletion(request.requestId, false, true);
+      throw new Error('DOWNLOAD_CANCELLED');
+    }
     console.error("Error during MPD download process:", err);
     // showDialog(browser.i18n.getMessage("mpdDownloadErrorMessage", [err.message]), browser.i18n.getMessage("mpdDownloadErrorTitle"), { error: err.message, url: mpdUrl, request, downloadMethod }); TODO move this
     browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, error: err.message });
@@ -1560,7 +1624,7 @@ function handleProgressUpdate(message) {
   browser.action.setBadgeText({ text: totalPercentage > 0 ? `${totalPercentage}%` : '' });
 }
 
-async function handleDownloadCompletion(id, failed = false) {
+async function handleDownloadCompletion(id, failed = false, cancelled = false) {
 
   const existing = ongoingDownloads.get(id);
   if (existing) {
@@ -1599,10 +1663,12 @@ async function handleDownloadCompletion(id, failed = false) {
   const existingFailedIndex = failedDownloads.indexOf(id);
   if (existingFailedIndex !== -1) failedDownloads.splice(existingFailedIndex, 1);
 
-  if (!failed) {
-    completedDownloads.push(id);
-  } else {
-    failedDownloads.push(id);
+  if (!cancelled) {
+    if (!failed) {
+      completedDownloads.push(id);
+    } else {
+      failedDownloads.push(id);
+    }
   }
 
   await browser.storage.session.set({ completedDownloads, failedDownloads });
@@ -1623,5 +1689,17 @@ browser.runtime.onMessage.addListener((message) => {
     case 'getOngoingDownloads':
       return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));
       break;
+    case 'cancelDownload': {
+      const entry = ongoingDownloads.get(message.requestId);
+      if (!entry) {
+        return Promise.resolve({ cancelled: false });
+      }
+
+      if (entry.abortController && !entry.abortController.signal.aborted) {
+        entry.abortController.abort();
+      }
+
+      return Promise.resolve({ cancelled: true });
+    }
   }
 });
