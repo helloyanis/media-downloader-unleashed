@@ -1294,7 +1294,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       else throw new Error("Unsupported audio representation type");
     }
 
-    // Setup dynamic byte-tracking progress for ZIP flow
+    // Setup progress tracking for ZIP flow
     handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: 0, total: tasks.length, percentage: 0 });
     let downloadedBytes = 0;
     let maxBytes = 0;
@@ -1316,7 +1316,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         // init
         console.log(">>> Fetching template init:", t.info.initUrl);
         // Use a simple count-based progress for template flows (init + N segments)
-        maxBytes = t.info.segmentUrls.length + 1;
+        // and keep totals cumulative across tasks.
+        maxBytes += t.info.segmentUrls.length + 1;
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
 
         const initBuf = await fetchWithProgress(t.info.initUrl, {
@@ -1391,7 +1392,9 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         });
 
         zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
-        maxBytes = t.info.segmentUrls.length;
+        // SegmentList init is already accounted for in byte mode; add only segment count
+        // and keep totals cumulative across tasks.
+        maxBytes += t.info.segmentUrls.length;
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
         for (let i = 0; i < t.info.segmentUrls.length; i++) {
           const segUrl = t.info.segmentUrls[i];
@@ -1600,12 +1603,26 @@ function handleProgressUpdate(message) {
   const { percentage, processed, total } = message;
   if (!id) return;
 
+  const isFiniteNumber = (v) => typeof v === 'number' && Number.isFinite(v);
+  const clampPercent = (v) => Math.max(0, Math.min(100, Math.round(v)));
+
+  let normalizedPercentage = null;
+  if (isFiniteNumber(percentage)) {
+    normalizedPercentage = clampPercent(percentage);
+  } else if (isFiniteNumber(processed) && isFiniteNumber(total) && total > 0) {
+    normalizedPercentage = clampPercent((processed / total) * 100);
+  }
+
   const existing = ongoingDownloads.get(id);
   const nextEntry = {
     requestId: id,
     url: message.url ?? existing?.url,
     status: 'in-progress',
-    progress: { percentage, processed, total }
+    progress: {
+      percentage: normalizedPercentage,
+      processed,
+      total
+    }
   };
 
   ongoingDownloads.set(id, existing ? { ...existing, ...nextEntry } : nextEntry);
