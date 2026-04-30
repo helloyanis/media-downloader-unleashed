@@ -171,6 +171,10 @@ function showDialog(message, title = null, errorData = null) {
   dialog.setAttribute('open', true)
 }
 
+/**
+ * Show a customizable dialog with options for headline, description, confirm and cancel buttons, and an optional text field. This function is used to ask the user for input or confirmation before performing an action.
+ * @param {Object} options An object containing the options for the dialog
+ */
 async function showDialogCustom({
   headline = "",
   description = "",
@@ -268,6 +272,11 @@ async function shareDiagnosticData(errorData) {
   // window.open(`https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=${encodeURIComponent(errorData.error || 'N/A')}&entry.1527093375=${encodeURIComponent(errorData.url || 'N/A')}&entry.713772415=${encodeURIComponent(mediaRequests[errorData.url]?.[0]?.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || 'N/A')}&entry.582473750=${encodeURIComponent(navigator.userAgent)}}`, '_blank');
 }
 
+/**
+ * Normalizes a value to an array of session IDs.
+ * @param {*} value The value to normalize.
+ * @returns {string[]} An array of session IDs.
+ */
 function normalizeSessionList(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === 'string') {
@@ -319,6 +328,7 @@ function isManifestRequest(url, request) {
     contentType === 'applicationdashxml';
 }
 
+// Read the cached response body for a manifest URL from IndexedDB. This is used to extract segment URLs for DASH and HLS streams, as the manifest file contains the list of segments to download.
 async function readCachedManifestText(url) {
   if (browser.extension?.inIncognitoContext) return null;
 
@@ -361,6 +371,7 @@ function substituteMpdVariables(path, rep, extra = {}) {
     .replace(/\$Time\$/g, extra.time !== undefined ? String(extra.time) : '$Time$');
 }
 
+// Extract segment URLs from an HLS manifest. This is used to hide .m3u8 segment URLs from the user and only show the manifest URL
 function collectM3U8SegmentUrls(manifestText, manifestUrl) {
   const segmentUrls = new Set();
   const lines = String(manifestText || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -387,6 +398,7 @@ function collectM3U8SegmentUrls(manifestText, manifestUrl) {
   return segmentUrls;
 }
 
+// Extract segment URLs from a DASH manifest. This is used to hide .mpd segment URLs from the user and only show the manifest URL
 function collectMpdSegmentUrls(manifestText, manifestUrl) {
   const segmentUrls = new Set();
 
@@ -535,6 +547,7 @@ function collectMpdSegmentUrls(manifestText, manifestUrl) {
   return segmentUrls;
 }
 
+// Collect segment URLs from a manifest file based on its type (HLS or DASH). This function determines the manifest type by its extension and content, then extracts the segment URLs accordingly to hide them from the user interface.
 function collectSegmentUrlsFromManifest(manifestText, manifestUrl) {
   const pathname = new URL(manifestUrl).pathname.toLowerCase();
   if (pathname.endsWith('.m3u8')) {
@@ -546,6 +559,7 @@ function collectSegmentUrlsFromManifest(manifestText, manifestUrl) {
   return new Set();
 }
 
+// Build an index of manifest URLs and their associated segment URLs for all media requests. This is used to determine which segment URLs should be hidden from the user interface, as they are part of a manifest-based stream.
 async function buildManifestSegmentIndex(mediaRequests) {
   const manifestIndex = new Map();
 
@@ -576,6 +590,7 @@ async function buildManifestSegmentIndex(mediaRequests) {
   return manifestIndex;
 }
 
+// Determine if a given URL should be hidden from the user interface as a stream segment. This function checks if the URL is part of a manifest-based stream by looking it up in the manifest index, and also applies heuristics based on content type and file extension to identify potential segment URLs if the manifest is not readable.
 function shouldHideSegment(url, request, manifestIndex) {
   const mediaURL = new URL(url);
   const originData = manifestIndex.get(mediaURL.origin);
