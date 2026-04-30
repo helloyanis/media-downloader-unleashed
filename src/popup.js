@@ -281,6 +281,333 @@ function normalizeSessionList(value) {
   return [];
 }
 
+const CACHE_DB_NAME = 'MediaCacheDB';
+const CACHE_STORE_NAME = 'network-cache';
+
+function openCacheDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(CACHE_DB_NAME, 1);
+    request.onerror = (event) => reject(event.target.error || 'IDB Open Error');
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
+        db.createObjectStore(CACHE_STORE_NAME, { keyPath: 'url' });
+      }
+    };
+    request.onsuccess = (event) => resolve(event.target.result);
+  });
+}
+
+function getHeaderValue(headers, headerName) {
+  if (!Array.isArray(headers)) return '';
+  const lowerHeaderName = headerName.toLowerCase();
+  return headers.find((header) => header.name.toLowerCase() === lowerHeaderName)?.value || '';
+}
+
+function normalizeContentType(value) {
+  return String(value || '').toLowerCase().replace(/[^a-zA-Z]/g, '');
+}
+
+function isManifestRequest(url, request) {
+  const pathname = new URL(url).pathname.toLowerCase();
+  const contentType = normalizeContentType(getHeaderValue(request?.responseHeaders, 'content-type'));
+
+  return pathname.endsWith('.m3u8') ||
+    pathname.endsWith('.mpd') ||
+    contentType === 'applicationxmpegurl' ||
+    contentType === 'applicationvndapplempegurl' ||
+    contentType === 'applicationdashxml';
+}
+
+async function readCachedManifestText(url) {
+  if (browser.extension?.inIncognitoContext) return null;
+
+  try {
+    const db = await openCacheDB();
+    const cachedItem = await new Promise((resolve, reject) => {
+      const tx = db.transaction([CACHE_STORE_NAME], 'readonly');
+      const store = tx.objectStore(CACHE_STORE_NAME);
+      const req = store.get(url);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+
+    if (!cachedItem?.data) return null;
+    return await cachedItem.data.text();
+  } catch (error) {
+    console.warn('Failed to read cached manifest body for', url, error);
+    return null;
+  }
+}
+
+function parseIsoDuration(duration) {
+  const match = /P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(duration || '');
+  if (!match) return 0;
+
+  const years = parseFloat(match[1] || '0');
+  const months = parseFloat(match[2] || '0');
+  const days = parseFloat(match[3] || '0');
+  const hours = parseFloat(match[4] || '0');
+  const minutes = parseFloat(match[5] || '0');
+  const seconds = parseFloat(match[6] || '0');
+  return (years * 365 * 24 * 3600) + (months * 30 * 24 * 3600) + (days * 24 * 3600) + (hours * 3600) + (minutes * 60) + seconds;
+}
+
+function substituteMpdVariables(path, rep, extra = {}) {
+  return String(path || '')
+    .replace(/\$RepresentationID\$/g, rep.id || '')
+    .replace(/\$Bandwidth\$/g, rep.bandwidth || 0)
+    .replace(/\$Number\$/g, extra.number !== undefined ? String(extra.number) : '$Number$')
+    .replace(/\$Time\$/g, extra.time !== undefined ? String(extra.time) : '$Time$');
+}
+
+function collectM3U8SegmentUrls(manifestText, manifestUrl) {
+  const segmentUrls = new Set();
+  const lines = String(manifestText || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const isMasterPlaylist = lines.some((line) => line.startsWith('#EXT-X-STREAM-INF'));
+
+  if (isMasterPlaylist) {
+    return segmentUrls;
+  }
+
+  for (const line of lines) {
+    if (!line.startsWith('#')) {
+      segmentUrls.add(new URL(line, manifestUrl).href);
+      continue;
+    }
+
+    if (line.startsWith('#EXT-X-MAP:') || line.startsWith('#EXT-X-PART:') || line.startsWith('#EXT-X-PRELOAD-HINT:')) {
+      const uriMatch = line.match(/URI="([^"]+)"/i);
+      if (uriMatch) {
+        segmentUrls.add(new URL(uriMatch[1], manifestUrl).href);
+      }
+    }
+  }
+
+  return segmentUrls;
+}
+
+function collectMpdSegmentUrls(manifestText, manifestUrl) {
+  const segmentUrls = new Set();
+
+  try {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(String(manifestText || ''), 'application/xml');
+    if (xmlDoc.querySelector('parsererror')) return segmentUrls;
+
+    const NS = xmlDoc.documentElement.namespaceURI || 'urn:mpeg:dash:schema:mpd:2011';
+    const mpdBase = manifestUrl.substring(0, manifestUrl.lastIndexOf('/') + 1);
+    const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, 'MPD')[0];
+    const period = xmlDoc.getElementsByTagNameNS(NS, 'Period')[0];
+    if (!period) return segmentUrls;
+
+    const adaptationSets = Array.from(period.getElementsByTagNameNS(NS, 'AdaptationSet')).filter((asNode) => {
+      const mimeType = asNode.getAttribute('mimeType')?.toLowerCase() || '';
+      const contentType = asNode.getAttribute('contentType')?.toLowerCase() || '';
+      if (mimeType.startsWith('audio/') || mimeType.startsWith('video/')) return true;
+      if (contentType === 'audio' || contentType === 'video') return true;
+
+      const reps = asNode.getElementsByTagNameNS(NS, 'Representation');
+      for (let i = 0; i < reps.length; i++) {
+        const repMimeType = reps[i].getAttribute('mimeType')?.toLowerCase() || '';
+        if (repMimeType.startsWith('audio/') || repMimeType.startsWith('video/')) return true;
+      }
+      return false;
+    });
+
+    for (const asNode of adaptationSets) {
+      const setSegTmplNode = asNode.getElementsByTagNameNS(NS, 'SegmentTemplate')[0];
+      const repNodes = Array.from(asNode.getElementsByTagNameNS(NS, 'Representation'));
+
+      for (const repNode of repNodes) {
+        const repId = repNode.getAttribute('id') || '';
+        const bandwidth = parseInt(repNode.getAttribute('bandwidth') || '0', 10);
+
+        const repSegListNode = repNode.getElementsByTagNameNS(NS, 'SegmentList')[0] || asNode.getElementsByTagNameNS(NS, 'SegmentList')[0];
+        if (repSegListNode) {
+          const initNode = repSegListNode.getElementsByTagNameNS(NS, 'Initialization')[0];
+          const initUrl = initNode?.getAttribute('sourceURL') || initNode?.textContent?.trim() || null;
+          if (initUrl) {
+            segmentUrls.add(new URL(initUrl, mpdBase).href);
+          }
+
+          const segNodes = Array.from(repSegListNode.getElementsByTagNameNS(NS, 'SegmentURL'));
+          for (const segNode of segNodes) {
+            const media = segNode.getAttribute('media');
+            if (media) {
+              segmentUrls.add(new URL(media, mpdBase).href);
+            }
+          }
+          continue;
+        }
+
+        const repSegBaseNode = repNode.getElementsByTagNameNS(NS, 'SegmentBase')[0] || asNode.getElementsByTagNameNS(NS, 'SegmentBase')[0];
+        if (repSegBaseNode) {
+          continue;
+        }
+
+        const repSegTmplNode = repNode.getElementsByTagNameNS(NS, 'SegmentTemplate')[0];
+        const effectiveTmplNode = repSegTmplNode || setSegTmplNode;
+        if (!effectiveTmplNode) continue;
+
+        const tmpl = {
+          media: effectiveTmplNode.getAttribute('media'),
+          initialization: effectiveTmplNode.getAttribute('initialization'),
+          duration: parseInt(effectiveTmplNode.getAttribute('duration') || '0', 10),
+          timescale: parseInt(effectiveTmplNode.getAttribute('timescale') || '1', 10),
+          startNumber: effectiveTmplNode.getAttribute('startNumber') !== null ? parseInt(effectiveTmplNode.getAttribute('startNumber'), 10) : 1,
+        };
+
+        if (tmpl.initialization) {
+          segmentUrls.add(new URL(substituteMpdVariables(tmpl.initialization, { id: repId, bandwidth }), mpdBase).href);
+        }
+
+        const timelineNode = effectiveTmplNode.getElementsByTagNameNS(NS, 'SegmentTimeline')[0];
+        let segmentStartTimes = null;
+        if (timelineNode) {
+          const sElems = Array.from(timelineNode.getElementsByTagNameNS(NS, 'S'));
+          segmentStartTimes = [];
+          let cursor = null;
+          for (const s of sElems) {
+            const tAttr = s.getAttribute('t');
+            const dAttr = s.getAttribute('d');
+            const rAttr = s.getAttribute('r');
+            if (!dAttr) continue;
+
+            const duration = parseInt(dAttr, 10);
+            const repeatCount = (rAttr !== null ? parseInt(rAttr, 10) : 0) + 1;
+            if (tAttr !== null) cursor = parseInt(tAttr, 10);
+            else if (cursor === null) cursor = 0;
+
+            for (let i = 0; i < repeatCount; i++) {
+              segmentStartTimes.push(cursor);
+              cursor += duration;
+            }
+          }
+        }
+
+        const usesTimeVar = typeof tmpl.media === 'string' && tmpl.media.includes('$Time$');
+        const mediaPresentationDuration = mpdRoot?.getAttribute('mediaPresentationDuration');
+
+        if (usesTimeVar) {
+          if (!segmentStartTimes?.length) {
+            if (tmpl.duration > 0 && mediaPresentationDuration) {
+              const totalSeconds = parseIsoDuration(mediaPresentationDuration);
+              const segmentLengthSeconds = tmpl.duration / (tmpl.timescale || 1);
+              if (segmentLengthSeconds > 0) {
+                const estimatedCount = Math.ceil(totalSeconds / segmentLengthSeconds);
+                segmentStartTimes = [];
+                for (let index = 0; index < estimatedCount; index++) {
+                  segmentStartTimes.push(index * tmpl.duration);
+                }
+              }
+            }
+          }
+
+          for (const startTime of segmentStartTimes || []) {
+            const mediaPath = substituteMpdVariables(tmpl.media, { id: repId, bandwidth }, { time: startTime, number: tmpl.startNumber });
+            segmentUrls.add(new URL(mediaPath, mpdBase).href);
+          }
+        } else {
+          if (segmentStartTimes?.length) {
+            for (let index = 0; index < segmentStartTimes.length; index++) {
+              const mediaPath = substituteMpdVariables(tmpl.media, { id: repId, bandwidth }, { number: tmpl.startNumber + index });
+              segmentUrls.add(new URL(mediaPath, mpdBase).href);
+            }
+          } else if (tmpl.duration > 0 && mediaPresentationDuration) {
+            const totalSeconds = parseIsoDuration(mediaPresentationDuration);
+            const segmentLengthSeconds = tmpl.duration / (tmpl.timescale || 1);
+            if (segmentLengthSeconds > 0) {
+              const estimatedCount = Math.ceil(totalSeconds / segmentLengthSeconds);
+              for (let index = 0; index < estimatedCount; index++) {
+                const mediaPath = substituteMpdVariables(tmpl.media, { id: repId, bandwidth }, { number: tmpl.startNumber + index });
+                segmentUrls.add(new URL(mediaPath, mpdBase).href);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to parse cached MPD manifest:', error);
+  }
+
+  return segmentUrls;
+}
+
+function collectSegmentUrlsFromManifest(manifestText, manifestUrl) {
+  const pathname = new URL(manifestUrl).pathname.toLowerCase();
+  if (pathname.endsWith('.m3u8')) {
+    return collectM3U8SegmentUrls(manifestText, manifestUrl);
+  }
+  if (pathname.endsWith('.mpd')) {
+    return collectMpdSegmentUrls(manifestText, manifestUrl);
+  }
+  return new Set();
+}
+
+async function buildManifestSegmentIndex(mediaRequests) {
+  const manifestIndex = new Map();
+
+  if (browser.extension?.inIncognitoContext) {
+    return manifestIndex;
+  }
+
+  const manifestCandidates = [];
+  for (const [url, requests] of Object.entries(mediaRequests || {})) {
+    const request = requests?.[0];
+    if (!request || !isManifestRequest(url, request)) continue;
+    manifestCandidates.push({ url, origin: new URL(url).origin });
+  }
+
+  await Promise.all(manifestCandidates.map(async ({ url, origin }) => {
+    const manifestText = await readCachedManifestText(url);
+    if (!manifestText) return;
+
+    const segmentUrls = collectSegmentUrlsFromManifest(manifestText, url);
+    const existing = manifestIndex.get(origin) || { hasReadableManifest: false, segments: new Set() };
+    existing.hasReadableManifest = true;
+    for (const segmentUrl of segmentUrls) {
+      existing.segments.add(segmentUrl);
+    }
+    manifestIndex.set(origin, existing);
+  }));
+
+  return manifestIndex;
+}
+
+function shouldHideSegment(url, request, manifestIndex) {
+  const mediaURL = new URL(url);
+  const originData = manifestIndex.get(mediaURL.origin);
+
+  if (isManifestRequest(url, request)) {
+    return false;
+  }
+
+  if (originData?.hasReadableManifest) {
+    return originData.segments.has(url);
+  }
+
+  const pathname = mediaURL.pathname.toLowerCase();
+  const resHeaders = request?.responseHeaders || [];
+  const contentType = getHeaderValue(resHeaders, 'content-type').toLowerCase();
+  const contentLengthHeader = getHeaderValue(resHeaders, 'content-length');
+  const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
+
+  const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
+  const segmentExtRe = /\.(ts|m4s|m4f|seg|frag|fragment)(?:$|\?)/i;
+
+  const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
+  const looksLikeSegmentByExt = segmentExtRe.test(pathname);
+
+  if (looksLikeSegmentByExt || looksLikeSegmentByType) {
+    console.debug('Hiding stream segment:', url, { contentType, contentLength });
+    return true;
+  }
+
+  return false;
+}
+
 function isDownloadCancelledError(error) {
   const message = (error && error.message) ? error.message : String(error || '');
   return message.includes('DOWNLOAD_CANCELLED') || /abort|cancel/i.test(message);
@@ -373,6 +700,8 @@ function loadMediaList() {
     const failedRaw = await browser.storage.session.get('failedDownloads');
     const completedDownloads = normalizeSessionList(completedRaw?.completedDownloads);
     const failedDownloads = normalizeSessionList(failedRaw?.failedDownloads);
+    const hideSegments = await browser.storage.local.get('hide-segments').then(result => result['hide-segments']) === '1';
+    const manifestSegmentIndex = hideSegments ? await buildManifestSegmentIndex(mediaRequests) : new Map();
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       //If no content type or wrong content type, skip
@@ -395,36 +724,8 @@ function loadMediaList() {
         urlMatch = fileExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext));
       }
 
-      //Hide segments
-      const hideSegments = await browser.storage.local.get('hide-segments').then(result => result['hide-segments']) === '1';
-
-
-      // If user doesn't want to hide segments we do nothing special
-      if (hideSegments) {
-        // Always show playlists/manifests (.m3u8, .mpd)
-        const isPlaylistExt = mediaURL.pathname.toLowerCase().endsWith('.m3u8') ||
-          mediaURL.pathname.toLowerCase().endsWith('.mpd');
-        if (!isPlaylistExt) {
-          // Gather response headers from the first request (if available)
-          const resHeaders = requests[0]?.responseHeaders || [];
-          const contentType = (resHeaders.find(h => h.name.toLowerCase() === 'content-type')?.value || '').toLowerCase();
-          const contentLengthHeader = resHeaders.find(h => h.name.toLowerCase() === 'content-length')?.value;
-          const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
-
-          // Known segment-related content-types and file extensions
-          const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
-          const segmentExtRe = /\.(ts|m4s|m4f|seg|frag|fragment)(?:$|\?)/i;
-
-          const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
-          const looksLikeSegmentByExt = segmentExtRe.test(mediaURL.pathname);
-
-          // If any of the tests indicate a segment, skip adding this entry
-          if (looksLikeSegmentByExt || looksLikeSegmentByType) {
-            // Skip segment
-            console.debug('Hiding stream segment:', url, { contentType, contentLength });
-            continue;
-          }
-        }
+      if (hideSegments && shouldHideSegment(url, requests[0], manifestSegmentIndex)) {
+        continue;
       }
 
 

@@ -1097,12 +1097,6 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 
     // --- Otherwise: existing ZIP flow (templates + bases zipped). Keep streaming progress for all resources.
 
-    // const snackbar = document.createElement('mdui-snackbar');
-    // snackbar.setAttribute('open', true);
-    // snackbar.setAttribute('timeout', 10000);
-    // snackbar.textContent = 'Selected media is an MPEG-DASH stream. This will download the video and audio streams separately, packaged in a ZIP file, so you can play the .mpd file in the ZIP file with VLC or any other compatible player.';
-    // document.body.appendChild(snackbar);
-    // snackbar.addEventListener('close', () => snackbar.remove());
     browser.runtime.sendMessage({ action: 'showMPDZipSnackbar', requestId: request.requestId });
 
     // Build segment template helper (substituteVars reused)
