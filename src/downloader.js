@@ -78,6 +78,8 @@ async function queueAndroidDownload(blob, filename, requestId) {
     
     await browser.storage.session.set({ queuedAndroidDownloads: queuedDownloads });
     await refreshExtensionBadge();
+    // Attempt to send message to frontend, if open, to trigger immediate download without waiting for popup open
+    browser.runtime.sendMessage({ action: 'triggerQueuedAndroidDownloads' }).catch(() => {console.warn('No popup to trigger queued Android downloads');});
   } catch (error) {
     console.error('Error queuing Android download:', error);
   }
@@ -778,17 +780,56 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
   const variants = [];
 
+  function parseM3U8Attributes(line) {
+    const attrs = {};
+    const attrPart = line.includes(':') ? line.slice(line.indexOf(':') + 1) : '';
+    const regex = /([A-Z0-9-]+)=((?:"[^"]*")|[^,]*)/g;
+    let match;
+    while ((match = regex.exec(attrPart)) !== null) {
+      let value = match[2] || '';
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+      }
+      attrs[match[1]] = value;
+    }
+    return attrs;
+  }
+
+  const audioGroups = new Map();
+  for (const line of playlistLines) {
+    if (!line.startsWith('#EXT-X-MEDIA:') || !line.includes('TYPE=AUDIO')) continue;
+    const attrs = parseM3U8Attributes(line);
+    const groupId = attrs['GROUP-ID'];
+    if (!groupId) continue;
+
+    if (!audioGroups.has(groupId)) {
+      audioGroups.set(groupId, []);
+    }
+    audioGroups.get(groupId).push({
+      name: attrs.NAME || null,
+      language: attrs.LANGUAGE || null,
+      isDefault: String(attrs.DEFAULT || '').toUpperCase() === 'YES'
+    });
+  }
+
   for (let i = 0; i < playlistLines.length; i++) {
     if (playlistLines[i].startsWith("#EXT-X-STREAM-INF")) {
+      const attrs = parseM3U8Attributes(playlistLines[i]);
       const bwMatch = playlistLines[i].match(/BANDWIDTH=(\d+)/);
       const resMatch = playlistLines[i].match(/RESOLUTION=(\d+x\d+)/);
       const bandwidth = bwMatch ? parseInt(bwMatch[1]) : 0;
       const resolution = resMatch ? resMatch[1] : "unknown";
       const uri = playlistLines[i + 1];
+      const audioGroupTracks = attrs.AUDIO ? (audioGroups.get(attrs.AUDIO) || []) : [];
+      const selectedAudioTrack = audioGroupTracks.find(t => t.isDefault) || audioGroupTracks[0] || null;
       variants.push({
         bandwidth,
         resolution,
-        uri: uri.startsWith("http") ? uri : baseUrl + uri
+        uri: uri.startsWith("http") ? uri : baseUrl + uri,
+        name: attrs.NAME || null,
+        language: attrs.LANGUAGE || null,
+        audioName: selectedAudioTrack?.name || null,
+        audioLanguage: selectedAudioTrack?.language || null
       });
     }
   }
@@ -983,11 +1024,32 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       const repNodes = Array.from(asNode.getElementsByTagNameNS(NS, "Representation"));
       if (repNodes.length === 0) throw new Error("AdaptationSet has no Representation elements.");
 
+      const adaptationLanguage =
+        asNode.getAttribute("lang") ||
+        asNode.getAttribute("language") ||
+        null;
+      const adaptationLabelNode = asNode.getElementsByTagNameNS(NS, "Label")[0];
+      const adaptationName =
+        asNode.getAttribute("label") ||
+        asNode.getAttribute("name") ||
+        adaptationLabelNode?.textContent?.trim() ||
+        null;
+
       const representations = repNodes.map(rNode => {
         const id = rNode.getAttribute("id");
         const bandwidth = parseInt(rNode.getAttribute("bandwidth") || "0", 10);
         const width = parseInt(rNode.getAttribute("width") || "0", 10);
         const height = parseInt(rNode.getAttribute("height") || "0", 10);
+        const repLabelNode = rNode.getElementsByTagNameNS(NS, "Label")[0];
+        const name =
+          rNode.getAttribute("label") ||
+          rNode.getAttribute("name") ||
+          repLabelNode?.textContent?.trim() ||
+          adaptationName;
+        const language =
+          rNode.getAttribute("lang") ||
+          rNode.getAttribute("language") ||
+          adaptationLanguage;
 
         const repSegTmplNode = rNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
         if (repSegTmplNode || setSegTmplNode) {
@@ -999,7 +1061,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             timescale: parseInt(tmplNode.getAttribute("timescale") || (baseSegTmpl ? baseSegTmpl.timescale.toString() : "1"), 10),
             startNumber: tmplNode.getAttribute("startNumber") !== null ? parseInt(tmplNode.getAttribute("startNumber"), 10) : (baseSegTmpl ? baseSegTmpl.startNumber : 1),
           };
-          return { id, bandwidth, width, height, type: "segmentTemplate", segmentTemplate: segTmpl };
+          return { id, bandwidth, width, height, name, language, type: "segmentTemplate", segmentTemplate: segTmpl };
         }
 
         const repSegBaseNode = rNode.getElementsByTagNameNS(NS, "SegmentBase")[0] || asNode.getElementsByTagNameNS(NS, "SegmentBase")[0];
@@ -1009,7 +1071,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           const indexRange = repSegBaseNode.getAttribute("indexRange") || null;
           const repBaseURLNode = rNode.getElementsByTagNameNS(NS, "BaseURL")[0] || asNode.getElementsByTagNameNS(NS, "BaseURL")[0];
           const baseURLText = repBaseURLNode ? repBaseURLNode.textContent.trim() : null;
-          return { id, bandwidth, width, height, type: "segmentBase", baseURL: baseURLText, initRange, indexRange };
+          return { id, bandwidth, width, height, name, language, type: "segmentBase", baseURL: baseURLText, initRange, indexRange };
         }
 
         const repSegListNode = rNode.getElementsByTagNameNS(NS, "SegmentList")[0] || asNode.getElementsByTagNameNS(NS, "SegmentList")[0];
@@ -1034,6 +1096,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             bandwidth,
             width,
             height,
+            name,
+            language,
             type: "segmentList",
             initializationUrl: initUrl,
             segmentUrls,
@@ -1134,6 +1198,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       const downloads = [];
       if (chosenVideoRep) downloads.push({ rep: chosenVideoRep, label: "video" });
       if (chosenAudioRep) downloads.push({ rep: chosenAudioRep, label: "audio" });
+      const useSplitTrackWeighting = downloads.length === 2;
 
       // Set up byte-tracking (max will grow as we discover Content-Lengths)
       handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: 0, total: 0 });
@@ -1149,7 +1214,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 
       // For Android with fetch method, queue all downloads instead of triggering immediately
       if (isAndroid() && downloadMethod === 'fetch') {
-        for (const d of downloads) {
+        for (let fileIndex = 0; fileIndex < downloads.length; fileIndex++) {
+          const d = downloads[fileIndex];
           const url = new URL(d.rep.baseURL, mpdBase).href;
           let candidate = baseName;
           if (!candidate || candidate === "") {
@@ -1175,12 +1241,23 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
               const delta = received - lastReceivedForFile;
               lastReceivedForFile = received;
               downloadedBytes += delta;
-              const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
-              if (max > 0) {
-                handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round((downloadedBytes / max) * 100) });
+              if (useSplitTrackWeighting && contentLength > 0) {
+                const perTrackProgress = received / contentLength;
+                const weightedPercentage = Math.round(((fileIndex + perTrackProgress) / downloads.length) * 100);
+                handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
+              } else {
+                const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
+                if (max > 0) {
+                  handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round((downloadedBytes / max) * 100) });
+                }
               }
             }
           });
+
+          if (useSplitTrackWeighting) {
+            const weightedPercentage = Math.round(((fileIndex + 1) / downloads.length) * 100);
+            handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
+          }
 
           if (sawUnknownLength) {
             handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
@@ -1203,7 +1280,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         return;
       }
 
-      for (const d of downloads) {
+      for (let fileIndex = 0; fileIndex < downloads.length; fileIndex++) {
+        const d = downloads[fileIndex];
         const url = new URL(d.rep.baseURL, mpdBase).href;
         // Determine filename: prefer extension from baseURL, otherwise fallback
         let candidate = baseName;
@@ -1231,13 +1309,24 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             const delta = received - lastReceivedForFile;
             lastReceivedForFile = received;
             downloadedBytes += delta;
-            // if we know any max, update value
-            const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
-            if (max > 0) {
-              handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round((downloadedBytes / max) * 100) });
+            if (useSplitTrackWeighting && contentLength > 0) {
+              const perTrackProgress = received / contentLength;
+              const weightedPercentage = Math.round(((fileIndex + perTrackProgress) / downloads.length) * 100);
+              handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
+            } else {
+              // if we know any max, update value
+              const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
+              if (max > 0) {
+                handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round((downloadedBytes / max) * 100) });
+              }
             }
           }
         });
+
+        if (useSplitTrackWeighting) {
+          const weightedPercentage = Math.round(((fileIndex + 1) / downloads.length) * 100);
+          handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
+        }
 
         // If we had been indeterminate and now we have bytes, clear indeterminate
         if (sawUnknownLength) {
@@ -1928,27 +2017,5 @@ browser.runtime.onMessage.addListener((message) => {
     }
     case 'refreshBadgeState':
       return refreshExtensionBadge().then(() => ({ success: true }));
-    case 'triggerQueuedAndroidDownloads':
-      return (async () => {
-        try {
-          const queuedDownloads = await browser.storage.session.get('queuedAndroidDownloads').then(r => r.queuedAndroidDownloads || []);
-          for (const download of queuedDownloads) {
-            const a = document.createElement("a");
-            a.href = download.blobUrl;
-            a.download = download.filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            // Small delay to avoid browser blocking multiple downloads at once
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-          await browser.storage.session.set({ queuedAndroidDownloads: [] });
-          await refreshExtensionBadge();
-          return { success: true };
-        } catch (error) {
-          console.error('Error triggering queued Android downloads:', error);
-          return { success: false, error: error.message };
-        }
-      })();
   }
 });

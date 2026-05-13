@@ -463,6 +463,15 @@ function getHeaderValue(headers, headerName) {
   return headers.find((header) => header.name.toLowerCase() === lowerHeaderName)?.value || '';
 }
 
+function normalizeUrlForComparison(url) {
+  try {
+    const parsedUrl = new URL(url);
+    return `${parsedUrl.origin}${parsedUrl.pathname}`.toLowerCase();
+  } catch (error) {
+    return String(url || '').split('#')[0].split('?')[0].toLowerCase();
+  }
+}
+
 function normalizeContentType(value) {
   return String(value || '').toLowerCase().replace(/[^a-zA-Z]/g, '');
 }
@@ -533,14 +542,14 @@ function collectM3U8SegmentUrls(manifestText, manifestUrl) {
 
   for (const line of lines) {
     if (!line.startsWith('#')) {
-      segmentUrls.add(new URL(line, manifestUrl).href);
+      segmentUrls.add(normalizeUrlForComparison(new URL(line, manifestUrl).href));
       continue;
     }
 
     if (line.startsWith('#EXT-X-MAP:') || line.startsWith('#EXT-X-PART:') || line.startsWith('#EXT-X-PRELOAD-HINT:')) {
       const uriMatch = line.match(/URI="([^"]+)"/i);
       if (uriMatch) {
-        segmentUrls.add(new URL(uriMatch[1], manifestUrl).href);
+        segmentUrls.add(normalizeUrlForComparison(new URL(uriMatch[1], manifestUrl).href));
       }
     }
   }
@@ -590,14 +599,14 @@ function collectMpdSegmentUrls(manifestText, manifestUrl) {
           const initNode = repSegListNode.getElementsByTagNameNS(NS, 'Initialization')[0];
           const initUrl = initNode?.getAttribute('sourceURL') || initNode?.textContent?.trim() || null;
           if (initUrl) {
-            segmentUrls.add(new URL(initUrl, mpdBase).href);
+            segmentUrls.add(normalizeUrlForComparison(new URL(initUrl, mpdBase).href));
           }
 
           const segNodes = Array.from(repSegListNode.getElementsByTagNameNS(NS, 'SegmentURL'));
           for (const segNode of segNodes) {
             const media = segNode.getAttribute('media');
             if (media) {
-              segmentUrls.add(new URL(media, mpdBase).href);
+              segmentUrls.add(normalizeUrlForComparison(new URL(media, mpdBase).href));
             }
           }
           continue;
@@ -621,7 +630,7 @@ function collectMpdSegmentUrls(manifestText, manifestUrl) {
         };
 
         if (tmpl.initialization) {
-          segmentUrls.add(new URL(substituteMpdVariables(tmpl.initialization, { id: repId, bandwidth }), mpdBase).href);
+          segmentUrls.add(normalizeUrlForComparison(new URL(substituteMpdVariables(tmpl.initialization, { id: repId, bandwidth }), mpdBase).href));
         }
 
         const timelineNode = effectiveTmplNode.getElementsByTagNameNS(NS, 'SegmentTimeline')[0];
@@ -668,13 +677,13 @@ function collectMpdSegmentUrls(manifestText, manifestUrl) {
 
           for (const startTime of segmentStartTimes || []) {
             const mediaPath = substituteMpdVariables(tmpl.media, { id: repId, bandwidth }, { time: startTime, number: tmpl.startNumber });
-            segmentUrls.add(new URL(mediaPath, mpdBase).href);
+            segmentUrls.add(normalizeUrlForComparison(new URL(mediaPath, mpdBase).href));
           }
         } else {
           if (segmentStartTimes?.length) {
             for (let index = 0; index < segmentStartTimes.length; index++) {
               const mediaPath = substituteMpdVariables(tmpl.media, { id: repId, bandwidth }, { number: tmpl.startNumber + index });
-              segmentUrls.add(new URL(mediaPath, mpdBase).href);
+              segmentUrls.add(normalizeUrlForComparison(new URL(mediaPath, mpdBase).href));
             }
           } else if (tmpl.duration > 0 && mediaPresentationDuration) {
             const totalSeconds = parseIsoDuration(mediaPresentationDuration);
@@ -683,7 +692,7 @@ function collectMpdSegmentUrls(manifestText, manifestUrl) {
               const estimatedCount = Math.ceil(totalSeconds / segmentLengthSeconds);
               for (let index = 0; index < estimatedCount; index++) {
                 const mediaPath = substituteMpdVariables(tmpl.media, { id: repId, bandwidth }, { number: tmpl.startNumber + index });
-                segmentUrls.add(new URL(mediaPath, mpdBase).href);
+                segmentUrls.add(normalizeUrlForComparison(new URL(mediaPath, mpdBase).href));
               }
             }
           }
@@ -744,13 +753,14 @@ async function buildManifestSegmentIndex(mediaRequests) {
 function shouldHideSegment(url, request, manifestIndex) {
   const mediaURL = new URL(url);
   const originData = manifestIndex.get(mediaURL.origin);
+  const normalizedUrl = normalizeUrlForComparison(url);
 
   if (isManifestRequest(url, request)) {
     return false;
   }
 
   if (originData?.hasReadableManifest) {
-    return originData.segments.has(url);
+    return originData.segments.has(normalizedUrl);
   }
 
   const pathname = mediaURL.pathname.toLowerCase();
@@ -760,7 +770,7 @@ function shouldHideSegment(url, request, manifestIndex) {
   const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
 
   const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
-  const segmentExtRe = /\.(ts|m4s|m4f|seg|frag|fragment)(?:$|\?)/i;
+  const segmentExtRe = /\.(ts|m4s|m4v|m4a|m4f|seg|frag|fragment)(?:$|\?)/i;
 
   const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
   const looksLikeSegmentByExt = segmentExtRe.test(pathname);
@@ -927,17 +937,17 @@ function loadMediaList() {
       const hasResponseHeaders = requests[0]?.responseHeaders && requests[0].responseHeaders.length > 0;
       let path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
       if (hasResponseHeaders) {
-        if (videoExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("video/"))) {
+        if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value === "application/x-mpegURL" || h.value === "application/vnd.apple.mpegurl" || h.value === "application/dash+xml"))) {
+          //Media is a stream
+          path.setAttribute('d', 'M40-480q0-92 34.5-172T169-791.5q60-59.5 140-94T480-920q91 0 171 34.5t140 94Q851-732 885.5-652T920-480h-80q0-75-28.5-140.5T734-735q-49-49-114.5-77T480-840q-74 0-139.5 28T226-735q-49 49-77.5 114.5T120-480H40Zm160 0q0-118 82-199t198-81q116 0 198 81t82 199h-80q0-83-58.5-141.5T480-680q-83 0-141.5 58.5T280-480h-80ZM360-64l-56-56 136-136v-132q-27-12-43.5-37T380-480q0-42 29-71t71-29q42 0 71 29t29 71q0 30-16.5 55T520-388v132l136 136-56 56-120-120L360-64Z');
+        }
+        else if (videoExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("video/"))) {
           //Media is a video
           path.setAttribute('d', 'm160-800 80 160h120l-80-160h80l80 160h120l-80-160h80l80 160h120l-80-160h120q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800Zm0 240v320h640v-320H160Zm0 0v320-320Z');
         }
         else if (audioExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("audio/"))) {
           //Media is an audio
           path.setAttribute('d', 'M400-120q-66 0-113-47t-47-113q0-66 47-113t113-47q23 0 42.5 5.5T480-418v-422h240v160H560v400q0 66-47 113t-113 47Z');
-        }
-        else if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value === "application/x-mpegURL" || h.value === "application/vnd.apple.mpegurl" || h.value === "application/dash+xml"))) {
-          //Media is a stream
-          path.setAttribute('d', 'M40-480q0-92 34.5-172T169-791.5q60-59.5 140-94T480-920q91 0 171 34.5t140 94Q851-732 885.5-652T920-480h-80q0-75-28.5-140.5T734-735q-49-49-114.5-77T480-840q-74 0-139.5 28T226-735q-49 49-77.5 114.5T120-480H40Zm160 0q0-118 82-199t198-81q116 0 198 81t82 199h-80q0-83-58.5-141.5T480-680q-83 0-141.5 58.5T280-480h-80ZM360-64l-56-56 136-136v-132q-27-12-43.5-37T380-480q0-42 29-71t71-29q42 0 71 29t29 71q0 30-16.5 55T520-388v132l136 136-56 56-120-120L360-64Z');
         }
         else {
           //Media is unknown
@@ -1538,6 +1548,8 @@ function handleMessage(message, sender, sendResponse) {
         closeable: true,
       });
       return Promise.resolve();
+    case 'triggerQueuedAndroidDownloads':
+      triggerQueuedAndroidDownloadsIfAny().catch((error) => console.error('Error triggering queued Android downloads:', error));
     default:
       console.warn(`Unknown message action: ${message.action}`);
       return undefined;
@@ -1555,9 +1567,42 @@ async function promptStreamVariant(variants, url, requestId) {
       requestId
     };
 
+    const humanizeLanguage = (languageTag) => {
+      if (!languageTag || typeof languageTag !== 'string') return null;
+      const normalized = languageTag.trim();
+      if (!normalized) return null;
+      const primaryTag = normalized.split(/[-_]/)[0];
+      try {
+        const displayNames = new Intl.DisplayNames([browser.i18n.getUILanguage()], { type: 'language' });
+        return displayNames.of(primaryTag) || normalized;
+      } catch (error) {
+        return normalized;
+      }
+    };
+
     const variantOptions = variants.map(variant => {
-      const bandwidth = variant.bandwidth ? ` (${getHumanReadableSize(variant.bandwidth)})` : '';
-      return { label: `${variant.resolution || variant.codecs || variant.url}${bandwidth}`, value: variant.url };
+      const labelParts = [];
+
+      if (variant.resolution && variant.resolution !== 'unknown') {
+        labelParts.push(variant.resolution);
+      }
+      if (variant.name) {
+        labelParts.push(variant.name);
+      }
+      if (variant.audioName) {
+        labelParts.push(variant.audioName);
+      }
+
+      const languageLabel = humanizeLanguage(variant.language || variant.audioLanguage);
+      if (languageLabel) {
+        labelParts.push(languageLabel);
+      }
+
+      const baseLabel = labelParts.join(' - ') || variant.codecs || variant.uri || variant.url || 'Stream';
+      const bitrateLabel = variant.bandwidth ? `${Math.round(variant.bandwidth / 1000)} kbps` : null;
+      const label = bitrateLabel ? `${baseLabel} (${bitrateLabel})` : baseLabel;
+
+      return { label, value: variant.uri || variant.url };
     });
 
     // Build an MDUI popup with radio buttons for each variant
@@ -1645,13 +1690,44 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
     radioGroup.name = "video-representation";
     radioGroup.className = "mdui-dialog-content";
     form.appendChild(radioGroup);
+    const humanizeLanguage = (languageTag) => {
+      if (!languageTag || typeof languageTag !== 'string') return null;
+      const normalized = languageTag.trim();
+      if (!normalized) return null;
+      const primaryTag = normalized.split(/[-_]/)[0];
+      try {
+        const displayNames = new Intl.DisplayNames([browser.i18n.getUILanguage()], { type: 'language' });
+        return displayNames.of(primaryTag) || normalized;
+      } catch (error) {
+        return normalized;
+      }
+    };
+
     reps.forEach((rep, index) => {
-      const bandwidth = rep.bandwidth ? ` (${getHumanReadableSize(rep.bandwidth)})` : '';
-      const width = rep.width ? ` (${rep.width}x${rep.height})` : '';
       const radio = document.createElement("mdui-radio");
       radio.value = index; // Use index as value to identify the selected representation
 
-      radio.innerText = `${width}${bandwidth}`;
+      const trackPrefix = type === 'audio' ? `Audio track ${index + 1}` : `Video track ${index + 1}`;
+      const labelParts = [trackPrefix];
+      if (rep.name) {
+        labelParts.push(rep.name);
+      }
+
+      const languageLabel = humanizeLanguage(rep.language);
+      if (languageLabel) {
+        labelParts.push(languageLabel);
+      }
+
+      const details = [];
+      if (type !== 'audio' && rep.width && rep.height) {
+        details.push(`${rep.width}x${rep.height}`);
+      }
+      if (rep.bandwidth) {
+        details.push(`${Math.round(rep.bandwidth / 1000)} kbps`);
+      }
+
+      const detailsSuffix = details.length ? ` (${details.join(', ')})` : '';
+      radio.innerText = `${labelParts.join(' - ')}${detailsSuffix}`;
 
       radioGroup.appendChild(radio);
       radioGroup.appendChild(document.createElement("br"));
