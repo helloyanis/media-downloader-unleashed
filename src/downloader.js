@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 */
 
 const ongoingDownloads = new Map(); // requestId -> {abortController, ...}
+const pendingPromptResolvers = new Map(); // requestId -> {resolve}
 
 function isAbortError(error) {
   return !!(
@@ -17,6 +18,96 @@ function isAbortError(error) {
       (typeof error.message === 'string' && /abort|cancel/i.test(error.message))
     )
   );
+}
+
+function isAndroid() {
+  return true
+  //return navigator.userAgent.includes("Mobile;");
+}
+
+async function getQueuedAndroidDownloads() {
+  return browser.storage.session.get('queuedAndroidDownloads').then((result) => result.queuedAndroidDownloads || []);
+}
+
+async function getPendingPopupState() {
+  return browser.storage.session.get('pendingPopupState').then((result) => result.pendingPopupState || null);
+}
+
+async function refreshExtensionBadge() {
+  const pendingPopupState = await getPendingPopupState();
+  if (pendingPopupState) {
+    browser.action.setBadgeBackgroundColor({ color: '#FF9800' });
+    browser.action.setBadgeText({ text: '!' });
+    return;
+  }
+
+  if (ongoingDownloads.size > 0) {
+    const downloads = Array.from(ongoingDownloads.values());
+    const totalPercentage = downloads.length
+      ? Math.round(downloads.reduce((acc, d) => acc + (d.progress?.percentage || 0), 0) / downloads.length)
+      : 0;
+    browser.action.setBadgeBackgroundColor({ color: '#808080' });
+    browser.action.setBadgeText({ text: totalPercentage > 0 ? `${totalPercentage}%` : '' });
+    return;
+  }
+
+  const queuedDownloads = await getQueuedAndroidDownloads();
+  if (queuedDownloads.length > 0) {
+    browser.action.setBadgeBackgroundColor({ color: '#4CAF50' });
+    browser.action.setBadgeText({ text: '!' });
+    return;
+  }
+
+  browser.action.setBadgeText({ text: '' });
+}
+
+/**
+ * Queue a download for Android (fetch method).
+ * Stores blob and metadata so it can be triggered from the popup.
+ */
+async function queueAndroidDownload(blob, filename, requestId) {
+  try {
+    const blobUrl = URL.createObjectURL(blob);
+    const queuedDownloads = await browser.storage.session.get('queuedAndroidDownloads').then(r => r.queuedAndroidDownloads || []);
+    
+    queuedDownloads.push({
+      requestId,
+      filename,
+      blobUrl,
+      timestamp: Date.now()
+    });
+    
+    await browser.storage.session.set({ queuedAndroidDownloads: queuedDownloads });
+    await refreshExtensionBadge();
+  } catch (error) {
+    console.error('Error queuing Android download:', error);
+  }
+}
+
+async function setPendingPopupState(state) {
+  await browser.storage.session.set({ pendingPopupState: state });
+  await refreshExtensionBadge();
+}
+
+async function clearPendingPopupState(requestId) {
+  const pendingPopupState = await getPendingPopupState();
+  if (pendingPopupState && (!requestId || pendingPopupState.requestId === requestId)) {
+    await browser.storage.session.remove('pendingPopupState');
+  }
+  await refreshExtensionBadge();
+}
+
+function waitForPopupResolution(requestId) {
+  return new Promise((resolve) => {
+    pendingPromptResolvers.set(requestId, { resolve });
+  });
+}
+
+async function requestPopupPrompt(requestId, state, message) {
+  await setPendingPopupState(state);
+  const waitForResult = waitForPopupResolution(requestId);
+  browser.runtime.sendMessage(message).catch(() => {});
+  return waitForResult;
 }
 
 function createAbortError() {
@@ -158,6 +249,15 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
 
       // Create a blob from the chunks and trigger a download
       const blob = new Blob(chunks);
+      
+      // For Android with fetch method, queue the download instead of triggering immediately
+      if (isAndroid() && downloadMethod === 'fetch') {
+        await queueAndroidDownload(blob, fileName, request.requestId);
+        browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+        handleDownloadCompletion(request.requestId);
+        return;
+      }
+      
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -224,7 +324,9 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       let selectedVariant = await selectStreamVariant(lines, base, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
-        method: request.method
+        method: request.method,
+        requestId: request.requestId,
+        url: m3u8Url
       });
       if (!selectedVariant) {
         //User canceled the variant selection, abort the download
@@ -274,16 +376,17 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       }
 
       if (hasDRM) {
-        await new Promise((resolve) => {
-          browser.runtime.sendMessage({ action: 'promptDRMWarning', requestId: request.requestId }, (response, error) => {
-            if (response && response.continue) {
-              resolve();
-            } else {
-              drmAbort = true;
-              resolve();
-            }
-          });
+        const promptResult = await requestPopupPrompt(request.requestId, {
+          type: 'drmWarning',
+          requestId: request.requestId,
+          url: playlistUrl
+        }, {
+          action: 'promptDRMWarning',
+          requestId: request.requestId,
+          url: playlistUrl
         });
+
+        drmAbort = !(promptResult && promptResult.continue);
       }
 
       if (drmAbort) {
@@ -453,7 +556,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
             // Only fetch key if URI changed (key rotation)
             if (keyHref !== currentKeyUri) {
-              currentKeyBuffer = await fetchAndDecodeKey(keyHref);
+              currentKeyBuffer = await fetchAndDecodeKey(keyHref, fetchOpts);
               currentKeyUri = keyHref;
 
               // debug
@@ -585,6 +688,21 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     const baseFileName = fileName
     const videoBlobUrl = URL.createObjectURL(videoBlob);
 
+    // For Android with fetch method, queue the download instead of triggering immediately
+    if (isAndroid() && downloadMethod === 'fetch') {
+      await queueAndroidDownload(videoBlob, audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`, request.requestId);
+      URL.revokeObjectURL(videoBlobUrl);
+      
+      if (audioUrl) {
+        const { blob: audioBlob } = await downloadSegments(audioUrl, true);
+        await queueAndroidDownload(audioBlob, `${baseFileName}_audio.mp4`, request.requestId);
+      }
+      
+      browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      handleDownloadCompletion(request.requestId);
+      return;
+    }
+
     if (downloadMethod === "browser") {
       await browser.downloads.download({
         url: videoBlobUrl,
@@ -702,16 +820,21 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
   if (preference === "highest") return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
   if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
 
-  return new Promise((resolve) => {
-    browser.runtime.sendMessage({ action: 'promptStreamVariant', variants, requestId: options.request?.requestId }, (response, error) => {
-      if (response && response.selectedVariant) {
-        resolve(response.selectedVariant);
-      } else {
-        // If user cancels, stop the download by resolving with null or throwing an error
-        resolve(null);
-      }
-    });
-  });
+  const requestId = options.requestId;
+  if (!requestId) return null;
+
+  const promptState = {
+    type: 'streamVariant',
+    requestId,
+    url: options.url || baseUrl,
+    variants
+  };
+
+  await setPendingPopupState(promptState);
+  const waitForResult = waitForPopupResolution(requestId);
+  browser.runtime.sendMessage({ action: 'promptStreamVariant', variants, requestId, url: promptState.url }).catch(() => {});
+  const result = await waitForResult;
+  return result?.selectedVariant ?? null;
 }
 
 
@@ -779,16 +902,17 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     const hasDRM = !!xmlDoc.getElementsByTagNameNS(NS, "ContentProtection").length;
     let drmAbort = false;
     if (hasDRM) {
-      await new Promise((resolve) => {
-        browser.runtime.sendMessage({ action: 'promptDRMWarning', requestId: request.requestId }, (response, error) => {
-          if (response && response.continue) {
-            resolve();
-          } else {
-            drmAbort = true;
-            resolve();
-          }
-        });
+      const promptResult = await requestPopupPrompt(request.requestId, {
+        type: 'drmWarning',
+        requestId: request.requestId,
+        url: mpdUrl
+      }, {
+        action: 'promptDRMWarning',
+        requestId: request.requestId,
+        url: mpdUrl
       });
+
+      drmAbort = !(promptResult && promptResult.continue);
     }
 
     if (drmAbort) {
@@ -931,12 +1055,12 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       throw new Error("MPD has no audio or video AdaptationSet.");
     }
 
-    const chosenVideoRep = videoAdaptation
-      ? await selectMPDVideoRepresentation(videoAdaptation.representations)
+      const chosenVideoRep = videoAdaptation
+        ? await selectMPDVideoRepresentation(videoAdaptation.representations, request.requestId, mpdUrl)
       : null;
 
-    const chosenAudioRep = audioAdaptation
-      ? await selectMPDAudioRepresentation(audioAdaptation.representations)
+      const chosenAudioRep = audioAdaptation
+        ? await selectMPDAudioRepresentation(audioAdaptation.representations, request.requestId, mpdUrl)
       : null;
 
     const mpdBase = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
@@ -1022,6 +1146,62 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       function addToMax(n) {
         maxBytes += n;
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes });
+      }
+
+      // For Android with fetch method, queue all downloads instead of triggering immediately
+      if (isAndroid() && downloadMethod === 'fetch') {
+        for (const d of downloads) {
+          const url = new URL(d.rep.baseURL, mpdBase).href;
+          let candidate = baseName;
+          if (!candidate || candidate === "") {
+            candidate = d.label === "video" ? `${baseName}_video.mp4` : `${baseName}_audio.mp4`;
+          } else {
+            candidate += d.label === "video" ? "_video.mp4" : "_audio.mp3";
+          }
+          const filename = candidate;
+
+          console.log(`>>> Direct download ${filename} at ${d.label}:`, url);
+
+          let lastReceivedForFile = 0;
+          const buffer = await fetchWithProgress(url, {
+            onStart: (contentLength) => {
+              if (contentLength && contentLength > 0) {
+                addToMax(contentLength);
+              } else {
+                sawUnknownLength = true;
+                handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: null, percentage: null });
+              }
+            },
+            onChunk: (received, contentLength) => {
+              const delta = received - lastReceivedForFile;
+              lastReceivedForFile = received;
+              downloadedBytes += delta;
+              const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
+              if (max > 0) {
+                handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: max, percentage: Math.round((downloadedBytes / max) * 100) });
+              }
+            }
+          });
+
+          if (sawUnknownLength) {
+            handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
+          }
+
+          const blob = new Blob([buffer]);
+          await queueAndroidDownload(blob, filename, request.requestId);
+        }
+
+        const finalMax = sawUnknownLength ? null : maxBytes;
+        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: finalMax, percentage: finalMax ? Math.round((downloadedBytes / finalMax) * 100) : null });
+
+        console.log("✅ Direct downloads queued for Android.");
+        if(downloads.length > 1) {
+          browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId, baseName: baseName, mpdUrl: mpdUrl, downloadMethod: downloadMethod });
+        }
+        
+        browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+        handleDownloadCompletion(request.requestId);
+        return;
       }
 
       for (const d of downloads) {
@@ -1493,6 +1673,14 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     const zipBlob = await downloadZip(zipEntries).blob();
     const zipName = `${baseName}.zip`;
 
+    // For Android with fetch method, queue the ZIP download instead of triggering immediately
+    if (isAndroid() && downloadMethod === 'fetch') {
+      await queueAndroidDownload(zipBlob, zipName, request.requestId);
+      browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      handleDownloadCompletion(request.requestId);
+      return;
+    }
+
     if (downloadMethod === "browser") {
       await browser.downloads.download({ url: URL.createObjectURL(zipBlob), filename: zipName });
     } else {
@@ -1539,7 +1727,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
  * @returns {Promise<{ id: string, bandwidth: number, width: number, height: number }>}
  *          Resolves to the chosen representation object.
  */
-async function selectMPDVideoRepresentation(reps) {
+async function selectMPDVideoRepresentation(reps, requestId, url = null) {
   // If there's only one rep, no need to ask.
   if (reps.length === 1) {
     return reps[0];
@@ -1554,15 +1742,19 @@ async function selectMPDVideoRepresentation(reps) {
     return reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
   }
 
-  return new Promise((resolve) => {
-    browser.runtime.sendMessage({ action: 'promptMPDVideoRepresentation', reps }, (response, error) => {
-      if (error) {
-        console.error("Error prompting for video representation:", error);
-        throw new Error("Failed to prompt for video representation");
-      }
-      resolve(response.selectedRepresentation);
-    });
+  const promptResult = await requestPopupPrompt(requestId, {
+    type: 'mpdVideoRepresentation',
+    requestId,
+    url,
+    reps
+  }, {
+    action: 'promptMPDVideoRepresentation',
+    reps,
+    requestId,
+    url
   });
+
+  return promptResult?.selectedRepresentation ?? null;
 }
 
 /**
@@ -1573,7 +1765,7 @@ async function selectMPDVideoRepresentation(reps) {
  * @returns {Promise<{ id: string, bandwidth: number }>}
  *          Resolves to the chosen representation object.
  */
-async function selectMPDAudioRepresentation(reps, requestId) {
+async function selectMPDAudioRepresentation(reps, requestId, url = null) {
   // If there's only one rep, no need to ask.
   if (reps.length === 1) {
     return reps[0];
@@ -1588,15 +1780,19 @@ async function selectMPDAudioRepresentation(reps, requestId) {
     return reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
   }
 
-  return new Promise((resolve) => {
-    browser.runtime.sendMessage({ action: 'promptMPDAudioRepresentation', reps, requestId }, (response, error) => {
-      if (error) {
-        console.error("Error prompting for audio representation:", error);
-        throw new Error("Failed to prompt for audio representation");
-      }
-      resolve(response.selectedRepresentation);
-    });
+  const promptResult = await requestPopupPrompt(requestId, {
+    type: 'mpdAudioRepresentation',
+    requestId,
+    url,
+    reps
+  }, {
+    action: 'promptMPDAudioRepresentation',
+    reps,
+    requestId,
+    url
   });
+
+  return promptResult?.selectedRepresentation ?? null;
 }
 
 function handleProgressUpdate(message) {
@@ -1645,10 +1841,7 @@ async function handleDownloadCompletion(id, failed = false, cancelled = false) {
     ongoingDownloads.delete(id);
   }
 
-  // Clear badge if no more in-progress downloads
-  if (ongoingDownloads.size === 0) {
-    browser.action.setBadgeText({ text: '' });
-  }
+  await refreshExtensionBadge();
 
   // Add request ID to session storage completed/failed lists.
   // Storage values may be missing, wrapped in an object, or legacy JSON strings.
@@ -1705,6 +1898,15 @@ browser.runtime.onMessage.addListener((message) => {
     case 'cancelDownload': {
       const entry = ongoingDownloads.get(message.requestId);
       if (!entry) {
+        const pendingPrompt = pendingPromptResolvers.get(message.requestId);
+        if (pendingPrompt) {
+          pendingPromptResolvers.delete(message.requestId);
+          clearPendingPopupState(message.requestId).catch((error) => {
+            console.error('Failed to clear pending popup state after cancel:', error);
+          });
+          pendingPrompt.resolve(null);
+          return Promise.resolve({ cancelled: true });
+        }
         return Promise.resolve({ cancelled: false });
       }
 
@@ -1714,5 +1916,40 @@ browser.runtime.onMessage.addListener((message) => {
 
       return Promise.resolve({ cancelled: true });
     }
+    case 'popupResolved': {
+      const pending = pendingPromptResolvers.get(message.requestId);
+      if (pending) {
+        pendingPromptResolvers.delete(message.requestId);
+        clearPendingPopupState(message.requestId).catch((error) => {
+          console.error('Failed to clear pending popup state:', error);
+        });
+        pending.resolve(message.result || null);
+      }
+      return Promise.resolve({ success: true });
+    }
+    case 'refreshBadgeState':
+      return refreshExtensionBadge().then(() => ({ success: true }));
+    case 'triggerQueuedAndroidDownloads':
+      return (async () => {
+        try {
+          const queuedDownloads = await browser.storage.session.get('queuedAndroidDownloads').then(r => r.queuedAndroidDownloads || []);
+          for (const download of queuedDownloads) {
+            const a = document.createElement("a");
+            a.href = download.blobUrl;
+            a.download = download.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            // Small delay to avoid browser blocking multiple downloads at once
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          await browser.storage.session.set({ queuedAndroidDownloads: [] });
+          await refreshExtensionBadge();
+          return { success: true };
+        } catch (error) {
+          console.error('Error triggering queued Android downloads:', error);
+          return { success: false, error: error.message };
+        }
+      })();
   }
 });

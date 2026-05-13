@@ -16,8 +16,16 @@ if (typeof browser === 'undefined') {
 
 let ratingCount = 0;
 sessionStorage.setItem('shownYoutubeAlert', 0); //To prevent multiple youtube alerts in the same session
+let pendingPopupState = null; // Track if a popup is currently open
+let isPopupClosing = false; // Track if the popup is closing
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Check for queued Android downloads and trigger them
+  triggerQueuedAndroidDownloadsIfAny();
+
+  // Check for pending popups that were blocked by the popup page being closed
+  restorePendingPopupIfExists();
+
   loadMediaList();
   document.getElementById('navbar').addEventListener('change', (event) => {
     console.log(event)
@@ -76,7 +84,69 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('mdui-tab')[1].click(); //Click on the options tab
   }
 
+  // Track when the popup is about to close
+  window.addEventListener('beforeunload', () => {
+    isPopupClosing = true;
+    if (pendingPopupState) {
+      // Save the pending popup state before closing
+      browser.storage.session.set({ pendingPopupState });
+      browser.action.setBadgeText({ text: '!' });
+      browser.action.setBadgeBackgroundColor({ color: '#FF9800' });
+    }
+  });
+
 });
+
+/**
+ * Trigger queued Android downloads if any exist
+ */
+async function triggerQueuedAndroidDownloadsIfAny() {
+  try {
+    const queuedDownloads = await browser.storage.session.get('queuedAndroidDownloads').then(r => r.queuedAndroidDownloads || []);
+    if (queuedDownloads.length > 0) {
+      console.log(`Triggering ${queuedDownloads.length} queued Android downloads`);
+      for (const download of queuedDownloads) {
+        const a = document.createElement("a");
+        a.href = download.blobUrl;
+        a.download = download.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Small delay to avoid browser blocking multiple downloads at once
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await browser.storage.session.set({ queuedAndroidDownloads: [] });
+      await browser.runtime.sendMessage({ action: 'refreshBadgeState' });
+    }
+  } catch (error) {
+    console.error('Error triggering queued Android downloads:', error);
+  }
+}
+
+/**
+ * Restore pending popup if it was blocked by the popup page being closed
+ */
+async function restorePendingPopupIfExists() {
+  try {
+    const stored = await browser.storage.session.get('pendingPopupState').then(r => r.pendingPopupState);
+    if (stored) {
+      console.log('Restoring pending popup:', stored);
+      
+      // Restore and display the pending popup based on its type
+      if (stored.type === 'streamVariant') {
+        await promptStreamVariant(stored.variants, stored.url, stored.requestId);
+      } else if (stored.type === 'drmWarning') {
+        await promptDRMWarning(stored.requestId);
+      } else if (stored.type === 'mpdVideoRepresentation') {
+        await promptMPDVideoRepresentation(stored.reps, "video", stored.requestId);
+      } else if (stored.type === 'mpdAudioRepresentation') {
+        await promptMPDVideoRepresentation(stored.reps, "audio", stored.requestId);
+      }
+    }
+  } catch (error) {
+    console.error('Error restoring pending popup:', error);
+  }
+}
 
 // Check if we should show the rating banner
 async function checkAndShowRatingBanner() {
@@ -719,6 +789,9 @@ function loadMediaList() {
     const manifestSegmentIndex = hideSegments ? await buildManifestSegmentIndex(mediaRequests) : new Map();
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
+      if (!Array.isArray(requests) || requests.length === 0) {
+        continue;
+      }
       //If no content type or wrong content type, skip
       const requestIds = requests.map(r => r.requestId) // Use this to preserve state when re-opening the add-on window, as the request objects are the same and we can track them by their ID, even if they have been made at a different time
 
@@ -733,7 +806,12 @@ function loadMediaList() {
           || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video/") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio/")) !== undefined // Or if any content type header starts with video/ or audio/
       }
 
-      const mediaURL = new URL(url);
+      let mediaURL;
+      try {
+        mediaURL = new URL(url);
+      } catch (error) {
+        continue;
+      }
       // Check if the request matches the file extensions
       if (useUrlDetection) {
         urlMatch = fileExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext));
@@ -1344,34 +1422,25 @@ function handleMessage(message, sender, sendResponse) {
   console.log('Received message in popup:', message);
   switch (message.action) {
     case 'promptStreamVariant':
-      return promptStreamVariant(message.variants, message.url)
+      return promptStreamVariant(message.variants, message.url, message.requestId)
         .then(selectedVariant => ({ selectedVariant }));
         break;
     case 'showSplitDownloadDialog':
       return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${message.baseName}".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
       break;
     case 'promptMPDVideoRepresentation':
-      return promptMPDVideoRepresentation(message.reps, "video")
+      return promptMPDVideoRepresentation(message.reps, "video", message.requestId)
         .then(selectedRepresentation => ({ selectedRepresentation }));
         break;
     case 'promptMPDAudioRepresentation':
-      return promptMPDVideoRepresentation(message.reps, "audio")
+      return promptMPDVideoRepresentation(message.reps, "audio", message.requestId)
         .then(selectedRepresentation => ({ selectedRepresentation }));
         break;
     case 'showMPDDownloadCompleteDialog':
       return showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [message.baseName, ".mp4"]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded MPD file "${message.baseName}.mp4".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
       break;
     case 'promptDRMWarning':
-      return new Promise((resolve) => {
-        mdui.confirm({
-          headline: browser.i18n.getMessage("drmWarningTitle"),
-          description: browser.i18n.getMessage("drmWarningDescription"),
-          confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
-          cancelText: browser.i18n.getMessage("cancelButton"),
-          onCancel: () => { resolve({ continue: false }); },
-          onConfirm: () => { resolve({ continue: true }); },
-        });
-      });
+      return promptDRMWarning(message.requestId);
     case 'showAudioStreamSnackbar':
       mdui.snackbar({
         message: browser.i18n.getMessage("splitDownloadWarningSnackbar"),
@@ -1386,8 +1455,16 @@ function handleMessage(message, sender, sendResponse) {
 }
 
 
-async function promptStreamVariant(variants, url) {
+async function promptStreamVariant(variants, url, requestId) {
   return new Promise((resolve) => {
+    // Mark this popup as pending
+    pendingPopupState = {
+      type: 'streamVariant',
+      variants,
+      url,
+      requestId
+    };
+
     const variantOptions = variants.map(variant => {
       const bandwidth = variant.bandwidth ? ` (${getHumanReadableSize(variant.bandwidth)})` : '';
       return { label: `${variant.resolution || variant.codecs || variant.url}${bandwidth}`, value: variant.url };
@@ -1422,8 +1499,10 @@ async function promptStreamVariant(variants, url) {
     cancelBtn.textContent = browser.i18n.getMessage("cancelButton")
     cancelBtn.setAttribute("variant", "text");
     cancelBtn.addEventListener("click", () => {
+      pendingPopupState = null;
       resolve(null); // Resolve with null if the user cancels
       dialog.open = false;
+      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedVariant: null } }).catch(() => {});
     });
     actions.appendChild(cancelBtn);
 
@@ -1431,13 +1510,17 @@ async function promptStreamVariant(variants, url) {
     confirmBtn.textContent = browser.i18n.getMessage("okButton")
     confirmBtn.setAttribute("variant", "text");
     confirmBtn.addEventListener("click", () => {
+      pendingPopupState = null;
       dialog.open = false;
       const selectedIndex = radioGroup.value;
 
       if (selectedIndex === undefined) {
         resolve(null);
+        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedVariant: null } }).catch(() => {});
       } else {
-        resolve(variants[selectedIndex]); // return actual variant
+        const selectedVariant = variants[selectedIndex];
+        resolve(selectedVariant); // return actual variant
+        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedVariant } }).catch(() => {});
       }
 
     });
@@ -1449,8 +1532,16 @@ async function promptStreamVariant(variants, url) {
   });
 }
 
-async function promptMPDVideoRepresentation(reps, type) {
+async function promptMPDVideoRepresentation(reps, type, requestId) {
   return new Promise((resolve) => {
+    // Mark this popup as pending
+    const popupType = type === 'audio' ? 'mpdAudioRepresentation' : 'mpdVideoRepresentation';
+    pendingPopupState = {
+      type: popupType,
+      reps,
+      requestId
+    };
+
     console.log('Prompting user to select MPD representation:', reps);
     const dialog = document.createElement("mdui-dialog");
     if(type === 'audio') {
@@ -1486,8 +1577,10 @@ async function promptMPDVideoRepresentation(reps, type) {
     cancelBtn.textContent = browser.i18n.getMessage("cancelButton")
     cancelBtn.setAttribute("variant", "text");
     cancelBtn.addEventListener("click", () => {
+      pendingPopupState = null;
       resolve(null); // Resolve with null if the user cancels
       dialog.open = false;
+      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentation: null } }).catch(() => {});
     });
     actions.appendChild(cancelBtn);
 
@@ -1495,13 +1588,17 @@ async function promptMPDVideoRepresentation(reps, type) {
     confirmBtn.textContent = browser.i18n.getMessage("okButton")
     confirmBtn.setAttribute("variant", "text");
     confirmBtn.addEventListener("click", () => {
+      pendingPopupState = null;
       dialog.open = false;
       const selectedIndex = radioGroup.value;
 
       if (selectedIndex === undefined) {
         resolve(null);
+        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentation: null } }).catch(() => {});
       } else {
-        resolve(reps[selectedIndex]); // return actual representation
+        const selectedRepresentation = reps[selectedIndex];
+        resolve(selectedRepresentation); // return actual representation
+        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentation } }).catch(() => {});
       }
 
     });
@@ -1509,5 +1606,32 @@ async function promptMPDVideoRepresentation(reps, type) {
 
     document.body.appendChild(dialog);
     requestAnimationFrame(() => dialog.open = true);
+  });
+}
+
+async function promptDRMWarning(requestId) {
+  return new Promise((resolve) => {
+    // Mark this popup as pending
+    pendingPopupState = {
+      type: 'drmWarning',
+      requestId
+    };
+
+    mdui.confirm({
+      headline: browser.i18n.getMessage("drmWarningTitle"),
+      description: browser.i18n.getMessage("drmWarningDescription"),
+      confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
+      cancelText: browser.i18n.getMessage("cancelButton"),
+      onCancel: () => {
+        pendingPopupState = null;
+        resolve({ continue: false });
+        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { continue: false } }).catch(() => {});
+      },
+      onConfirm: () => {
+        pendingPopupState = null;
+        resolve({ continue: true });
+        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { continue: true } }).catch(() => {});
+      },
+    });
   });
 }

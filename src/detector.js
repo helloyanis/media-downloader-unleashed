@@ -441,6 +441,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Clear the completedDownloads and failedDownloads keys from the response, as they are only relevant for the popup's own session and should not be shared with the background script or other popups.
             delete items['completedDownloads'];
             delete items['failedDownloads'];
+            delete items['queuedAndroidDownloads'];
+            delete items['pendingPopupState'];
             sendResponse(items);
         });
         return true; // Indicate that the response will be sent asynchronously
