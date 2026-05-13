@@ -21,8 +21,7 @@ function isAbortError(error) {
 }
 
 function isAndroid() {
-  return true
-  //return navigator.userAgent.includes("Mobile;");
+  return navigator.userAgent.includes("Mobile;");
 }
 
 async function getQueuedAndroidDownloads() {
@@ -63,7 +62,7 @@ async function refreshExtensionBadge() {
 
 /**
  * Queue a download for Android (fetch method).
- * Stores blob and metadata so it can be triggered from the popup.
+ * On Firefox for Android, downloads triggered from background scripts using the downloads API or blob URLs don't work properly, so we need to queue them and let the popup handle the actual download when the user opens it.
  */
 async function queueAndroidDownload(blob, filename, requestId) {
   try {
