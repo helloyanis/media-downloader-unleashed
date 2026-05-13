@@ -20,6 +20,8 @@ let pendingPopupState = null; // Track if a popup is currently open
 let isPopupClosing = false; // Track if the popup is closing
 
 document.addEventListener('DOMContentLoaded', () => {
+  initializeDialogPreferences();
+
   // Check for queued Android downloads and trigger them
   triggerQueuedAndroidDownloadsIfAny();
 
@@ -241,6 +243,70 @@ function showDialog(message, title = null, errorData = null) {
   dialog.setAttribute('open', true)
 }
 
+async function getDialogPreference(preferenceKey) {
+  const result = await browser.storage.local.get(preferenceKey);
+  return result[preferenceKey] ?? '0';
+}
+
+async function setDialogPreference(preferenceKey, value) {
+  await browser.storage.local.set({ [preferenceKey]: String(value) });
+}
+
+async function initializeDialogPreferences() {
+  const storedPreferences = await browser.storage.local.get(Object.values(dialogPreferenceKeys));
+  const missingPreferences = {};
+
+  for (const preferenceKey of Object.values(dialogPreferenceKeys)) {
+    if (storedPreferences[preferenceKey] === undefined) {
+      missingPreferences[preferenceKey] = '0';
+    }
+  }
+
+  if (Object.keys(missingPreferences).length > 0) {
+    await browser.storage.local.set(missingPreferences);
+  }
+}
+
+async function showDontRemindMeSnackbar(message, preferenceKey) {
+  mdui.snackbar({
+    message,
+    action: browser.i18n.getMessage("dontRemindMeSnackbarAction"),
+    closeable: true,
+    autoCloseDelay: 10000,
+    onActionClick: async () => {
+      await setDialogPreference(preferenceKey, '2');
+    }
+  });
+}
+
+async function showPreferenceAwareCompletionNotice({ preferenceKey, headline, description }) {
+  const preferenceValue = await getDialogPreference(preferenceKey);
+
+  if (preferenceValue === '2') {
+    return;
+  }
+
+  if (preferenceValue === '1') {
+    await showDontRemindMeSnackbar(headline, preferenceKey);
+    return;
+  }
+
+  await showDialogCustom({
+    headline,
+    description,
+    confirmText: browser.i18n.getMessage("okButton"),
+    showTextField: false,
+    showCheckbox: true,
+    showCancelButton: false,
+    checkboxLabel: browser.i18n.getMessage("dontRemindMeCheckbox"),
+    onConfirm: async (checked) => {
+      if (checked) {
+        await setDialogPreference(preferenceKey, '1');
+      }
+    },
+  });
+}
+
 /**
  * Show a customizable dialog with options for headline, description, confirm and cancel buttons, and an optional text field. This function is used to ask the user for input or confirmation before performing an action.
  * @param {Object} options An object containing the options for the dialog
@@ -253,6 +319,9 @@ async function showDialogCustom({
   onConfirm = () => { },
   onCancel = () => { },
   showTextField = true,
+  showCheckbox = false,
+  checkboxLabel = "",
+  showCancelButton = true,
   textFieldOptions = {}
 }) {
   return new Promise((resolve) => {
@@ -269,6 +338,7 @@ async function showDialogCustom({
     const dialogBodyElement = document.createElement("div");
     dialogBodyElement.style.display = "flex";
     dialogBodyElement.style.flexDirection = "column";
+    dialogBodyElement.style.gap = "12px";
     dialog.appendChild(dialogBodyElement);
 
     // ----- Description -----
@@ -290,31 +360,41 @@ async function showDialogCustom({
       dialogBodyElement.appendChild(textField);
     }
 
+    const checkbox = document.createElement("mdui-checkbox");
+    checkbox.id = `dialog-checkbox-${Math.random().toString(36).slice(2)}`;
+    checkbox.innerText = checkboxLabel;
+
+    if (showCheckbox) {
+      dialogBodyElement.appendChild(checkbox);
+    }
+
     // ----- Cancel Button -----
-    const cancelBtn = document.createElement("mdui-button");
-    cancelBtn.variant = "text";
-    cancelBtn.slot = "action";
-    cancelBtn.textContent = cancelText;
-    cancelBtn.addEventListener("click", () => {
-      dialog.removeAttribute("open");
-      onCancel();
-      resolve(false);
-    });
-    dialog.appendChild(cancelBtn);
+    if (showCancelButton) {
+      const cancelBtn = document.createElement("mdui-button");
+      cancelBtn.variant = "text";
+      cancelBtn.slot = "action";
+      cancelBtn.textContent = cancelText;
+      cancelBtn.addEventListener("click", async () => {
+        dialog.removeAttribute("open");
+        await onCancel();
+        resolve(false);
+      });
+      dialog.appendChild(cancelBtn);
+    }
 
     // ----- Confirm Button -----
     const confirmBtn = document.createElement("mdui-button");
     confirmBtn.variant = "text";
     confirmBtn.slot = "action";
     confirmBtn.textContent = confirmText;
-    confirmBtn.addEventListener("click", () => {
+    confirmBtn.addEventListener("click", async () => {
       dialog.removeAttribute("open");
       if (showTextField) {
         const value = textField.value;
-        onConfirm(value);
+        await onConfirm(value, showCheckbox ? checkbox.checked : undefined);
 
       } else {
-        onConfirm();;
+        await onConfirm(showCheckbox ? checkbox.checked : undefined);
       }
       resolve(true);
     });
@@ -1426,7 +1506,12 @@ function handleMessage(message, sender, sendResponse) {
         .then(selectedVariant => ({ selectedVariant }));
         break;
     case 'showSplitDownloadDialog':
-      return showDialog(browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]), browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"), { error: `✅ Downloaded separate audio and video files for "${message.baseName}".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
+      void showPreferenceAwareCompletionNotice({
+        preferenceKey: "split-download-complete-dont-remind-me",
+        headline: browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"),
+        description: browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]),
+      }).catch((error) => console.error('Error showing split download completion notice:', error));
+      return Promise.resolve();
       break;
     case 'promptMPDVideoRepresentation':
       return promptMPDVideoRepresentation(message.reps, "video", message.requestId)
@@ -1437,7 +1522,12 @@ function handleMessage(message, sender, sendResponse) {
         .then(selectedRepresentation => ({ selectedRepresentation }));
         break;
     case 'showMPDDownloadCompleteDialog':
-      return showDialog(browser.i18n.getMessage("mpdDownloadCompleteMessage", [message.baseName, ".mp4"]), browser.i18n.getMessage("mpdDownloadCompleteTitle"), { error: `✅ Downloaded MPD file "${message.baseName}.mp4".`, url: message.mpdUrl, request: message.request, downloadMethod: message.downloadMethod });
+      void showPreferenceAwareCompletionNotice({
+        preferenceKey: "mpd-download-complete-dont-remind-me",
+        headline: browser.i18n.getMessage("mpdDownloadCompleteTitle"),
+        description: browser.i18n.getMessage("mpdDownloadCompleteMessage", [message.baseName, ".mp4"]),
+      }).catch((error) => console.error('Error showing MPD completion notice:', error));
+      return Promise.resolve();
       break;
     case 'promptDRMWarning':
       return promptDRMWarning(message.requestId);
@@ -1610,6 +1700,19 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
 }
 
 async function promptDRMWarning(requestId) {
+  const preferenceValue = await getDialogPreference(dialogPreferenceKeys.drmWarning);
+
+  if (preferenceValue === '2') {
+    browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { continue: true } }).catch(() => {});
+    return { continue: true };
+  }
+
+  if (preferenceValue === '1') {
+    await showDontRemindMeSnackbar(browser.i18n.getMessage("drmWarningTitle"), dialogPreferenceKeys.drmWarning);
+    browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { continue: true } }).catch(() => {});
+    return { continue: true };
+  }
+
   return new Promise((resolve) => {
     // Mark this popup as pending
     pendingPopupState = {
@@ -1617,17 +1720,23 @@ async function promptDRMWarning(requestId) {
       requestId
     };
 
-    mdui.confirm({
+    showDialogCustom({
       headline: browser.i18n.getMessage("drmWarningTitle"),
       description: browser.i18n.getMessage("drmWarningDescription"),
       confirmText: browser.i18n.getMessage("drmWarningConntinueButton"),
       cancelText: browser.i18n.getMessage("cancelButton"),
-      onCancel: () => {
+      showTextField: false,
+      showCheckbox: true,
+      checkboxLabel: browser.i18n.getMessage("dontRemindMeCheckbox"),
+      onCancel: async () => {
         pendingPopupState = null;
         resolve({ continue: false });
         browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { continue: false } }).catch(() => {});
       },
-      onConfirm: () => {
+      onConfirm: async (checked) => {
+        if (checked) {
+          await setDialogPreference("drm-warning-dont-remind-me", '1');
+        }
         pendingPopupState = null;
         resolve({ continue: true });
         browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { continue: true } }).catch(() => {});

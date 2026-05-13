@@ -553,6 +553,26 @@
         "message": "Continue",
         "description": "The text of the OK button in the DRM warning dialog."
     },
+    "dialogPreferencesTitle": {
+      "message": "Dialog preferences",
+      "description": "The title of the settings card for dialog reminder preferences."
+    },
+    "resetDialogPreferencesButton": {
+      "message": "Reset dialog preferences",
+      "description": "The label of the button that resets all dialog reminder preferences."
+    },
+    "dialogPreferencesResetMessage": {
+      "message": "Dialog preferences reset.",
+      "description": "The snackbar message shown after resetting dialog preferences."
+    },
+    "dontRemindMeCheckbox": {
+      "message": "Do not remind me",
+      "description": "The label of the checkbox shown in reminder dialogs."
+    },
+    "dontRemindMeSnackbarAction": {
+      "message": "Don't remind me",
+      "description": "The snackbar action that suppresses a reminder dialog permanently."
+    },
     "cancelButton": {
         "message": "Cancel",
         "description": "The text of the Cancel button in the DRM warning dialog."

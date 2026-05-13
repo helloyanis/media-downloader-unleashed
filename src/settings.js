@@ -13,8 +13,31 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 if (typeof browser === 'undefined') {
     var browser = chrome;
 }
+
+const dialogPreferenceKeys = [
+    'drm-warning-dont-remind-me',
+    'split-download-complete-dont-remind-me',
+    'mpd-download-complete-dont-remind-me',
+];
+
 document.addEventListener('DOMContentLoaded', async () => {
     initializeSettings();
+
+    const resetDialogPreferencesButton = document.querySelector('#reset-dialog-preferences-button');
+    if (resetDialogPreferencesButton) {
+        resetDialogPreferencesButton.addEventListener('click', async () => {
+            const resetValues = {};
+            for (const preferenceKey of dialogPreferenceKeys) {
+                resetValues[preferenceKey] = '0';
+            }
+
+            await browser.storage.local.set(resetValues);
+            mdui.snackbar({
+                message: browser.i18n.getMessage('dialogPreferencesResetMessage'),
+                closeable: true,
+            });
+        });
+    }
 
     // Share button functionality
     document.querySelector('#share-button').addEventListener('click', async () => {
@@ -43,6 +66,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initializeSettings() {
     let isInitialized = false;
+
+    const dialogPreferenceDefaults = await browser.storage.local.get(dialogPreferenceKeys);
+    const missingDialogPreferences = {};
+    for (const preferenceKey of dialogPreferenceKeys) {
+        if (dialogPreferenceDefaults[preferenceKey] === undefined) {
+            missingDialogPreferences[preferenceKey] = '0';
+        }
+    }
+    if (Object.keys(missingDialogPreferences).length > 0) {
+        await browser.storage.local.set(missingDialogPreferences);
+    }
 
     let urlDetection = await browser.storage.local.get('url-detection').then((result) => result['url-detection']) || '1';
     browser.storage.local.set({ 'url-detection': urlDetection });
