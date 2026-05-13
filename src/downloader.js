@@ -82,32 +82,35 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
   try {
   const abortController = registerAbortController(request.requestId, url);
   const signal = abortController.signal;
+  let headersArr = []
+  headers.forEach(h => {
+    headersArr.push({ name: h.name, value: h.value });
+  });
       handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
       if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
       browser.downloads.download({
         url,
         filename: fileName,
-        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+        headers: headersArr,
         method: request.method
       }).then((downloadId) => {
         console.log('Media file downloaded:', downloadId);
+        handleDownloadCompletion(request.requestId);
+        browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
       }).catch((error) => {
         throw new Error('Error downloading media file with browser download method:', error);
+        handleDownloadCompletion(request.requestId, true);
       });
 
     } else {
       // Use fetch to download the file
       // Get the request headers as an object to spoof the request
-      const headersObject = {};
-      headers.forEach(header => {
-        headersObject[header.name] = header.value;
-      });
 
       // Send the request by fetching the URL with the appropriate method and headers (referrer can't be set in headers but can be set as a fetch option) so servers will think the request is coming from the same site
       const response = await fetchWithCache(url, {
         method: request.method,
-        headers: headersObject,
+        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         body: request.method !== 'GET' ? request.requestBody : null,
         signal,
@@ -199,7 +202,6 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     const getText = async (url) => {
       const res = await fetchWithCache(url, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method,
         referrer:
           request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
