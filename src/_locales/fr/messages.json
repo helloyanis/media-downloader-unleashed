@@ -319,6 +319,38 @@
         "message": "Dans une nouvelle fenêtre",
         "description": "The label of the radio button to open the add-on in a new window."
     },
+      "deviceTypeTitle": {
+    "message": "Device type override",
+    "description": "Device type override title."
+  },
+  "deviceTypeExplain": {
+    "message": "On Android and the Tor browser, starting downloads from the background is not supported by the browser. If downloads complete without an error and without saving a file, try forcing a different device type.",
+    "description": "Device type forcing explanation."
+  },
+  "deviceTypeDefaultTitle": {
+    "message": "Automatic (recommended)",
+    "description": "The default device type option."
+  },
+  "deviceTypeDefaultExplain": {
+    "message": "Attempt to detect your device type automatically, from your user agent.",
+    "description": "The explanation for the default device type option."
+  },
+  "deviceTypeDesktopTitle": {
+    "message": "Force desktop",
+    "description": "The desktop device type option."
+  },
+  "deviceTypeDesktopExplain": {
+    "message": "Always treat your browser as a desktop device. This will enable downloads in the background, but will not start any downloads on Android devices or the Tor browser.",
+    "description": "The explanation for the desktop device type option."
+  },
+  "deviceTypeAndroidTitle": {
+    "message": "Force Android / Tor browser",
+    "description": "The Android device type option."
+  },
+  "deviceTypeAndroidExplain": {
+    "message": "Always treat your browser as an Android device. Enable this if the download appears to be completed but no file is saved. Downloads will progress in the background, but you will need to open the extension to finalize the download.",
+    "description": "The explanation for the Android device type option."
+  },
     "colorPickerTitle": {
         "message": "Couleur de l'interface",
         "description": "The title of the interface color section in the settings tab."
@@ -554,8 +586,12 @@
         "description": "The text of the OK button in the DRM warning dialog."
     },
     "dialogPreferencesTitle": {
-        "message": "Dialog preferences",
+        "message": "Reset dialog preferences",
         "description": "The title of the settings card for dialog reminder preferences."
+    },
+    "dialogPreferencesExplain": {
+      "message": "If you have previously chosen to not be reminded again for certain dialogs, you can reset those preferences here. This will make all reminder dialogs show up again as they did the first time you encountered them.",
+      "description": "The explanation of the settings card for dialog reminder preferences."
     },
     "resetDialogPreferencesButton": {
         "message": "Reset dialog preferences",

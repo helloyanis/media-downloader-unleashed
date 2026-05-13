@@ -355,6 +355,28 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               </div>
             </div>
           </mdui-card>
+
+          <!-- Force device type -->
+          <mdui-card variant="filled">
+            <section id="force-device-type">
+              <h3 data-translate="deviceTypeTitle">Device type override</h3>
+              <p data-translate="deviceTypeExplain">On Android and the Tor browser, starting downloads from the background is not supported by the browser. If downloads complete without an error and without saving a file, try forcing a different device type.</p>
+              <mdui-radio-group class="settings-radio-group" id="force-device-type-group" value="default" name="force-device-type">
+                <mdui-radio value="default" name="force-device-type" data-translate="deviceTypeDefaultTitle">Automatic (recommended)</mdui-radio><br />
+
+              <span class="settings-description-text" data-translate="deviceTypeDefaultExplain">Attempt to detect your device type automatically, from your user agent.</span>
+              <br />
+
+                <mdui-radio value="desktop" name="force-device-type" data-translate="deviceTypeDesktopTitle">Force desktop</mdui-radio>
+                <br />
+                <span class="settings-description-text" data-translate="deviceTypeDesktopDescription">Always treat your browser as a desktop device. This will enable downloads in the background, but will not start any downloads on Android devices or the Tor browser.</span>
+                <br />
+                <mdui-radio value="android" name="force-device-type" data-translate="deviceTypeAndroidTitle">Force Android / Tor browser</mdui-radio>
+                <br />
+                <span class="settings-description-text" data-translate="deviceTypeAndroidDescription">Always treat your browser as an Android device. Enable this if the download appears to be completed but no file is saved. Downloads will progress in the background, but you will need to open the extension to finalize the download.</span>
+              </mdui-radio-group>
+            </section>
+          </mdui-card>
         </div>
 
         <h2 class="settings-section-title">
@@ -391,8 +413,12 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
           <mdui-card variant="filled">
             <section id="dialog-preferences">
-              <h3 data-translate="dialogPreferencesTitle">Dialog preferences</h3>
-              <mdui-button id="reset-dialog-preferences-button" variant="outlined" data-translate="resetDialogPreferencesButton">Reset dialog preferences</mdui-button>
+              <h3 data-translate="dialogPreferencesTitle">Reset dialog preferences</h3>
+              <p data-translate="dialogPreferencesExplain">If you have previously chosen to not be reminded again for
+                certain dialogs, you can reset those preferences here. This will make all reminder dialogs show up again
+                as they did the first time you encountered them.</p>
+              <mdui-button id="reset-dialog-preferences-button" variant="outlined"
+                data-translate="resetDialogPreferencesButton">Reset dialog preferences</mdui-button>
             </section>
           </mdui-card>
         </div>

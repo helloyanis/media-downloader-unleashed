@@ -20,7 +20,14 @@ function isAbortError(error) {
   );
 }
 
-function isAndroid() {
+async function isAndroid() {
+  const forcedDeviceType = await browser.storage.local.get('force-device-type').then(result => result['force-device-type']);
+  if (forcedDeviceType === 'android') {
+    return true;
+  }
+  if (forcedDeviceType === 'desktop') {
+    return false;
+  }
   return navigator.userAgent.includes("Mobile;");
 }
 
@@ -252,7 +259,7 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
       const blob = new Blob(chunks);
       
       // For Android with fetch method, queue the download instead of triggering immediately
-      if (isAndroid() && downloadMethod === 'fetch') {
+      if (await isAndroid() && downloadMethod === 'fetch') {
         await queueAndroidDownload(blob, fileName, request.requestId);
         browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
         handleDownloadCompletion(request.requestId);
@@ -690,7 +697,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     const videoBlobUrl = URL.createObjectURL(videoBlob);
 
     // For Android with fetch method, queue the download instead of triggering immediately
-    if (isAndroid() && downloadMethod === 'fetch') {
+    if (await isAndroid() && downloadMethod === 'fetch') {
       await queueAndroidDownload(videoBlob, audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`, request.requestId);
       URL.revokeObjectURL(videoBlobUrl);
       
@@ -1213,7 +1220,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       }
 
       // For Android with fetch method, queue all downloads instead of triggering immediately
-      if (isAndroid() && downloadMethod === 'fetch') {
+      if (await isAndroid() && downloadMethod === 'fetch') {
         for (let fileIndex = 0; fileIndex < downloads.length; fileIndex++) {
           const d = downloads[fileIndex];
           const url = new URL(d.rep.baseURL, mpdBase).href;
@@ -1762,7 +1769,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     const zipName = `${baseName}.zip`;
 
     // For Android with fetch method, queue the ZIP download instead of triggering immediately
-    if (isAndroid() && downloadMethod === 'fetch') {
+    if (await isAndroid() && downloadMethod === 'fetch') {
       await queueAndroidDownload(zipBlob, zipName, request.requestId);
       browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
       handleDownloadCompletion(request.requestId);

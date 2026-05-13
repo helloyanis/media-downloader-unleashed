@@ -99,6 +99,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
+// Helper: show settings tab and highlight a section
+function showSettingsSection(selector) {
+  try {
+    const tabs = document.querySelectorAll('mdui-tab');
+    if (tabs && tabs[1]) tabs[1].click(); // switch to settings tab
+    // Wait a tick for tab content to become visible then scroll
+    setTimeout(() => {
+      const el = document.querySelector(selector);
+      if (!el) return;
+      const target = el.parentElement || el;
+      target.classList.add('highlighted');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => target.classList.remove('highlighted'), 4000);
+    }, 100);
+  } catch (e) {
+    console.warn('Could not open settings section', selector, e);
+  }
+}
+
+// Attach credits link handler to avoid relying on window.navigation (Tor incompatibility)
+document.addEventListener('DOMContentLoaded', () => {
+  const creditsLink = document.getElementById('credits-link');
+  if (creditsLink) {
+    creditsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      showSettingsSection('#credits');
+    });
+  }
+});
+
 /**
  * Trigger queued Android downloads if any exist
  */
@@ -1067,6 +1097,20 @@ function loadMediaList() {
             mediaDiv.querySelector("#download-button").loading = false;
             mediaDiv.querySelector("#download-button").disabled = false;
             downloadPath.setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
+            // Add a helper link in case the download didn't start (user-facing guidance)
+            try {
+              if (!mediaDiv.querySelector('.download-help-link')) {
+                const helpLink = document.createElement('a');
+                helpLink.className = 'download-help-link';
+                helpLink.href = '#force-device-type';
+                helpLink.textContent = 'Download has not started?';
+                helpLink.addEventListener('click', (ev) => {
+                  ev.preventDefault();
+                  showSettingsSection('#force-device-type');
+                });
+                mediaDiv.appendChild(helpLink);
+              }
+            } catch (e) { console.warn('Could not append download help link', e); }
             browser.runtime.onMessage.removeListener(progressListener);
             progressListener = null;
           }
@@ -1379,6 +1423,19 @@ async function downloadFile(url, mediaDiv) {
         browser.runtime.onMessage.removeListener(progressListener);
         mediaDiv.querySelector("#download-icon-path").setAttribute('d', 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z');
         progressListener = null;
+        try {
+              if (!mediaDiv.querySelector('.download-help-link')) {
+                const helpLink = document.createElement('a');
+                helpLink.className = 'download-help-link';
+                helpLink.href = '#force-device-type';
+                helpLink.textContent = 'Download has not started?';
+                helpLink.addEventListener('click', (ev) => {
+                  ev.preventDefault();
+                  showSettingsSection('#force-device-type');
+                });
+                mediaDiv.appendChild(helpLink);
+              }
+            } catch (e) { console.warn('Could not append download help link', e); }
       }
       if (message.action === 'downloadFailed' && message.requestId === requestId) {
         if (progressContainer && progressContainer.parentElement === mediaDiv) {
