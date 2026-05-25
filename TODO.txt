@@ -1,5 +1,2 @@
-- Handle downloads failing in the background
-- Warn/workaround background script getting killed on idle
 - Allow opening the add-on in a floating window
 - Add numerical progress
-- Remove debug

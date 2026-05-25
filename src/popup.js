@@ -19,6 +19,31 @@ sessionStorage.setItem('shownYoutubeAlert', 0); //To prevent multiple youtube al
 let pendingPopupState = null; // Track if a popup is currently open
 let isPopupClosing = false; // Track if the popup is closing
 
+// Keep in-memory pending popup state synchronized across multiple popup tabs.
+// This prevents a stale tab from re-saving a resolved popup state on close.
+browser.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'session' || !changes.pendingPopupState) {
+    return;
+  }
+
+  const newPendingState = changes.pendingPopupState.newValue || null;
+  const oldPendingState = changes.pendingPopupState.oldValue || null;
+
+  if (!newPendingState) {
+    if (!pendingPopupState) {
+      return;
+    }
+    // Only clear local state if it corresponds to the same pending request
+    // that was removed from session storage.
+    if (!oldPendingState || pendingPopupState.requestId === oldPendingState.requestId) {
+      pendingPopupState = null;
+    }
+    return;
+  }
+
+  pendingPopupState = newPendingState;
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   initializeDialogPreferences();
 
