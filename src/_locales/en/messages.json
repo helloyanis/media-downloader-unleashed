@@ -311,6 +311,10 @@
         "message": "Choose how the add-on opens when you click on the icon.",
         "description": "The explanation of the add-on opening preference."
     },
+    "floatingWindowCheckbox": {
+        "message": "Open in floating window",
+        "description": "The label of the radio button to open the add-on in a floating window."
+    },
     "newTabCheckbox": {
         "message": "Open in new tab",
         "description": "The label of the radio button to open the add-on in a new tab."

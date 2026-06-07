@@ -21,6 +21,7 @@ function isAbortError(error) {
 }
 
 async function isAndroid() {
+  // Used to check if the add-on should initiate downloads from the background or if it should queue them for the popup to handle, since on Firefox for Android, downloads triggered from background scripts using the downloads API or blob URLs don't work properly.
   const forcedDeviceType = await browser.storage.local.get('force-device-type').then(result => result['force-device-type']);
   if (forcedDeviceType === 'android') {
     return true;
@@ -28,7 +29,7 @@ async function isAndroid() {
   if (forcedDeviceType === 'desktop') {
     return false;
   }
-  return navigator.userAgent.includes("Mobile;");
+  return navigator.userAgent.includes("Mobile;")
 }
 
 async function getQueuedAndroidDownloads() {
@@ -43,6 +44,7 @@ async function refreshExtensionBadge() {
   const pendingPopupState = await getPendingPopupState();
   if (pendingPopupState) {
     browser.action.setBadgeBackgroundColor({ color: '#FF9800' });
+    browser.action.setBadgeTextColor({ color: '#000000' });
     browser.action.setBadgeText({ text: '!' });
     return;
   }
@@ -53,6 +55,7 @@ async function refreshExtensionBadge() {
       ? Math.round(downloads.reduce((acc, d) => acc + (d.progress?.percentage || 0), 0) / downloads.length)
       : 0;
     browser.action.setBadgeBackgroundColor({ color: '#808080' });
+    browser.action.setBadgeTextColor({ color: '#FFFFFF' });
     browser.action.setBadgeText({ text: totalPercentage > 0 ? `${totalPercentage}%` : '' });
     return;
   }
@@ -60,6 +63,7 @@ async function refreshExtensionBadge() {
   const queuedDownloads = await getQueuedAndroidDownloads();
   if (queuedDownloads.length > 0) {
     browser.action.setBadgeBackgroundColor({ color: '#4CAF50' });
+    browser.action.setBadgeTextColor({ color: '#000000' });
     browser.action.setBadgeText({ text: '!' });
     return;
   }
@@ -138,9 +142,9 @@ function registerAbortController(requestId, url) {
  * Tries to fetch from IndexedDB cache first.
  * If missing, falls back to network fetch.
  */
-async function fetchWithCache(url, options = {}) {
+async function fetchWithCache(url, options = {}, skipCache = false) {
 
-  if (browser.extension.inIncognitoContext || (await browser.storage.local.get("media-cache").then((result) => result["media-cache"])) !== "1") {
+  if (skipCache || browser.extension.inIncognitoContext || (await browser.storage.local.get("media-cache").then((result) => result["media-cache"])) !== "1") {
     // Bypass cache in incognito/private mode or if media-cache is disabled
     console.log("⚡ Bypassing cache for:", url);
     return fetch(url, options);
@@ -177,7 +181,7 @@ async function fetchWithCache(url, options = {}) {
 }
 // ----------------------------------------
 
-async function downloadRawMedia(url, fileName, headers, downloadMethod, request) {
+async function downloadRawMedia(url, fileName, headers, downloadMethod, request, skipCache = false) {
   try {
   const abortController = registerAbortController(request.requestId, url);
   const signal = abortController.signal;
@@ -213,7 +217,8 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         body: request.method !== 'GET' ? request.requestBody : null,
         signal,
-      });
+      },
+      skipCache);
 
       if (!response.ok) {
         throw new Error(`Error downloading media file with fetch: ${response.status}`);
@@ -301,7 +306,7 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request)
  * @params {String} downloadMethod - The method to use for downloading. Either "browser" to use browser.downloads API or "fetch" to use fetch and create a blob URL.
  * @params {Object} request - The request object containing the request details.
  */
-async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request) {
+async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request, skipCache = false) {
   try {
     const abortController = registerAbortController(request.requestId, m3u8Url);
     const signal = abortController.signal;
@@ -315,6 +320,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
           request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
         body: request.method !== 'GET' ? request.requestBody : null,
         signal,
+        skipCache
       });
       return res.text();
     };
@@ -335,7 +341,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         method: request.method,
         requestId: request.requestId,
         url: m3u8Url
-      });
+      }, skipCache);
       if (!selectedVariant) {
         //User canceled the variant selection, abort the download
         throw new Error("Download aborted by user during stream variant selection.");
@@ -460,7 +466,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
       // small util: decode key response robustly (raw 16 bytes / base64 / hex)
       async function fetchAndDecodeKey(keyHref, fetchOpts) {
-        const res = await fetchWithCache(keyHref, fetchOpts);
+        const res = await fetchWithCache(keyHref, fetchOpts, skipCache);
         const ab = await res.arrayBuffer();
 
         // 1. If it's exactly 16 bytes, it's the raw key
@@ -589,7 +595,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
           if (!mapUriMatch) continue;
           const mapHref = new URL(mapUriMatch[1], playlistUrl).href;
 
-          const mapRes = await fetchWithCache(mapHref, fetchOpts);
+          const mapRes = await fetchWithCache(mapHref, fetchOpts, skipCache);
           let mapData = new Uint8Array(await mapRes.arrayBuffer());
 
           // determine container from map if not set
@@ -621,7 +627,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         if (it.type === 'segment') {
           // fetch the segment
           const segUrl = it.uri;
-          const res = await fetchWithCache(segUrl, fetchOpts);
+          const res = await fetchWithCache(segUrl, fetchOpts, skipCache);
           let arr = new Uint8Array(await res.arrayBuffer());
 
           // container detection from first segment if unknown
@@ -784,7 +790,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
   * @param {String} baseUrl - The base URL for relative URIs in the playlist.
   * @return {Promise<Object>} - A promise that resolves to the selected stream variant object containing bandwidth, resolution, and URI.
 */
-async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
+async function selectStreamVariant(playlistLines, baseUrl, options = {}, skipCache = false) {
   const variants = [];
 
   function parseM3U8Attributes(line) {
@@ -832,7 +838,7 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
       variants.push({
         bandwidth,
         resolution,
-        uri: uri.startsWith("http") ? uri : baseUrl + uri,
+        uri: new URL(uri, baseUrl).href,
         name: attrs.NAME || null,
         language: attrs.LANGUAGE || null,
         audioName: selectedAudioTrack?.name || null,
@@ -844,7 +850,7 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
   // Fetch duration for each variant to estimate size
   await Promise.all(variants.map(async (variant) => {
     try {
-      const res = await fetchWithCache(variant.uri, options);
+      const res = await fetchWithCache(variant.uri, options, skipCache);
       const text = await res.text();
       const duration = text.split('\n')
         .filter(line => line.startsWith("#EXTINF:"))
@@ -897,7 +903,7 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}) {
  * @param {String} downloadMethod   – (ignored here; always uses fetch)
  * @param {Object} request          – the single request object (requests[url][selectedSizeIndex])
  */
-async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request) {
+async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request, skipCache = false) {
   try {
     const abortController = registerAbortController(request.requestId, mpdUrl);
     const signal = abortController.signal;
@@ -937,7 +943,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
       body: request.method !== 'GET' ? request.requestBody : null,
       signal,
-    });
+    }, skipCache);
     if (!resp.ok) throw new Error(`Failed to fetch MPD manifest: ${resp.status}.`);
     let mpdXmlText = await resp.text();
 
@@ -1152,7 +1158,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
         body: request.method !== 'GET' ? request.requestBody : null,
         signal,
-      });
+      }, skipCache);
       if (!r.ok) throw new Error(`Fetch failed: ${url} (${r.status})`);
 
       const contentLength = Number(r.headers.get("Content-Length")) || 0;
@@ -1212,16 +1218,24 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       let downloadedBytes = 0;
       let maxBytes = 0;
       let sawUnknownLength = false;
+      let currentFileIndex = 0; // Track which file is currently being downloaded
 
       // Helper to safely add to max
       function addToMax(n) {
         maxBytes += n;
-        handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes });
+        // When using split tracking, calculate weighted percentage instead of raw byte ratio
+        if (useSplitTrackWeighting) {
+          const weightedPercentage = Math.round(((currentFileIndex + 0) / downloads.length) * 100);
+          handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: weightedPercentage });
+        } else {
+          handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes });
+        }
       }
 
       // For Android with fetch method, queue all downloads instead of triggering immediately
       if (await isAndroid() && downloadMethod === 'fetch') {
         for (let fileIndex = 0; fileIndex < downloads.length; fileIndex++) {
+          currentFileIndex = fileIndex; // Update the outer scoped variable
           const d = downloads[fileIndex];
           const url = new URL(d.rep.baseURL, mpdBase).href;
           let candidate = baseName;
@@ -1250,7 +1264,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
               downloadedBytes += delta;
               if (useSplitTrackWeighting && contentLength > 0) {
                 const perTrackProgress = received / contentLength;
-                const weightedPercentage = Math.round(((fileIndex + perTrackProgress) / downloads.length) * 100);
+                const weightedPercentage = Math.round(((currentFileIndex + perTrackProgress) / downloads.length) * 100);
                 handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
               } else {
                 const max = contentLength && contentLength > 0 ? downloadedBytes + (contentLength - received) : maxBytes;
@@ -1262,7 +1276,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           });
 
           if (useSplitTrackWeighting) {
-            const weightedPercentage = Math.round(((fileIndex + 1) / downloads.length) * 100);
+            const weightedPercentage = Math.round(((currentFileIndex + 1) / downloads.length) * 100);
             handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
           }
 
@@ -1288,6 +1302,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       }
 
       for (let fileIndex = 0; fileIndex < downloads.length; fileIndex++) {
+        currentFileIndex = fileIndex; // Update the outer scoped variable
         const d = downloads[fileIndex];
         const url = new URL(d.rep.baseURL, mpdBase).href;
         // Determine filename: prefer extension from baseURL, otherwise fallback
@@ -1318,7 +1333,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             downloadedBytes += delta;
             if (useSplitTrackWeighting && contentLength > 0) {
               const perTrackProgress = received / contentLength;
-              const weightedPercentage = Math.round(((fileIndex + perTrackProgress) / downloads.length) * 100);
+              const weightedPercentage = Math.round(((currentFileIndex + perTrackProgress) / downloads.length) * 100);
               handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
             } else {
               // if we know any max, update value
@@ -1331,7 +1346,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         });
 
         if (useSplitTrackWeighting) {
-          const weightedPercentage = Math.round(((fileIndex + 1) / downloads.length) * 100);
+          const weightedPercentage = Math.round(((currentFileIndex + 1) / downloads.length) * 100);
           handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes > 0 ? maxBytes : null, percentage: weightedPercentage });
         }
 
@@ -1979,13 +1994,13 @@ browser.runtime.onMessage.addListener((message) => {
   console.log("Received message in content script:", message);
   switch (message.action) {
     case 'downloadRawMedia':
-      return downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
+      return downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
       break;
     case 'downloadM3U8Offline':
-      return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
+      return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
       break;
     case 'downloadMPDOffline':
-      return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request).then(() => ({ success: true }))
+      return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
       break;
     case 'getOngoingDownloads':
       return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));

@@ -320,35 +320,35 @@
     "description": "New window option."
   },
   "deviceTypeTitle": {
-    "message": "Device type override",
+    "message": "Gerätetyp erzwingen",
     "description": "Device type override title."
   },
   "deviceTypeExplain": {
-    "message": "On Android and the Tor browser, starting downloads from the background is not supported by the browser. If downloads complete without an error and without saving a file, try forcing a different device type.",
+    "message": "Auf Android und dem Tor-Browser wird das Starten von Downloads aus dem Hintergrund vom Browser nicht unterstützt. Wenn Downloads ohne Fehler abgeschlossen werden und kein File gespeichert wird, versuche einen anderen Geräte-Typ zu erzwingen.",
     "description": "Device type forcing explanation."
   },
   "deviceTypeDefaultTitle": {
-    "message": "Automatic (recommended)",
+    "message": "Automatisch (empfohlen)",
     "description": "The default device type option."
   },
   "deviceTypeDefaultExplain": {
-    "message": "Attempt to detect your device type automatically, from your user agent.",
+    "message": "Versucht automatisch Ihren Geräte-Typ zu erkennen, basierend auf Ihrem User-Agent.",
     "description": "The explanation for the default device type option."
   },
   "deviceTypeDesktopTitle": {
-    "message": "Force desktop",
+    "message": "Desktop erzwingen",
     "description": "The desktop device type option."
   },
   "deviceTypeDesktopExplain": {
-    "message": "Always treat your browser as a desktop device. This will enable downloads in the background, but will not start any downloads on Android devices or the Tor browser.",
+    "message": "Immer Ihren Browser als Desktop-Gerät behandeln. Dies ermöglicht Downloads im Hintergrund, aber es werden keine Downloads auf Android-Geräten oder dem Tor-Browser gestartet.",
     "description": "The explanation for the desktop device type option."
   },
   "deviceTypeAndroidTitle": {
-    "message": "Force Android / Tor browser",
+    "message": "Android / Tor Browser erzwingen",
     "description": "The Android device type option."
   },
   "deviceTypeAndroidExplain": {
-    "message": "Always treat your browser as an Android device. Enable this if the download appears to be completed but no file is saved. Downloads will progress in the background, but you will need to open the extension to finalize the download.",
+    "message": "Immer Ihren Browser als Android-Gerät behandeln. Aktivieren Sie diese Option, wenn der Download als abgeschlossen erscheint, aber keine Datei gespeichert wird. Downloads werden im Hintergrund fortgesetzt, aber Sie müssen die Erweiterung öffnen, um den Download abzuschließen.",
     "description": "The explanation for the Android device type option."
   },
   "colorPickerTitle": {

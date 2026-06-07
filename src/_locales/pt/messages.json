@@ -307,6 +307,10 @@
         "message": "Preferência de abertura de add-on",
         "description": "The title of the add-on opening preference section in the settings tab."
     },
+    "floatingWindowCheckbox": {
+        "message": "Abrir em janela flutuante",
+        "description": "The label of the radio button to open the add-on in a floating window."
+    },
     "openPreferenceExplain": {
         "message": "Escolha como o add-on será aberto quando você clicar no ícone.",
         "description": "The explanation of the add-on opening preference."
@@ -320,7 +324,7 @@
         "description": "The label of the radio button to open the add-on in a new window."
     },
       "deviceTypeTitle": {
-    "message": "Device type override",
+    "message": "Forçar tipo de dispositivo",
     "description": "Device type override title."
   },
   "deviceTypeExplain": {

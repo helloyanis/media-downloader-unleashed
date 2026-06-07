@@ -185,7 +185,7 @@ async function initializeSettings() {
         radio.addEventListener('change', async (event) => {
             let setting = event.target.name;
             let value = event.target.value;
-            if ((value === 'window' || value === 'browser') && isInitialized) {
+            if ((value === 'window' || value === 'floating' || value === 'browser') && isInitialized) {
                 document.querySelector('.mobile-incompatible-warning').open = true;
             }
             if (value !== 'browser') {

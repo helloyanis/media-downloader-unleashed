@@ -97,9 +97,12 @@ function isFlagEnabled(val) {
 // get local settings
 function getSettings(callback) {
     browser.storage.local.get(['mime-detection', 'url-detection'], function (result) {
+        // If settings are not present yet (first run), assume defaults matching settings.js (enabled = '1')
+        const mimeRaw = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['mime-detection'] : '1';
+        const urlRaw = Object.prototype.hasOwnProperty.call(result, 'url-detection') ? result['url-detection'] : '1';
         callback({
-            mimeDetection: isFlagEnabled(result['mime-detection']),
-            urlDetection: isFlagEnabled(result['url-detection'])
+            mimeDetection: isFlagEnabled(mimeRaw),
+            urlDetection: isFlagEnabled(urlRaw)
         });
     });
 }
@@ -497,20 +500,24 @@ browser.runtime.onMessage.addListener((message) => {
 
 // This is used to open the popup.html file when the add-on icon is clicked, and to open the installed.md and when the add-on is installed.
 browser.action.onClicked.addListener((tab) => {
-    browser.storage.local.get('open-preference', function (result) {
+    browser.storage.local.get('open-preference', async function (result) {
         console.log('Open preference:', result['open-preference']);
-        if (result['open-preference'] !== 'window') {
-            // Open the popup in a new tab
-            browser.tabs.create({
-                url: browser.runtime.getURL(`popup.html`),
-            });
-        } else {
-            // Open the popup in a new window
+        if (result['open-preference'] === 'window') {
             browser.windows.create({
                 url: browser.runtime.getURL(`popup.html`),
                 type: 'popup',
                 width: 800,
                 height: 600,
+            });
+        } else if (result['open-preference'] === 'floating') {
+            await browser.action.setPopup({ popup: 'popup.html' });
+            console.log( await browser.action.getPopup({}))
+            await browser.action.openPopup(); // Open in default popup behavior (floating window)
+            await browser.action.setPopup({ popup: null }); // Reset to no popup in case the user changes preference while the popup is open
+        }else {
+            // Open the popup in a new tab
+            browser.tabs.create({
+                url: browser.runtime.getURL(`popup.html`),
             });
         }
     });

@@ -311,6 +311,10 @@
         "message": "Choisissez comment l'extension s'ouvre lorsque vous cliquez sur son icône.",
         "description": "The explanation of the add-on opening preference."
     },
+    "floatingWindowCheckbox": {
+        "message": "Ouvrir dans une fenêtre flottante",
+        "description": "The label of the radio button to open the add-on in a floating window."
+    },
     "newTabCheckbox": {
         "message": "Dans un nouvel onglet",
         "description": "The label of the radio button to open the add-on in a new tab."
@@ -320,35 +324,35 @@
         "description": "The label of the radio button to open the add-on in a new window."
     },
       "deviceTypeTitle": {
-    "message": "Device type override",
+    "message": "Forcer un type d'appareil",
     "description": "Device type override title."
   },
   "deviceTypeExplain": {
-    "message": "On Android and the Tor browser, starting downloads from the background is not supported by the browser. If downloads complete without an error and without saving a file, try forcing a different device type.",
+    "message": "Sur Android et le navigateur Tor, le démarrage de téléchargements depuis l'arrière-plan n'est pas pris en charge par le navigateur. Si les téléchargements se terminent sans erreur et sans sauvegarder de fichier, essayez de forcer un type d'appareil différent.",
     "description": "Device type forcing explanation."
   },
   "deviceTypeDefaultTitle": {
-    "message": "Automatic (recommended)",
+    "message": "Automatique (recommandé)",
     "description": "The default device type option."
   },
   "deviceTypeDefaultExplain": {
-    "message": "Attempt to detect your device type automatically, from your user agent.",
+    "message": " Tentative de détection automatique du type d'appareil, à partir de l'agent utilisateur.",
     "description": "The explanation for the default device type option."
   },
   "deviceTypeDesktopTitle": {
-    "message": "Force desktop",
+    "message": "Forcer le bureau",
     "description": "The desktop device type option."
   },
   "deviceTypeDesktopExplain": {
-    "message": "Always treat your browser as a desktop device. This will enable downloads in the background, but will not start any downloads on Android devices or the Tor browser.",
+    "message": "Toujours traiter votre navigateur comme un appareil de bureau. Cela permettra de lancer les téléchargements en arrière-plan, mais aucun téléchargement ne sera démarré sur les appareils Android ou le navigateur Tor.",
     "description": "The explanation for the desktop device type option."
   },
   "deviceTypeAndroidTitle": {
-    "message": "Force Android / Tor browser",
+    "message": "Forcer Android / Navigateur Tor",
     "description": "The Android device type option."
   },
   "deviceTypeAndroidExplain": {
-    "message": "Always treat your browser as an Android device. Enable this if the download appears to be completed but no file is saved. Downloads will progress in the background, but you will need to open the extension to finalize the download.",
+    "message": "Toujours traiter votre navigateur comme un appareil Android. Activez cette option si le téléchargement semble être terminé mais qu'aucun fichier n'est enregistré. Les téléchargements progresseront en arrière-plan, mais vous devrez ouvrir l'extension pour finaliser le téléchargement.",
     "description": "The explanation for the Android device type option."
   },
     "colorPickerTitle": {
@@ -586,15 +590,15 @@
         "description": "The text of the OK button in the DRM warning dialog."
     },
     "dialogPreferencesTitle": {
-        "message": "Reset dialog preferences",
+        "message": "Réinitialiser les préférences de rappel des dialogues",
         "description": "The title of the settings card for dialog reminder preferences."
     },
     "dialogPreferencesExplain": {
-      "message": "If you have previously chosen to not be reminded again for certain dialogs, you can reset those preferences here. This will make all reminder dialogs show up again as they did the first time you encountered them.",
+      "message": "Cette section vous permet de réinitialiser les préférences de rappel pour tous les dialogues de l'extension. Si vous avez choisi de ne plus voir certains dialogues, vous pouvez les réactiver ici en réinitialisant vos préférences. Cela vous permettra de voir à nouveau les dialogues que vous avez précédemment choisi de ne plus afficher.",
       "description": "The explanation of the settings card for dialog reminder preferences."
     },
     "resetDialogPreferencesButton": {
-        "message": "Reset dialog preferences",
+        "message": "Réinitialiser les préférences de rappel des dialogues",
         "description": "The label of the button that resets all dialog reminder preferences."
     },
     "dialogPreferencesResetMessage": {
