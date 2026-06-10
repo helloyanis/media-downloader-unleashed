@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector("#previewhelp").open = (await browser.storage.local.get({ 'dontremindme': '0' })).dontremindme !== '1';
 
 
-    const mediaUrl = new URLSearchParams(document.location.search).get('mediaUrl');
+    const mediaUrl = decodeURIComponent(new URLSearchParams(document.location.search).get('mediaUrl'));
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
     const isStream = new URLSearchParams(document.location.search).get('isStream');
     const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         video.style.maxHeight = '100%';
         document.body.appendChild(video);
 
-        if (isStream === '1') {
+        if (isStream === 'true') {
             console.log("Browser can't play this video type natively, trying HLS.js if it's an HLS stream...");
             if (Hls.isSupported()) {
                 // HLS.js configuration : Set referrer header (to avoid 403 error) if fetched with fetch API

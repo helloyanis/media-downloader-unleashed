@@ -1218,7 +1218,7 @@ function loadMediaList() {
           isStream = '';
         }
         browser.tabs.create({
-          url: browser.runtime.getURL(`/mediaPreviewer.html?mediaUrl=${url}&selectedSize=${selectedSizeIndex}&isStream=${isStream}`),
+          url: browser.runtime.getURL(`/mediaPreviewer.html?mediaUrl=${encodeURIComponent(url)}&selectedSize=${selectedSizeIndex}&isStream=${isStream}`),
         });
       });
 
