@@ -1599,6 +1599,13 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     const mpdFixEnabled = (await browser.storage.local.get("mpd-fix").then((result) => result["mpd-fix"])) === "1";
     const repIdToLocalName = {};
 
+    //Calculate maxBytes for template flows (count-based)
+    for (const t of tasks) {
+      if (t.type === "template") {
+        maxBytes += 1 + t.info.segmentUrls.length; // init + segments
+      }
+    }
+
     // Process tasks sequentially (streaming)
     for (const t of tasks) {
       if (signal.aborted) {
@@ -1609,7 +1616,6 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         console.log(">>> Fetching template init:", t.info.initUrl);
         // Use a simple count-based progress for template flows (init + N segments)
         // and keep totals cumulative across tasks.
-        maxBytes += t.info.segmentUrls.length + 1;
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
 
         const initBuf = await fetchWithProgress(t.info.initUrl, {
