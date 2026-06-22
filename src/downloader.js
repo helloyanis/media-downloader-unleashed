@@ -319,9 +319,9 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         referrer:
           request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
         body: request.method !== 'GET' ? request.requestBody : null,
-        signal,
-        skipCache
-      });
+        signal
+      },
+    skipCache);
       return res.text();
     };
 

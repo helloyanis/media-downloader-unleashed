@@ -162,6 +162,9 @@ function initListener() {
             if (temporaryRequestBodyMap.has(details.requestId)) {
                 temporaryRequestBodyMap.delete(details.requestId);
             }
+            if (temporaryCookieMap.has(details.url)) {
+                temporaryCookieMap.delete(details.url);
+            }
         };
         // Ensure we don't duplicate cleanup listeners if initListener runs multiple times
         if (!browser.webRequest.onCompleted.hasListener(cleanupListener)) {
@@ -231,7 +234,7 @@ function initListener() {
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so try to add cookies
                 try {
-                    const cookie = temporaryCookieMap.get(details.requestId) || '';
+                    const cookie = temporaryCookieMap.get(details.url) || '';
                     if (cookie) {
                         details.requestHeaders.push({ name: 'Cookie', value: cookie });
                         console.debug("Added Cookie header to extension request:", cookie);
@@ -246,11 +249,11 @@ function initListener() {
 
                 const cookie = details.requestHeaders.find(h => h.name.toLowerCase() === 'cookie')?.value || '';
                 if (cookie) {
-                    console.debug("Request already has Cookie header:", cookie);
+                    console.debug("Saving request cookie :", cookie);
                 }
                 
                 //Store the cookies from request headers into the corresponding request object in existingRequests
-                temporaryCookieMap.set(details.requestId, cookie);
+                temporaryCookieMap.set(details.url, cookie);
 
             }
             return { requestHeaders: details.requestHeaders };
@@ -307,7 +310,7 @@ function initListener() {
                     requestHeaders: details.requestHeaders,
                     responseHeaders: null,
                     requestBody: cachedBody,
-                    cookie: temporaryCookieMap.get(details.requestId) || '',
+                    cookie: temporaryCookieMap.get(details.url) || '',
                     size: null,
                     timeStamp: null
                 };
@@ -409,7 +412,7 @@ function initListener() {
                                 requestHeaders: cachedHeaders,
                                 responseHeaders: responseHeaders,
                                 requestBody: cachedBody, // <-- now populated if available
-                                cookie: temporaryCookieMap.get(details.requestId) || '',
+                                cookie: temporaryCookieMap.get(details.url) || '',
                                 size: size,
                                 timeStamp: details.timeStamp
                             };
