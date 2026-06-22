@@ -173,7 +173,7 @@
     },
     "urlDetectionExplain": {
         "message": "Detection by checking if the URL contains a known media type (for example .mp4, .m3u8). It's fast, but some sites don't serve medias through these kind of URLs, so it might not detect everything.",
-        "description": "The explanation of URL-based detection method shown in a tooltip."
+        "description": "The explanation of URL-based detection method"
     },
     "urlDetectionCheckbox": {
         "message": "Detection via URL",
@@ -181,7 +181,7 @@
     },
     "mimeDetectionExplain": {
         "message": "Detection by checking the server's MIME response (for example video/mp4, application/vnd.apple.mpegurl). It's slower than URL detection as the add-on needs to monitor every request and response, but more reliable.",
-        "description": "The explanation of MIME-based detection method shown in a tooltip."
+        "description": "The explanation of MIME-based detection method"
     },
     "mimeDetectionCheckbox": {
         "message": "Detection via server's MIME response",
@@ -193,7 +193,7 @@
     },
     "browserDownloadExplain": {
         "message": "Download the media using the browser's native download manager. Fast and handles disconnects, but only works on some sites and on some browsers (Firefox for PC).",
-        "description": "The explanation of native browser download method shown in a tooltip."
+        "description": "The explanation of native browser download method"
     },
     "browserDownloadCheckbox": {
         "message": "Native browser download",
@@ -201,7 +201,7 @@
     },
     "fetchDownloadExplain": {
         "message": "Download the media using the Fetch API. Works on most sites and browsers, but can be slower and doesn't handle disconnects well.",
-        "description": "The explanation of Fetch API download method shown in a tooltip."
+        "description": "The explanation of Fetch API download method"
     },
     "fetchDownloadCheckbox": {
         "message": "Fetch API",
@@ -212,12 +212,11 @@
         "description": "The title of the media cache section in the settings tab."
     },
     "mediaCacheExplain": {
-        "message": "Attempt to store the media response, so the download can occur without making a request to the server. Downloads will be faster but can slow down your browser. Disable this if you have issues with the add-on or pages freezing.",
-        "description": "The explanation of the media cache option shown in a tooltip."
+        "message": "Attempt to store the media response, so the download can occur without making a request to the server. Downloads will be faster but can slow down your browser. Disable this if you have low storage space available.",
+        "description": "The explanation of the media cache option"
     },
     "mediaCacheExplainPrivate": {
-        "message": "❗️ This feature is currently not in use because you are in private browsing mode. To use or change this setting, please open the add-on and your media from a non-private window.",
-        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
+        "message": "❗️ This feature saves data about the media on the pages you visited, and is disabled in private browsing mode by default. If you want to enable it in private browsing, turn this switch on. (Any data collected is reset when clicking on the \"Clear list\" button, or when you restart the browser)"
     },
     "mediaCacheCheckbox": {
         "message": "Enable media cache",
@@ -229,7 +228,7 @@
     },
     "renameDownloadsExplain": {
         "message": "By default, downloaded files are named after the last part of their URL. Enabling this option will allow you to specify a custom name for each downloaded file.",
-        "description": "The explanation of the renaming downloaded files option shown in a tooltip."
+        "description": "The explanation of the renaming downloaded files option"
     },
     "renameDownloadsCheckbox": {
         "message": "Rename downloaded files",
@@ -241,7 +240,7 @@
     },
     "hideSegmentsExplain": {
         "message": "Live streams use multiple segments to deliver content in small parts. Usually you only need the stream manifest, so the segments can be hidden to reduce clutter.",
-        "description": "The explanation of the hide stream segments option shown in a tooltip."
+        "description": "The explanation of the hide stream segments option"
     },
     "hideSegmentsCheckbox": {
         "message": "Hide stream segments in the media list",
@@ -253,7 +252,7 @@
     },
     "streamFileDownloadExplain": {
         "message": "Download the stream manifest file (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view them. Lighter downloads, but you will need to be online with a working server to play the file. Some servers also block playback this way.",
-        "description": "The explanation of stream manifest download method shown in a tooltip."
+        "description": "The explanation of stream manifest download method"
     },
     "streamFileDownloadCheckbox": {
         "message": "Download stream manifest",
@@ -261,7 +260,7 @@
     },
     "offlineDownloadExplain": {
         "message": "Convert the stream into a single offline video file (.ts or .zip) after downloading. This takes more time and storage, but the resulting file can be watched offline.",
-        "description": "The explanation of offline video file download method shown in a tooltip."
+        "description": "The explanation of offline video file download method"
     },
     "offlineDownloadChecbox": {
         "message": "Convert to offline video file",
@@ -273,7 +272,7 @@
     },
     "askStreamQualityExplain": {
         "message": "Always ask which quality to download when downloading a stream.",
-        "description": "The explanation of 'Always ask' stream quality preference shown in a tooltip."
+        "description": "The explanation of 'Always ask' stream quality preference"
     },
     "askStreamQualityCheckbox": {
         "message": "Always ask me",
@@ -281,7 +280,7 @@
     },
     "highestStreamQualityExplain": {
         "message": "Always download the highest available quality for a stream. Better quality but larger files and slower downloads.",
-        "description": "The explanation of 'Always highest' stream quality preference shown in a tooltip."
+        "description": "The explanation of 'Always highest' stream quality preference"
     },
     "highestStreamQualityCheckbox": {
         "message": "Always highest quality",
@@ -289,7 +288,7 @@
     },
     "lowestStreamQualityExplain": {
         "message": "Always download the lowest available quality for a stream. Lower quality but smaller files and faster downloads.",
-        "description": "The explanation of 'Always lowest' stream quality preference shown in a tooltip."
+        "description": "The explanation of 'Always lowest' stream quality preference"
     },
     "lowestStreamQualityCheckbox": {
         "message": "Always lowest quality",
@@ -297,7 +296,7 @@
     },
     "mpdFixExplain": {
         "message": "This will modify the .mpd file you download to only include the quality you download. Otherwise, players like VLC will not play the file because it will try to request a quality you don't have downloaded.",
-        "description": "The explanation of the MPD fix option shown in a tooltip."
+        "description": "The explanation of the MPD fix option"
     },
     "mpdFixCheckbox": {
         "message": "Fix MPD files (recommended)",

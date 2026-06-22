@@ -1390,11 +1390,17 @@ async function downloadFile(url, mediaDiv) {
   let progressListener = null;
   try {
     wakeLock = await navigator.wakeLock.request("screen");
-    console.log("Wake Lock is active!");
+    console.debug("Wake Lock is active!");
   } catch (err) {
     // The Wake Lock request has failed - usually system related, such as battery.
     console.warn(`Could not activate wake lock due to error ${err.name}, ${err.message}`);
   }
+
+  const mediaCache = await browser.storage.local.get('media-cache').then((result) => result['media-cache'])
+  const mediaCachePrivate = await browser.storage.local.get('media-cache-private').then((result) => result['media-cache-private'])
+
+  //skipCache is to know if we should use the media cache (get media file or segments from cache) or refetch, based on the user settings
+  const skipCache = (mediaCache === '0' && !browser.extension.inIncognitoContext) || (mediaCachePrivate === '0' && browser.extension.inIncognitoContext)
 
   const sizeSelect = mediaDiv.querySelector('.media-size-select');
   let loadingBar = null;
@@ -1529,7 +1535,7 @@ async function downloadFile(url, mediaDiv) {
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
       //await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: browser.extension.inIncognitoContext });
+      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
       if (result && result.error) {
         throw new Error(result.error);
       }
@@ -1539,7 +1545,7 @@ async function downloadFile(url, mediaDiv) {
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       //await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: browser.extension.inIncognitoContext });
+      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
       if (result && result.error) {
         throw new Error(result.error);
       }
@@ -1548,7 +1554,7 @@ async function downloadFile(url, mediaDiv) {
 
 
     //At this point the media is not a stream or should not be treated as such, so initiate a regular download
-    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: browser.extension.inIncognitoContext });
+    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
     if (result && result.error) {
       throw new Error(result.error);
     }

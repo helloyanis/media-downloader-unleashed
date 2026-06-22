@@ -212,12 +212,11 @@
         "description": "The title of the media cache section in the settings tab."
     },
     "mediaCacheExplain": {
-        "message": "Versucht, die Medienantwort zu speichern, damit der Download ohne eine Anfrage an den Server erfolgen kann. Downloads werden schneller, können aber Ihren Browser verlangsamen. Deaktivieren Sie dies, wenn Sie Probleme mit dem Add-on oder eingefrorenen Seiten haben.",
-        "description": "The explanation of the media cache option shown in a tooltip."
+        "message": "Versucht, die Medienantwort zu speichern, damit der Download ohne eine Anfrage an den Server erfolgen kann. Downloads werden schneller, können aber Ihren Browser verlangsamen. Disable this if you have low storage space available.",
+        "description": "The explanation of the media cache option"
     },
     "mediaCacheExplainPrivate": {
-        "message": "❗️ Diese Funktion ist derzeit nicht in Verwendung, da du dich im privaten Modus befindest. Um diese Einstellung zu verwenden oder zu ändern, öffne bitte das Add-on und deine Medien in einem normalen Fenster.",
-        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
+        "message": "❗️ This feature saves data about the media on the pages you visited, and is disabled in private browsing mode by default. If you want to enable it in private browsing, turn this switch on. (Any data collected is reset when clicking on the \"Clear list\" button, or when you restart the browser)"
     },
     "mediaCacheCheckbox": {
         "message": "Medien-Cache aktivieren",
@@ -229,7 +228,7 @@
     },
     "renameDownloadsExplain": {
         "message": "By default, downloaded files are named after the last part of their URL. Enabling this option will allow you to specify a custom name for each downloaded file.",
-        "description": "The explanation of the renaming downloaded files option shown in a tooltip."
+        "description": "The explanation of the renaming downloaded files option"
     },
     "renameDownloadsCheckbox": {
         "message": "Rename downloaded files",
@@ -241,7 +240,7 @@
     },
     "hideSegmentsExplain": {
         "message": "Live-Streams verwenden mehrere Segmente, um Inhalte in kleinen Teilen zu liefern. Normalerweise benötigen Sie nur das Stream-Manifest, daher können die Segmente ausgeblendet werden, um Unordnung zu reduzieren.",
-        "description": "The explanation of the hide stream segments option shown in a tooltip."
+        "description": "The explanation of the hide stream segments option"
     },
     "hideSegmentsCheckbox": {
         "message": "Stream-Segmente in der Medienliste ausblenden",

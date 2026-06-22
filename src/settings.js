@@ -129,11 +129,18 @@ async function initializeSettings() {
     let mediaCache = await browser.storage.local.get('media-cache').then((result) => result['media-cache']) || '1';
     browser.storage.local.set({ 'media-cache': mediaCache });
 
+    // Media cache in private browsing (this is opt-in)
+    let mediaCachePrivate = await browser.storage.local.get('media-cache-private').then((result) => result['media-cache-private']) || '0';
+    browser.storage.local.set({ 'media-cache-private': mediaCachePrivate });
+
     // Select the current mediaCache
     let mediaCacheCheckbox = document.querySelector(`mdui-switch[name="media-cache"]`);
     if (mediaCacheCheckbox) {
-        if (mediaCache === '1') {
+        if ((mediaCache === '1' && !browser.extension.inIncognitoContext) || (mediaCachePrivate === '1' && browser.extension.inIncognitoContext)) {
             mediaCacheCheckbox.setAttribute('checked', true);
+        }
+        if(browser.extension.inIncognitoContext){
+            mediaCacheCheckbox.name="media-cache-private"
         }
     }
 
@@ -276,7 +283,6 @@ async function initializeSettings() {
 
     // Disable media cache checkbox if in private browsing mode
     if (browser.extension.inIncognitoContext) {
-        document.querySelector(`mdui-switch[name="media-cache"]`).setAttribute('disabled', true);
         document.querySelector(`span[data-translate="mediaCacheExplain"]`).innerText += browser.i18n.getMessage("mediaCacheExplainPrivate");
     }
     // Initialize force-device-type setting (ensure this runs after DOM elements exist)

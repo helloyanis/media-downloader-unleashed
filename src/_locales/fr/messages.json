@@ -173,7 +173,7 @@
     },
     "urlDetectionExplain": {
         "message": "Détection en se basant sur l'URL du média (par exemple .mp4, .m3u8, .mpd). Rapide mais moins fiable car certains sites utilisent des URL personnalisées sans extension.",
-        "description": "The explanation of URL-based detection method shown in a tooltip."
+        "description": "The explanation of URL-based detection method"
     },
     "urlDetectionCheckbox": {
         "message": "Détection via l'URL",
@@ -181,7 +181,7 @@
     },
     "mimeDetectionExplain": {
         "message": "Détection en se basant sur le type MIME renvoyé par le serveur. Plus fiable mais peut être plus lent car cela nécessite de lire toutes les requêtes et les réponses du navigateur.",
-        "description": "The explanation of MIME-based detection method shown in a tooltip."
+        "description": "The explanation of MIME-based detection method"
     },
     "mimeDetectionCheckbox": {
         "message": "Détection via le type MIME",
@@ -193,7 +193,7 @@
     },
     "browserDownloadExplain": {
         "message": "Télécharger le média en utilisant la méthode de téléchargement native du navigateur. Rapide et fiable, mais fonctionne uniquement sur certains sites, et ne fonctionne pas sur Firefox pour Android.",
-        "description": "The explanation of native browser download method shown in a tooltip."
+        "description": "The explanation of native browser download method"
     },
     "browserDownloadCheckbox": {
         "message": "Téléchargement natif",
@@ -201,7 +201,7 @@
     },
     "fetchDownloadExplain": {
         "message": "Télécharger le média en utilisant l'API Fetch. Fonctionne sur la plupart des sites, mais peut être plus lent et consommer plus de mémoire pour les gros fichiers. Les déconnexions ne sont pas gérées.",
-        "description": "The explanation of Fetch API download method shown in a tooltip."
+        "description": "The explanation of Fetch API download method"
     },
     "fetchDownloadCheckbox": {
         "message": "API Fetch",
@@ -213,11 +213,10 @@
     },
     "mediaCacheExplain": {
         "message": "Tente de stocker la réponse média, afin que le téléchargement puisse se faire sans faire de requête au serveur. Les téléchargements seront plus rapides mais peuvent ralentir votre navigateur. Désactivez ceci si vous rencontrez des problèmes avec l'extension ou des pages qui se figent.",
-        "description": "The explanation of the media cache option shown in a tooltip."
+        "description": "The explanation of the media cache option"
     },
     "mediaCacheExplainPrivate": {
-        "message": "❗️ Cette fonctionnalité n'est actuellement pas utilisée car vous êtes en mode de navigation privée. Pour utiliser ou changer ce paramètre, veuillez ouvrir l'extension et vos médias depuis une fenêtre non privée.",
-        "description": "The explanation of why media cache option is disabled in private mode, shown in a tooltip."
+        "message": "❗️ Cette fonctionnalité stocke des données sur votre appareil concernant les médias sur les pages que vous visitez et est donc désactivée par défaut en mode de navigation privée. Si vous souhaitez tout de même l'activer, activez cette option."
     },
     "mediaCacheCheckbox": {
         "message": "Activer le cache média",
@@ -229,7 +228,7 @@
     },
     "renameDownloadsExplain": {
         "message": "Par défaut, les fichiers téléchargés sont nommés selon la dernière partie de leur URL. Activer cette option vous permet de spécifier un nom personnalisé pour chaque fichier téléchargé.",
-        "description": "The explanation of the renaming downloaded files option shown in a tooltip."
+        "description": "The explanation of the renaming downloaded files option"
     },
     "renameDownloadsCheckbox": {
         "message": "Renommer les fichiers téléchargés",
@@ -241,7 +240,7 @@
     },
     "hideSegmentsExplain": {
         "message": "Les flux en direct utilisent plusieurs segments pour diffuser le contenu en petites parties. En général, vous n'avez besoin que du manifeste du flux, donc les segments peuvent être masqués pour réduire l'encombrement.",
-        "description": "The explanation of the hide stream segments option shown in a tooltip."
+        "description": "The explanation of the hide stream segments option"
     },
     "hideSegmentsCheckbox": {
         "message": "Masquer les segments de streams dans la liste des médias",
@@ -253,7 +252,7 @@
     },
     "streamFileDownloadExplain": {
         "message": "Télécharger le manifeste du flux (fichier .m3u8 ou .mpd). Rapide et utilise peu de stockage, mais vous devrez utiliser un lecteur compatible avec les flux comme VLC. Certains sites bloquent également la lecture avec cette méthode.",
-        "description": "The explanation of stream manifest download method shown in a tooltip."
+        "description": "The explanation of stream manifest download method"
     },
     "streamFileDownloadCheckbox": {
         "message": "Télécharger le manifeste",
@@ -261,7 +260,7 @@
     },
     "offlineDownloadExplain": {
         "message": "Télécharger et convertir le flux en un fichier .ts (ou un dossier .zip pour les flux .mpd). Plus lent et utilise plus de stockage, mais le fichier peut être lu hors-ligne.",
-        "description": "The explanation of offline video file download method shown in a tooltip."
+        "description": "The explanation of offline video file download method"
     },
     "offlineDownloadChecbox": {
         "message": "Téléchargement hors-ligne",
@@ -273,7 +272,7 @@
     },
     "askStreamQualityExplain": {
         "message": "Toujours demander la qualité à télécharger pour chaque flux. Utile si vous voulez choisir la qualité en fonction du média ou de votre connexion.",
-        "description": "The explanation of 'Always ask' stream quality preference shown in a tooltip."
+        "description": "The explanation of 'Always ask' stream quality preference"
     },
     "askStreamQualityCheckbox": {
         "message": "Toujours demander",
@@ -281,7 +280,7 @@
     },
     "highestStreamQualityExplain": {
         "message": "Toujours télécharger la meilleure qualité disponible pour un flux. Meilleure qualité mais fichiers plus gros et téléchargements plus lents.",
-        "description": "The explanation of 'Always highest' stream quality preference shown in a tooltip."
+        "description": "The explanation of 'Always highest' stream quality preference"
     },
     "highestStreamQualityCheckbox": {
         "message": "Toujours la meilleure qualité",
@@ -289,7 +288,7 @@
     },
     "lowestStreamQualityExplain": {
         "message": "Toujours télécharger la qualité la plus basse disponible pour un flux. Fichiers plus petits et téléchargements plus rapides, mais qualité réduite.",
-        "description": "The explanation of 'Always lowest' stream quality preference shown in a tooltip."
+        "description": "The explanation of 'Always lowest' stream quality preference"
     },
     "lowestStreamQualityCheckbox": {
         "message": "Toujours la qualité la plus basse",
@@ -297,7 +296,7 @@
     },
     "mpdFixExplain": {
         "message": "Ceci modifie le fichier MPD pour n'inclure que la qualité vidéo choisie, ce qui permet de lire le fichier avec VLC. Sinon, le fichier MPD inclut toutes les qualités et VLC ne peut pas le lire car il essaye de charger des qualités qui ne sont pas téléchargées.",
-        "description": "The explanation of the MPD fix option shown in a tooltip."
+        "description": "The explanation of the MPD fix option"
     },
     "mpdFixCheckbox": {
         "message": "Corriger les fichiers MPD",
