@@ -948,7 +948,7 @@ function loadMediaList() {
         // Also allow numbers (mp4)
         mimeMatch =
           requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))) !== undefined // Any of the media types match the content type header (with non-alphanumeric characters removed to allow things like "VIDEO-mp4" to match "video/mp4")
-          || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video/") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio/")) !== undefined // Or if any content type header starts with video/ or audio/
+          || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio")) !== undefined // Or if any content type header starts with video/ or audio/
       }
 
       let mediaURL;

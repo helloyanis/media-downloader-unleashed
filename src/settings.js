@@ -85,11 +85,11 @@ async function initializeSettings() {
     browser.storage.local.set({ 'mime-detection': mimeDetection });
 
     // Select the current detectionMethod
-    let detectionCheckbox = document.querySelector(`mdui-switch[name="detection-method"][value="url"]`);
+    let detectionCheckbox = document.querySelector(`mdui-switch[name="url-detection"]`);
     if (detectionCheckbox && urlDetection === '1') {
         detectionCheckbox.setAttribute('checked', true);
     }
-    detectionCheckbox = document.querySelector(`mdui-switch[name="detection-method"][value="mime"]`);
+    detectionCheckbox = document.querySelector(`mdui-switch[name="mime-detection"]`);
     if (detectionCheckbox && mimeDetection === '1') {
         detectionCheckbox.setAttribute('checked', true);
     }
