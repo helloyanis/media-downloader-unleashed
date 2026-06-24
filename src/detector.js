@@ -74,6 +74,47 @@ async function storeInCache(url, blob, mime) {
         console.error("Failed to store in cache:", e);
     }
 }
+
+async function addMIMEToCache(url, mime) {
+    try {
+        const db = await openCacheDB();
+
+        // Read first
+        const cachedItem = await new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_NAME], "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(url);
+
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+
+        if (!cachedItem) {
+            console.debug("Attempted to add MIME to an item not in cache");
+            return;
+        }
+
+        const newItem = {
+            url: cachedItem.url,
+            mime,
+            data: cachedItem.data,
+            timestamp: cachedItem.timestamp // check spelling here
+        };
+
+        // Create a fresh write transaction
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_NAME], "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+
+            const req = store.put(newItem);
+
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.error("Failed to add mime to cache:", e);
+    }
+}
 // -------------------------------------------------------------------------------
 
 // ----- extension lists for url-detection -----
@@ -100,9 +141,13 @@ function getSettings(callback) {
         // If settings are not present yet (first run), assume defaults matching settings.js (enabled = '1')
         const mimeRaw = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['mime-detection'] : '1';
         const urlRaw = Object.prototype.hasOwnProperty.call(result, 'url-detection') ? result['url-detection'] : '1';
+        const mediaCache = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['media-cache'] : '1';
+        const mediaCachePrivate = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['media-cache-private'] : '1';
         callback({
             mimeDetection: isFlagEnabled(mimeRaw),
-            urlDetection: isFlagEnabled(urlRaw)
+            urlDetection: isFlagEnabled(urlRaw),
+            mediaCache: isFlagEnabled(mediaCache),
+            mediaCachePrivate: isFlagEnabled(mediaCachePrivate)
         });
     });
 }
@@ -137,6 +182,8 @@ function initListener() {
     getSettings(function (settings) {
         const mimeEnabled = !!settings.mimeDetection;
         const urlEnabled = !!settings.urlDetection;
+        const mediaCacheEnabled = !!settings.mediaCache
+        const mediaCachePrivateEnabled = !!settings.mediaCachePrivate
 
         console.log('initListener settings: mimeEnabled=', mimeEnabled, 'urlEnabled=', urlEnabled);
 
@@ -380,6 +427,11 @@ function initListener() {
                         }
                     }
 
+                    if(contentTypeHeader && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
+                        addMIMEToCache(details.url, contentTypeHeader)
+                        console.debug("Added type", contentType, "to URL", details.url)
+                    }
+
                     // Decide whether to add a new request entry in cases where onSendHeaders did not add one:
                     // - If neither flag set -> onSendHeaders already added, so we should have updated above.
                     // - If mime-detection only and mimeMatches -> add new entry here
@@ -465,6 +517,7 @@ browser.runtime.onMessage.addListener((message) => {
         // Do not clear data for ongoing downloads
         const ongoingDownloads = message.ongoingDownloads || [];
         const ongoingIDs = new Set(ongoingDownloads.map(d => d.requestId));
+        const ongoingURLs = new Set(ongoingDownloads.map(d => d.url));
 
         browser.storage.session.get(null, function (items) {
             for (let url in items) {
@@ -594,8 +647,12 @@ function attachCacheListener() {
                     filter.disconnect();
                     const blob = new Blob(chunks, { type: 'application/octet-stream' });
                     if (blob.size > 0) {
-                        await storeInCache(details.url, blob, '');
-                        console.log("Cached response for:", details.url, "bytes:", blob.size);
+                        if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {
+                            await storeInCache(details.url, blob, '');
+                            console.log("Cached response for:", details.url, "bytes:", blob.size);
+                        } else {
+                            console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ",details.incognito)
+                        }
                     } else {
                         console.warn("Skipping cache for empty response:", details.url);
                     }

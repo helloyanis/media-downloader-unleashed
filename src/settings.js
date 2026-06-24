@@ -241,6 +241,7 @@ async function initializeSettings() {
             browser.storage.local.set({ [setting]: value });
             switch (setting) {
                 case 'media-cache':
+                case 'media-cache-private':
                     // Re-initialize the listener to reflect changes
                     browser.runtime.sendMessage({ action: 'initCacheListener' });
                     break;
