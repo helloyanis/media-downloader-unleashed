@@ -162,6 +162,11 @@ async function fetchWithCache(url, options = {}, skipCache = false) {
 
     if (cachedItem && cachedItem.data) {
       console.log("⚡ IndexedDB Cache hit for:", url);
+      const responseHeaders = new Headers();
+
+      for (const h of cachedItem.headers || []) {
+        responseHeaders.append(h.name, h.value);
+      }
       return new Response(cachedItem.data, {
         status: cachedItem.status,
         statusText: "OK (Cached)",
