@@ -54,28 +54,51 @@ function openCacheDB() {
     });
 }
 
-async function storeInCache(url, blob, mime) {
+async function storeInCache(url, blob, headers, status) {
     try {
         const db = await openCacheDB();
-        const tx = db.transaction([STORE_NAME], "readwrite");
-        const store = tx.objectStore(STORE_NAME);
+
+        // Read existing item
+        const cachedItem = await new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_NAME], "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(url);
+
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+
         const item = {
-            url: url,
-            mime: mime || (blob && blob.type) || "application/octet-stream",
-            data: blob,
-            timestamp: Date.now()
+            url,
+            headers: headers || cachedItem?.headers || {},
+            status: status || cachedItem?.status || "000",
+            data: blob || cachedItem?.data,
+            timestamp: cachedItem?.timestamp || Date.now()
         };
-        return await new Promise((resolve, reject) => {
+
+        if (cachedItem) {
+            item.mime = cachedItem.mime;
+        }
+
+        // Create write transaction only now
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_NAME], "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+
             const req = store.put(item);
+
             req.onsuccess = () => resolve();
             req.onerror = () => reject(req.error);
+
+            tx.onabort = () => reject(tx.error);
+            tx.onerror = () => reject(tx.error);
         });
     } catch (e) {
         console.error("Failed to store in cache:", e);
     }
 }
 
-async function addMIMEToCache(url, mime) {
+async function addHeadersToCache(url, headers, status) {
     try {
         const db = await openCacheDB();
 
@@ -90,13 +113,15 @@ async function addMIMEToCache(url, mime) {
         });
 
         if (!cachedItem) {
-            console.debug("Attempted to add MIME to an item not in cache");
+            console.debug("Attempted to add headers to an item not in cache. Adding it!");
+            await storeInCache(url,null,headers, status)
             return;
         }
 
         const newItem = {
             url: cachedItem.url,
-            mime,
+            headers,
+            status,
             data: cachedItem.data,
             timestamp: cachedItem.timestamp // check spelling here
         };
@@ -137,12 +162,12 @@ function isFlagEnabled(val) {
 
 // get local settings
 function getSettings(callback) {
-    browser.storage.local.get(['mime-detection', 'url-detection'], function (result) {
+    browser.storage.local.get(['mime-detection', 'url-detection','media-cache','media-cache-private'], function (result) {
         // If settings are not present yet (first run), assume defaults matching settings.js (enabled = '1')
         const mimeRaw = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['mime-detection'] : '1';
         const urlRaw = Object.prototype.hasOwnProperty.call(result, 'url-detection') ? result['url-detection'] : '1';
-        const mediaCache = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['media-cache'] : '1';
-        const mediaCachePrivate = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['media-cache-private'] : '1';
+        const mediaCache = Object.prototype.hasOwnProperty.call(result, 'media-cache') ? result['media-cache'] : '1';
+        const mediaCachePrivate = Object.prototype.hasOwnProperty.call(result, 'media-cache-private') ? result['media-cache-private'] : '0';
         callback({
             mimeDetection: isFlagEnabled(mimeRaw),
             urlDetection: isFlagEnabled(urlRaw),
@@ -302,6 +327,14 @@ function initListener() {
                 //Store the cookies from request headers into the corresponding request object in existingRequests
                 temporaryCookieMap.set(details.url, cookie);
 
+                // Also, if cache is enabled, remove the Range header from outgoing requests to cache the whole file
+                if((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)){
+                    const range = details.requestHeaders.find(h => h.name.toLowerCase() === 'range')?.value || '';
+                    if(range){
+                        details.requestHeaders = details.requestHeaders.filter(header => header.name.toLowerCase() != 'range');
+                    }
+                }
+
             }
             return { requestHeaders: details.requestHeaders };
         };
@@ -428,7 +461,7 @@ function initListener() {
                     }
 
                     if(contentTypeHeader && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
-                        addMIMEToCache(details.url, contentTypeHeader)
+                        addHeadersToCache(details.url, responseHeaders, details.statusCode)
                         console.debug("Added type", contentType, "to URL", details.url)
                     }
 
@@ -598,6 +631,7 @@ browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);
 
 let cacheListener = null;
 let mediaCacheEnabled = false;
+let mediaCachePrivateEnabled = false;
 
 // helper to safely remove current listener
 function detachCacheListener() {
@@ -648,7 +682,7 @@ function attachCacheListener() {
                     const blob = new Blob(chunks, { type: 'application/octet-stream' });
                     if (blob.size > 0) {
                         if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {
-                            await storeInCache(details.url, blob, '');
+                            await storeInCache(details.url, blob, null, null); // Headers and status will be populated in headersReceivedListener
                             console.log("Cached response for:", details.url, "bytes:", blob.size);
                         } else {
                             console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ",details.incognito)
@@ -662,7 +696,7 @@ function attachCacheListener() {
             };
             filter.onerror = (err) => {
                 try { filter.disconnect(); } catch (e) {}
-                console.error("filter error:", err);
+                console.error(`Filter error for request ${details.requestId}`, err);
             };
         } catch (e) {
             console.error("Error in cache listener:", e);
@@ -681,18 +715,21 @@ function attachCacheListener() {
 // read initial setting from storage and attach/detach accordingly
 async function initCacheState() {
     try {
-        const res = await browser.storage.local.get('media-cache');
-        const enabled = !!isFlagEnabled(res['media-cache']);
-        mediaCacheEnabled = enabled;
-        if (mediaCacheEnabled) {
-            attachCacheListener();
-        } else {
-            detachCacheListener();
-        }
+        const resCache = await browser.storage.local.get('media-cache');
+        const enabled = !!isFlagEnabled(resCache['media-cache']);
+        mediaCacheEnabled = enabled
+        const resCachePrivate = await browser.storage.local.get('media-cache-private');
+        const enabledPrivate = !!isFlagEnabled(resCache['media-cacheprivate']);
+        mediaCachePrivateEnabled = enabledPrivate
+
+        console.debug("Initialized cache state, with cache", mediaCacheEnabled," and private cache",mediaCachePrivateEnabled)
+
+        attachCacheListener(); // Since we now do a distinction between private and non private caches, we just always attach the listener, and save depending on the incognito context of the resuest inside of the listener.
     } catch (e) {
         console.error("Failed to read media-cache setting:", e);
         // default to detached to avoid blocking requests
         mediaCacheEnabled = false;
+        mediaCachePrivateEnabled = false;
         detachCacheListener();
     }
 }
@@ -700,17 +737,16 @@ async function initCacheState() {
 // watch for runtime changes to storage and update attachment immediately
 browser.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    if (!Object.prototype.hasOwnProperty.call(changes, 'media-cache')) return;
-
-    const newEnabled = !!isFlagEnabled(changes['media-cache'].newValue);
-    if (newEnabled === mediaCacheEnabled) return; // no change
-
-    mediaCacheEnabled = newEnabled;
-    if (mediaCacheEnabled) {
-        attachCacheListener();
-    } else {
-        detachCacheListener();
-    }
+    if (Object.prototype.hasOwnProperty.call(changes, 'media-cache')){
+        const newEnabled = !!isFlagEnabled(changes['media-cache'].newValue);
+        mediaCacheEnabled = newEnabled
+        console.debug("Changed media cache to", mediaCacheEnabled)
+    };
+    if (Object.prototype.hasOwnProperty.call(changes, 'media-cache-private')){
+        const newEnabled = !!isFlagEnabled(changes['media-cache-private'].newValue);
+        mediaCachePrivateEnabled = newEnabled
+        console.debug("Changed private media cache to", mediaCachePrivateEnabled)
+    };
 });
 
 // optional: message API to force re-init from elsewhere

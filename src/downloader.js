@@ -163,11 +163,9 @@ async function fetchWithCache(url, options = {}, skipCache = false) {
     if (cachedItem && cachedItem.data) {
       console.log("⚡ IndexedDB Cache hit for:", url);
       return new Response(cachedItem.data, {
-        status: 200,
+        status: cachedItem.status,
         statusText: "OK (Cached)",
-        headers: {
-          "Content-Type": cachedItem.mime || "application/octet-stream"
-        }
+        headers: responseHeaders || []
       });
     } else {
       console.log("⚡ IndexedDB Cache miss for:", url);
