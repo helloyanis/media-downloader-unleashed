@@ -1027,7 +1027,7 @@ function loadMediaList() {
       //Display request method and referrer
       const descriptionDiv = document.createElement('div');
       console.log(requests)
-      descriptionDiv.textContent = browser.i18n.getMessage("requestText", [requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value) ?? browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) ?? "??:??"]);
+      descriptionDiv.textContent = browser.i18n.getMessage("requestText", [requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), new URL(decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value || requests[0].url)).hostname || browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"]);
       mediaDiv.appendChild(descriptionDiv);
 
       // Create a div to put actions at the end of the media item
@@ -1269,7 +1269,7 @@ function loadMediaList() {
     endOfMediaList.appendChild(endOfMediaListLink);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
-    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests: ${error}` });
+    showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests. ${error}` });
   });
 }
 
