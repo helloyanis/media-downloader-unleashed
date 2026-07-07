@@ -97,6 +97,10 @@
         "message": "Can't find your media? Submit it here!",
         "description": "The text of the link shown at the end of the media list in the popup, which leads to a form to submit undetected media."
     },
+    "endOfMediaListAndroid": {
+        "message": "On Android, you need to open the add-on page BEFORE loading your media. If you have already loaded your media, refresh the media page, start playing it again then come back to this tab and click \"Refresh list\".",
+        "description": "The text shown at the end of the media list in the popup, only when the browser is an Android device."
+    },
     "listLoadError": {
         "message": "Error retrieving media requests. Here's what went wrong: $ERROR$",
         "description": "The error message shown when the media list fails to load.",

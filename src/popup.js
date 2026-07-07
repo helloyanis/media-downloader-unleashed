@@ -1169,8 +1169,7 @@ function loadMediaList() {
       sizeSelect.addEventListener('change', () => {
         const selectedSize = sizeSelect.value;
         const request = requests.find(request => request.size === selectedSize);
-        const refererHeader = request?.requestHeaders.find(h => h.name.toLowerCase() === "referer");
-        const referer = refererHeader?.value || browser.i18n.getMessage("requestSourceUnknown");
+        const referer = new URL(decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value || requests[0].url)).hostname || browser.i18n.getMessage("requestSourceUnknown");
         const timeStamp = new Date(request?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"
         descriptionDiv.textContent = browser.i18n.getMessage("requestText", [request?.method || browser.i18n.getMessage("requestMethodUnknown"), referer, timeStamp]);
       });
@@ -1261,11 +1260,18 @@ function loadMediaList() {
     loadingSpinner.style.display = 'none'; // Hide the loading spinner
     mediaContainer.appendChild(endOfMediaList);
 
+    if(navigator.userAgent.includes("Mobile;")){
+      const endOfMediaListAndroid = document.createElement("h3")
+      endOfMediaListAndroid.textContent = browser.i18n.getMessage("endOfMediaListAndroid");
+      endOfMediaList.appendChild(endOfMediaListAndroid);
+    } else {
+      endOfMediaList.appendChild(document.createElement('br'));
+    }
+
     endOfMediaListLink = document.createElement('a');
     endOfMediaListLink.textContent = browser.i18n.getMessage("endOfMediaListLink");
     endOfMediaListLink.target = "_blank";
     endOfMediaListLink.href = "https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=My+media+is+not+being+detected";
-    endOfMediaList.appendChild(document.createElement('br'));
     endOfMediaList.appendChild(endOfMediaListLink);
   }).catch((error) => {
     console.error('Error retrieving media requests:', error);
