@@ -629,7 +629,27 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
         if (it.type === 'segment') {
           // fetch the segment
-          const segUrl = it.uri;
+          let segUrl = it.uri;
+          try {
+            // Attempt to append any recorded override query parameters for this segment directory
+            const segUrlObj = new URL(segUrl);
+            const dirKey = segUrlObj.origin + segUrlObj.pathname.substring(0, segUrlObj.pathname.lastIndexOf('/') + 1);
+            const stored = await browser.storage.session.get('segmentParamOverrides');
+            const overrides = (stored && stored.segmentParamOverrides) ? stored.segmentParamOverrides : {};
+            const overrideForDir = overrides[dirKey];
+            if (overrideForDir && overrideForDir.extraParams) {
+              for (const [k, v] of Object.entries(overrideForDir.extraParams)) {
+                if (!segUrlObj.searchParams.has(k)) {
+                  segUrlObj.searchParams.append(k, v);
+                }
+              }
+              segUrl = segUrlObj.href;
+              console.debug('Appended override params to segment URL:', segUrl);
+            }
+          } catch (e) {
+            console.debug('Failed to apply segment param overrides for', segUrl, e);
+          }
+
           const res = await fetchWithCache(segUrl, fetchOpts, skipCache);
           let arr = new Uint8Array(await res.arrayBuffer());
 

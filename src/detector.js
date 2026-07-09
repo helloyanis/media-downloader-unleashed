@@ -155,6 +155,62 @@ const temporaryHeaderMap = new Map();
 const temporaryRequestBodyMap = new Map();
 const temporaryCookieMap = new Map();
 
+// Helper: directory key for grouping segment URLs (origin + directory path)
+function getDirKeyFromUrl(urlString) {
+    try {
+        const u = new URL(urlString);
+        return u.origin + u.pathname.substring(0, u.pathname.lastIndexOf('/') + 1);
+    } catch (e) {
+        return urlString.split('?')[0];
+    }
+}
+
+// Record differences in query parameters for URLs in the same directory.
+// If a request contains query parameters not previously observed for that directory,
+// save them under the `segmentParamOverrides` map in session storage.
+function recordParamDiff(urlString) {
+    try {
+        const u = new URL(urlString);
+        const dirKey = getDirKeyFromUrl(urlString);
+        const keys = Array.from(u.searchParams.keys());
+
+        browser.storage.session.get('segmentParamOverrides', function (res) {
+            const map = res.segmentParamOverrides || {};
+            const existing = map[dirKey] || { observedParams: [], extraParams: {}, lastSeen: Date.now(), example: '' };
+            const existingSet = new Set(existing.observedParams || []);
+
+            const newExtra = {};
+            let added = false;
+            for (const k of keys) {
+                if (!existingSet.has(k)) {
+                    newExtra[k] = u.searchParams.get(k);
+                    added = true;
+                }
+            }
+
+            if (added) {
+                existing.observedParams = Array.from(new Set((existing.observedParams || []).concat(keys)));
+                existing.extraParams = Object.assign(existing.extraParams || {}, newExtra);
+                existing.lastSeen = Date.now();
+                existing.example = existing.example || urlString;
+                map[dirKey] = existing;
+                browser.storage.session.set({ segmentParamOverrides: map }, function () {
+                    console.log('Detected extra query params for', dirKey, 'added', newExtra);
+                });
+            } else if (!existing.observedParams || existing.observedParams.length === 0) {
+                // initialize observed params if none recorded yet
+                existing.observedParams = keys;
+                existing.lastSeen = Date.now();
+                existing.example = existing.example || urlString;
+                map[dirKey] = existing;
+                browser.storage.session.set({ segmentParamOverrides: map });
+            }
+        });
+    } catch (e) {
+        console.error('recordParamDiff error', e);
+    }
+}
+
 // helper to interpret setting values
 function isFlagEnabled(val) {
     return val === '1' || val === 1 || val === true || val === 'true';
@@ -404,6 +460,7 @@ function initListener() {
                     requestsObj[details.url] = existingRequests;
                     browser.storage.session.set(requestsObj);
                     console.log('Media request intercepted (onSendHeaders):', mediaRequest);
+                    try { recordParamDiff(details.url); } catch(e) { console.debug('recordParamDiff failed (onSendHeaders)', e); }
                 });
             } catch (e) {
                 console.error("Error in onSendHeaders handler:", e);
@@ -503,6 +560,7 @@ function initListener() {
                             };
                             existingRequests.push(mediaRequest);
                             console.log('Media request added (onHeadersReceived):', mediaRequest);
+                            try { recordParamDiff(details.url); } catch(e) { console.debug('recordParamDiff failed (onHeadersReceived)', e); }
                         } else if (updated) {
                             console.log('Media response updated (onHeadersReceived) for', details.url);
                         }
