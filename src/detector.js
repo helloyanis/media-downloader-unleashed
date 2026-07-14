@@ -612,7 +612,13 @@ browser.runtime.onMessage.addListener((message) => {
 
         browser.storage.session.get(null, function (items) {
             for (let url in items) {
-                const requests = items[url];
+                let requests = items[url];
+                // Some keys in storage are not arrays of requests (parameter overrides).
+                // Wrap them in an array to filter safely.
+                if (!Array.isArray(requests)) {
+                    requests = [requests]; // Wrap in array to filter
+                }
+                console.log(requests);
                 const filteredRequests = requests.filter(r => ongoingIDs.has(r.requestId));
                 if (filteredRequests.length > 0) {
                     let obj = {};

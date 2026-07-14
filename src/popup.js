@@ -1317,7 +1317,7 @@ async function handleYoutubeMediaRequest(url) {
  */
 function clearMediaList() {
   browser.runtime.sendMessage({ action: 'getOngoingDownloads' }).then((ongoingDownloads) => {
-    browser.runtime.sendMessage({ action: 'clearStorage', ongoingDownloads }).then(() => {
+    browser.runtime.sendMessage({ action: 'clearStorage', ongoingDownloads: ongoingDownloads }).then(() => {
       console.log('Media list cleared');
       loadMediaList(); //Refresh the display
     }).catch((error) => {
