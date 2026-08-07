@@ -349,14 +349,14 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         //User canceled the variant selection, abort the download
         throw new Error("Download aborted by user during stream variant selection.");
       }
-      videoUrl = selectedVariant.uri;
+      videoUrl = new URL(selectedVariant.uri, base).href;
 
       const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
       if (audioLine) {
         const uriMatch = audioLine.match(/URI="([^"]+)"/);
         if (uriMatch) {
           const audioUri = uriMatch[1];
-          audioUrl = audioUri.startsWith("http") ? audioUri : base + audioUri;
+          audioUrl = new URL(audioUri, base).href;
         }
       }
     }
