@@ -123,6 +123,7 @@ async function addHeadersToCache(url, headers, status) {
             headers,
             status,
             data: cachedItem.data,
+            mime: cachedItem.mime,
             timestamp: cachedItem.timestamp // check spelling here
         };
 
@@ -138,6 +139,22 @@ async function addHeadersToCache(url, headers, status) {
         });
     } catch (e) {
         console.error("Failed to add mime to cache:", e);
+    }
+}
+
+async function removeFromCache(url) {
+    try {
+        const db = await openCacheDB();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_NAME], "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.delete(url);
+
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.error("Failed to remove from cache:", e);
     }
 }
 // -------------------------------------------------------------------------------
@@ -383,14 +400,6 @@ function initListener() {
                 //Store the cookies from request headers into the corresponding request object in existingRequests
                 temporaryCookieMap.set(details.url, cookie);
 
-                // Also, if cache is enabled, remove the Range header from outgoing requests to cache the whole file
-                if((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)){
-                    const range = details.requestHeaders.find(h => h.name.toLowerCase() === 'range')?.value || '';
-                    if(range){
-                        details.requestHeaders = details.requestHeaders.filter(header => header.name.toLowerCase() != 'range');
-                    }
-                }
-
             }
             return { requestHeaders: details.requestHeaders };
         };
@@ -435,7 +444,8 @@ function initListener() {
                 // - neither flag set (=> save all), or
                 // - urlEnabled && urlMatches (=> save), or
                 // - both enabled and urlMatches (=> save)
-                // [NEW] Retrieve any cached request body
+                
+                // Retrieve any cached request body
                 const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
                 
 
@@ -501,8 +511,24 @@ function initListener() {
                 const urlMatches = detectionRegex.test(decodeURI(details.url));
 
                 // Retrieve existing stored requests for this URL (if any)
-                browser.storage.session.get(details.url, function (result) {
+                browser.storage.session.get(details.url, async function (result) {
                     let existingRequests = result[details.url] || [];
+                    let shouldDelete = false;
+                    const userSettings = await new Promise((resolve) => {
+                        getSettings(resolve);
+                    });
+
+                    // If mime detection is enabled, and the mime type is not a media type, skip saving this request and remove any residual cached request body or headers for this requestId
+                    if (userSettings.mimeDetection && !mimeMatches) {
+                        console.debug("Skipping cache for non-media MIME:", details.url);
+                        // Remove any residual cached request body or headers for this requestId
+                        browser.storage.session.remove(details.requestId);
+                        removeFromCache(details.url).catch(e => {
+                            console.error("Failed to remove from cache for non-media MIME:", details.url, e);
+                        });
+                        shouldDelete = true;
+                        return;
+                    }
 
                     // Try to find a previously created request to update it
                     let updated = false;
@@ -743,6 +769,22 @@ function attachCacheListener() {
             filter.onstop = async () => {
                 try {
                     filter.disconnect();
+                    // Skip cache if request has range header
+                    const rangeHeader = details.requestHeaders?.find(h => h.name.toLowerCase() === 'range');
+                    if (rangeHeader) {
+                        console.debug("Skipping cache for request with Range header:", details.url);
+                        return;
+                    }
+
+                    // Also skip if request was already removed from session storage (e.g., cleared by user, not media...)
+                    const sessionData = await browser.storage.session.get(details.url);
+                    if (!sessionData || !sessionData[details.url] || sessionData[details.url].length === 0) {
+                        console.debug("Skipping cache for request not present in session storage:", details.url);
+                        return;
+                    }
+
+                    // Pre-emptively cache everything else while waiting for the server
+
                     const blob = new Blob(chunks, { type: 'application/octet-stream' });
                     if (blob.size > 0) {
                         if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {
