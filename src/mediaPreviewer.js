@@ -138,7 +138,7 @@ async function fetchMedia(url, size) {
     const forbiddenHeaders = [
         "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
         "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
-        "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
+        "Permissions-Policy", "Referer", "Range", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
     ];
 
     const headers = requestData.requestHeaders.filter(header =>

@@ -1415,7 +1415,7 @@ async function downloadFile(url, mediaDiv) {
   const forbiddenHeaders = [
     "Accept-Charset", "Accept-Encoding", "Access-Control-Request-Headers", "Access-Control-Request-Method",
     "Connection", "Content-Length", "Cookie", "Date", "DNT", "Expect", "Host", "Keep-Alive", "Origin",
-    "Permissions-Policy", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
+    "Permissions-Policy", "Range", "Referer", "TE", "Trailer", "Transfer-Encoding", "Upgrade", "Via"
   ]; // List of headers that should not be sent with the download request because fetch doesn't accept them
   const selectedValue = sizeSelect.value;
   const menuItems = Array.from(sizeSelect.querySelectorAll('mdui-menu-item'));
