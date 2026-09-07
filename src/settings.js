@@ -144,16 +144,14 @@ async function initializeSettings() {
         }
     }
 
-    // Chech for renameDownloads setting
-    let renameDownloads = await browser.storage.local.get('rename-downloads').then((result) => result['rename-downloads']) || '0';
-    browser.storage.local.set({ 'rename-downloads': renameDownloads });
+    // Check for renameDownloads setting
+    let renameDownloads = await browser.storage.local.get('rename-downloads-v2').then((result) => result['rename-downloads-v2']) || 'tab';
+    browser.storage.local.set({ 'rename-downloads-v2': renameDownloads });
 
     // Select the current renameDownloads
-    let renameDownloadsCheckbox = document.querySelector(`mdui-switch[name="rename-downloads"]`);
-    if (renameDownloadsCheckbox) {
-        if (renameDownloads === '1') {
-            renameDownloadsCheckbox.setAttribute('checked', true);
-        }
+    let renameDownloadsRadioGroup = document.querySelector(`mdui-radio-group[name="rename-downloads-v2"]`);
+    if (renameDownloadsRadioGroup) {
+        renameDownloadsRadioGroup.value = renameDownloads;
     }
 
     // Check for hideSegments setting

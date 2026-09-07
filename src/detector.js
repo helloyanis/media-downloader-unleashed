@@ -452,6 +452,7 @@ function initListener() {
                 let mediaRequest = {
                     requestId: details.requestId,
                     url: details.url,
+                    name: browser.tabs ? (await browser.tabs.get(details.tabId)).title : 'Unknown',
                     method: details.method,
                     requestHeaders: details.requestHeaders,
                     responseHeaders: null,
@@ -576,6 +577,7 @@ function initListener() {
                             let mediaRequest = {
                                 requestId: details.requestId,
                                 url: details.url,
+                                name: browser.tabs ? (await browser.tabs.get(details.tabId)).title : 'unknown',
                                 method: details.method || 'GET',
                                 requestHeaders: cachedHeaders,
                                 responseHeaders: responseHeaders,

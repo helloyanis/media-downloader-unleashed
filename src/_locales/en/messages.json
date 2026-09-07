@@ -227,16 +227,36 @@
         "description": "The label of the checkbox to enable media cache."
     },
     "renameDownloadsTitle": {
-        "message": "Renaming downloaded files",
+        "message": "Filename options",
         "description": "The title of the renaming downloaded files section in the settings tab."
     },
     "renameDownloadsExplain": {
-        "message": "By default, downloaded files are named after the last part of their URL. Enabling this option will allow you to specify a custom name for each downloaded file.",
+        "message": "By default, downloaded files are named after the name of the tab that requests the media.. Enabling this option will allow you to specify a custom name for each downloaded file.",
         "description": "The explanation of the renaming downloaded files option"
     },
-    "renameDownloadsCheckbox": {
-        "message": "Rename downloaded files",
+    "renameDownloadsTabNameCheckbox": {
+        "message": "Use the tab name",
+        "description": "The label of the checkbox to enable naming downloaded files according to the tab name."
+    },
+    "renameDownloadsTabNameExplain": {
+        "message": "Use the name of the tab to rename the downloaded file. This is usually the best option, but some sites don't set a proper name.",
+        "description": "The explanation of the rename downloads tab name option"
+    },
+    "renameDownloadsUrlCheckbox": {
+        "message": "Use the last part of URL",
+        "description": "The label of the checkbox to enable naming downloaded files according to the last part of the URL."
+    },
+    "renameDownloadsUrlExplain": {
+        "message": "Use the URL of the media to rename the downloaded file. For example, https://example.com/video.mp4 would be renamed to video.mp4. This is usually not very descriptive, but it works on all sites.",
+        "description": "The explanation of the rename downloads URL option"
+    },
+    "renameDownloadsManualNameCheckbox": {
+        "message": "Enter filename manually",
         "description": "The label of the checkbox to enable renaming downloaded files."
+    },
+    "renameDownloadsManualNameExplain": {
+        "message": "A popup will appear when downloading a file, allowing you to specify a custom name for each downloaded file.",
+        "description": "The explanation of the renaming downloaded files option"
     },
     "hideSegmentsTitle": {
         "message": "Hide stream segments",
@@ -671,5 +691,15 @@
     "fileNamePromptLabel": {
         "message": "File name",
         "description": "The label of the text field to enter a file name for the downloaded media."
+    },
+    "hiddenSegmentsInfo": {
+        "message": "⚠️ $SEGMENTCOUNT$ segment(s) are hidden because they are part of a stream. If you want to download them, enable the \"Show stream segments\" option in the settings.",
+        "description": "The info message shown when some segments are hidden in the media list.",
+        "placeholders": {
+            "SEGMENTCOUNT": {
+                "content": "$1",
+                "example": "5"
+            }
+        }
     }
 }

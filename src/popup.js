@@ -824,10 +824,12 @@ function shouldHideSegment(url, request, manifestIndex) {
   const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
 
   const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
+  const segmentExtRe = /\.(ts|m4s|seg|frag|fragment)(?:$|\?)/i;
 
   const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
+  const looksLikeSegmentByExt = segmentExtRe.test(pathname);
 
-  if (looksLikeSegmentByType) {
+  if (looksLikeSegmentByType || looksLikeSegmentByExt) {
     console.debug('Hiding stream segment:', url, { contentType, contentLength });
     return true;
   }
@@ -929,6 +931,7 @@ function loadMediaList() {
     const failedDownloads = normalizeSessionList(failedRaw?.failedDownloads);
     const hideSegments = await browser.storage.local.get('hide-segments').then(result => result['hide-segments']) === '1';
     const manifestSegmentIndex = hideSegments ? await buildManifestSegmentIndex(mediaRequests) : new Map();
+    let hiddenSegmentCount = 0;
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       if (!Array.isArray(requests) || requests.length === 0) {
@@ -960,6 +963,7 @@ function loadMediaList() {
       }
 
       if (hideSegments && shouldHideSegment(url, requests[0], manifestSegmentIndex)) {
+        hiddenSegmentCount++;
         continue;
       }
 
@@ -995,13 +999,13 @@ function loadMediaList() {
           const manifestText = await readCachedManifestText(url);
           if(manifestText && manifestText.includes('RESOLUTION=')) {
             // Contains video, show video library icon
-            path.setAttribute('d', 'mm460-380 280-180-280-180v360ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-560h80v560h560v80H160Zm160-720v480-480Z');
+            path.setAttribute('d', 'm460-380 280-180-280-180v360ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-560h80v560h560v80H160Zm160-720v480-480Z');
           } else if(manifestText && manifestText.includes('TYPE=AUDIO')) {
             // Contains only audio, show audio icon
             path.setAttribute('d', 'M400-120q-66 0-113-47t-47-113q0-66 47-113t113-47q23 0 42.5 5.5T480-418v-422h240v160H560v400q0 66-47 113t-113 47Z');
           } else if(manifestText && manifestText.includes('<MPD')) {
             // DASH manifest, show video icon
-            path.setAttribute('d', 'm460-380 280-180-280-180v360ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-560h80v560h560v80H160Zm160-720v480-480Z');
+            path.setAttribute('d', 'm380-300 280-180-280-180v360ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z');
           }
           else {
             // Unknown stream type, show generic stream icon
@@ -1029,18 +1033,39 @@ function loadMediaList() {
       mediaIconContainer.appendChild(mediaIcon);
       mediaDiv.appendChild(mediaIconContainer);
 
+      const subtitleDiv = document.createElement('div');
+      subtitleDiv.classList.add('media-subtitle');
+      // subtitleDiv.style.display = 'flex';
+      // subtitleDiv.style.justifyContent = 'space-between';
+      // subtitleDiv.style.flexWrap = 'wrap';
 
       // Display the media file name
-      const fileName = getFileName(url) || url;
-      const fileNameDiv = document.createElement('div');
-      fileNameDiv.textContent = fileName;
-      mediaDiv.appendChild(fileNameDiv);
+      if(requests[0]?.name) {
+        const fileName = requests[0].name
+        const fileNameDiv = document.createElement('div');
+        fileNameDiv.textContent = fileName;
+        mediaDiv.appendChild(fileNameDiv);
+
+        const urlName = getFileName(url) || url;
+        const urlNameDiv = document.createElement('div');
+        urlNameDiv.textContent = urlName;
+        urlNameDiv.style.fontSize = '0.8em';
+        subtitleDiv.appendChild(urlNameDiv);
+      } else {
+        const urlName = getFileName(url) || url;
+        const urlNameDiv = document.createElement('div');
+        urlNameDiv.textContent = urlName;
+        mediaDiv.appendChild(urlNameDiv);
+      }
 
       //Display request method and referrer
       const descriptionDiv = document.createElement('div');
+      descriptionDiv.style.fontSize = '0.8em';
       console.log(requests)
       descriptionDiv.textContent = browser.i18n.getMessage("requestText", [requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), new URL(decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value || requests[0].url)).hostname || browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"]);
-      mediaDiv.appendChild(descriptionDiv);
+      subtitleDiv.appendChild(descriptionDiv);
+
+      mediaDiv.appendChild(subtitleDiv);
 
       // Create a div to put actions at the end of the media item
       const actionsDiv = document.createElement('div');
@@ -1065,7 +1090,7 @@ function loadMediaList() {
       const downloadButton = document.createElement('mdui-segmented-button');
       downloadButton.textContent = browser.i18n.getMessage("downloadMedia");
       downloadButton.addEventListener('click', () => {
-        downloadFile(url, mediaDiv);
+        downloadFile(url, requests[0].name, mediaDiv);
       });
       downloadButton.id = 'download-button';
       downloadButton.classList.add('download-button');
@@ -1264,6 +1289,13 @@ function loadMediaList() {
       const divider = document.createElement('mdui-divider');
       mediaContainer.appendChild(divider);
     }
+    if(hiddenSegmentCount > 0) {
+      const hiddenSegmentsInfo = document.createElement('div');
+      hiddenSegmentsInfo.setAttribute("id", "hidden-segments-info");
+      hiddenSegmentsInfo.textContent = browser.i18n.getMessage("hiddenSegmentsInfo", [hiddenSegmentCount]);
+      hiddenSegmentsInfo.style.textAlign = 'center';
+      mediaContainer.appendChild(hiddenSegmentsInfo);
+    }
     endOfMediaList = document.createElement('div');
     endOfMediaList.setAttribute("id", "end-of-media-list");
     endOfMediaList.textContent = browser.i18n.getMessage("endOfMediaList");
@@ -1401,7 +1433,7 @@ function getHumanReadableSize(size) {
 * @param {HTMLElement} mediaDiv The div element of the list item to be downloaded, used to get the selected size, show the loading bar and change the button state
 * @returns {Promise<void>} A promise that resolves when the download is complete or fails
 */
-async function downloadFile(url, mediaDiv) {
+async function downloadFile(url, fileName = null, mediaDiv) {
   console.log('Downloading media file:', url);
   let wakeLock = null
   let progressListener = null;
@@ -1519,8 +1551,7 @@ async function downloadFile(url, mediaDiv) {
     const lowerPath = new URL(url).pathname.toLowerCase();
     const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationvndapplempegurl";
     const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationdashxml";
-    let fileName = null;
-    const shouldPromptForRename = await browser.storage.local.get('rename-downloads').then(result => result['rename-downloads'] === '1');
+    const shouldPromptForRename = await browser.storage.local.get('rename-downloads-v2').then(result => result['rename-downloads-v2'] === 'ask');
     if (shouldPromptForRename) {
       try{
       fileName = await mdui.prompt({
@@ -1543,7 +1574,7 @@ async function downloadFile(url, mediaDiv) {
       mediaDiv.querySelector("#download-button").disabled = false;
       return;
     }
-    } else {
+    } else if (!fileName) {
       fileName = getFileName(url);
     }
 

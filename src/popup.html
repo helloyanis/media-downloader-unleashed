@@ -267,15 +267,31 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           <!-- Renaming downloads -->
           <mdui-card variant="filled">
             <h3 data-translate="renameDownloadsTitle">Renaming downloads</h3>
-            <div class="settings-switch-item">
-              <mdui-switch id="rename-downloads" name="rename-downloads" value="1"></mdui-switch>
-              <div class="settings-switch-description">
-                <b data-translate="renameDownloadsCheckbox">Rename downloaded files</b>
-                <span class="settings-description-text" data-translate="renameDownloadsExplain">By default, downloaded
-                  files are named after the last part of their URL. Enabling this option will allow you to specify a
-                  custom name for each downloaded file.</span>
-              </div>
-            </div>
+            <mdui-radio-group class="settings-radio-group" id="rename-downloads-v2" value="tab" name="rename-downloads-v2">
+              <mdui-radio id="rename-downloads-tab" value="tab" name="rename-downloads-v2"
+                data-translate="renameDownloadsTabNameCheckbox">Use the tab name</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="renameDownloadsTabNameExplain">Use the name of the
+                tab to rename the downloaded file. This is usually the best option, but some sites don't set a proper
+                name.</span>
+              <br />
+
+              <mdui-radio id="rename-downloads-url" value="url" name="rename-downloads-v2"
+                data-translate="renameDownloadsUrlCheckbox">Use the last part of the URL</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="renameDownloadsUrlExplain">Use the URL of the
+                media to rename the downloaded file. For example, https://example.com/video.mp4 would be renamed to video.mp4. This is usually not very descriptive, but it works on all sites.</span>
+              <br />
+              <mdui-radio id="rename-downloads-custom" value="ask" name="rename-downloads-v2"
+                data-translate="renameDownloadsManualNameCheckbox">Enter filename manually</mdui-radio>
+              <br />
+
+              <span class="settings-description-text" data-translate="renameDownloadsManualNameExplain">A popup will appear when downloading a file, allowing you to specify a custom name for each downloaded file.</span>
+              
+            </mdui-radio-group>
+              
           </mdui-card>
 
           <!-- Stream download preference -->

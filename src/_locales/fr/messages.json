@@ -227,16 +227,36 @@
         "description": "The label of the checkbox to enable media cache."
     },
     "renameDownloadsTitle": {
-        "message": "Renommer les fichiers téléchargés",
+        "message": "Réglages de nommage des fichiers",
         "description": "The title of the renaming downloaded files section in the settings tab."
     },
     "renameDownloadsExplain": {
-        "message": "Par défaut, les fichiers téléchargés sont nommés selon la dernière partie de leur URL. Activer cette option vous permet de spécifier un nom personnalisé pour chaque fichier téléchargé.",
+        "message": "Par défaut, les fichiers téléchargés sont nommés selon le nom de l'onglet. Activer cette option vous permet de changer cela ou de spécifier un nom personnalisé pour chaque fichier téléchargé.",
         "description": "The explanation of the renaming downloaded files option"
     },
-    "renameDownloadsCheckbox": {
-        "message": "Renommer les fichiers téléchargés",
+    "renameDownloadsTabNameCheckbox": {
+        "message": "Utiliser le nom de l'onglet",
+        "description": "The label of the checkbox to enable naming downloaded files according to the tab name."
+    },
+    "renameDownloadsTabNameExplain": {
+        "message": "Le nom de l'onglet qui a demandé le média sera utilisé comme nom du fichier téléchargé. C'est généralement la meilleure option, mais certains sites ne définissent pas un nom approprié.",
+        "description": "The explanation of the tab name renaming option"
+    },
+    "renameDownloadsUrlCheckbox": {
+        "message": "Utiliser la dernière partie de l'URL",
+        "description": "The label of the checkbox to enable naming downloaded files according to the last part of the URL."
+    },
+    "renameDownloadsUrlExplain": {
+        "message": "La dernière partie de l'URL du média sera utilisée comme nom du fichier téléchargé. Par exemple, si l'URL est https://example.com/video.mp4, le fichier sera nommé video.mp4. Moins descriptif, mais fonctionne sur tous les sites.",
+        "description": "The explanation of the URL-based renaming option"
+    },
+    "renameDownloadsManualNameCheckbox": {
+        "message": "Me demander le nom du fichier",
         "description": "The label of the checkbox to enable renaming downloaded files."
+    },
+    "renameDownloadsManualNameExplain": {
+        "message": "Une fenêtre pop-up apparaîtra lors du téléchargement d'un fichier, vous permettant de spécifier un nom personnalisé pour chaque fichier téléchargé.",
+        "description": "The explanation of the renaming downloaded files option"
     },
     "hideSegmentsTitle": {
         "message": "Masquer les segments de streams",

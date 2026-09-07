@@ -173,3 +173,10 @@ code{
     background-color: rgb(var(--mdui-color-secondary-container));
     color: rgb(var(--mdui-color-on-secondary-container));
 }
+
+.media-subtitle {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    flex-direction: column;
+}
