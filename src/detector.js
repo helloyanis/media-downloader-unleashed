@@ -785,7 +785,7 @@ function attachCacheListener() {
 
                     // Pre-emptively cache everything else while waiting for the server
 
-                    const blob = new Blob(chunks, { type: 'application/octet-stream' });
+                    const blob = new Blob(chunks, { type: details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value || 'application/octet-stream' });
                     if (blob.size > 0) {
                         if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {
                             await storeInCache(details.url, blob, null, null); // Headers and status will be populated in headersReceivedListener
