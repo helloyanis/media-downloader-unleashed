@@ -544,7 +544,6 @@ function isManifestRequest(url, request) {
 
 // Read the cached response body for a manifest URL from IndexedDB. This is used to extract segment URLs for DASH and HLS streams, as the manifest file contains the list of segments to download.
 async function readCachedManifestText(url) {
-  if (browser.extension?.inIncognitoContext) return null;
 
   try {
     const db = await openCacheDB();
@@ -825,12 +824,10 @@ function shouldHideSegment(url, request, manifestIndex) {
   const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
 
   const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
-  const segmentExtRe = /\.(ts|m4s|m4v|m4a|m4f|seg|frag|fragment)(?:$|\?)/i;
 
   const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
-  const looksLikeSegmentByExt = segmentExtRe.test(pathname);
 
-  if (looksLikeSegmentByExt || looksLikeSegmentByType) {
+  if (looksLikeSegmentByType) {
     console.debug('Hiding stream segment:', url, { contentType, contentLength });
     return true;
   }
@@ -994,11 +991,26 @@ function loadMediaList() {
       if (hasResponseHeaders) {
         if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value === "application/x-mpegURL" || h.value === "application/vnd.apple.mpegurl" || h.value === "application/dash+xml"))) {
           //Media is a stream
-          path.setAttribute('d', 'M40-480q0-92 34.5-172T169-791.5q60-59.5 140-94T480-920q91 0 171 34.5t140 94Q851-732 885.5-652T920-480h-80q0-75-28.5-140.5T734-735q-49-49-114.5-77T480-840q-74 0-139.5 28T226-735q-49 49-77.5 114.5T120-480H40Zm160 0q0-118 82-199t198-81q116 0 198 81t82 199h-80q0-83-58.5-141.5T480-680q-83 0-141.5 58.5T280-480h-80ZM360-64l-56-56 136-136v-132q-27-12-43.5-37T380-480q0-42 29-71t71-29q42 0 71 29t29 71q0 30-16.5 55T520-388v132l136 136-56 56-120-120L360-64Z');
+          // Check if it's an audio stream or a video stream based on the cached body of the manifest file. If it's an audio stream, show the audio icon, otherwise show the video icon.
+          const manifestText = await readCachedManifestText(url);
+          if(manifestText && manifestText.includes('RESOLUTION=')) {
+            // Contains video, show video library icon
+            path.setAttribute('d', 'mm460-380 280-180-280-180v360ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-560h80v560h560v80H160Zm160-720v480-480Z');
+          } else if(manifestText && manifestText.includes('TYPE=AUDIO')) {
+            // Contains only audio, show audio icon
+            path.setAttribute('d', 'M400-120q-66 0-113-47t-47-113q0-66 47-113t113-47q23 0 42.5 5.5T480-418v-422h240v160H560v400q0 66-47 113t-113 47Z');
+          } else if(manifestText && manifestText.includes('<MPD')) {
+            // DASH manifest, show video icon
+            path.setAttribute('d', 'm460-380 280-180-280-180v360ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-560h80v560h560v80H160Zm160-720v480-480Z');
+          }
+          else {
+            // Unknown stream type, show generic stream icon
+            path.setAttribute('d', 'M40-480q0-92 34.5-172T169-791.5q60-59.5 140-94T480-920q91 0 171 34.5t140 94Q851-732 885.5-652T920-480h-80q0-75-28.5-140.5T734-735q-49-49-114.5-77T480-840q-74 0-139.5 28T226-735q-49 49-77.5 114.5T120-480H40Zm160 0q0-118 82-199t198-81q116 0 198 81t82 199h-80q0-83-58.5-141.5T480-680q-83 0-141.5 58.5T280-480h-80ZM360-64l-56-56 136-136v-132q-27-12-43.5-37T380-480q0-42 29-71t71-29q42 0 71 29t29 71q0 30-16.5 55T520-388v132l136 136-56 56-120-120L360-64Z');
+          }
         }
         else if (videoExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("video/"))) {
           //Media is a video
-          path.setAttribute('d', 'm160-800 80 160h120l-80-160h80l80 160h120l-80-160h80l80 160h120l-80-160h120q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800Zm0 240v320h640v-320H160Zm0 0v320-320Z');
+          path.setAttribute('d', 'm380-300 280-180-280-180v360ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z');
         }
         else if (audioExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("audio/"))) {
           //Media is an audio
