@@ -1087,7 +1087,6 @@ function loadMediaList() {
 
       // Add options for the media sizes
       let isFirstElement = true;
-      let shouldRestoreLoadingState = false;
       for (const request of requests) {
         const option = document.createElement('mdui-menu-item');
         option.value = request.size;
