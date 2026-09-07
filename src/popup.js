@@ -1551,8 +1551,8 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     const lowerPath = new URL(url).pathname.toLowerCase();
     const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationvndapplempegurl";
     const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationdashxml";
-    const shouldPromptForRename = await browser.storage.local.get('rename-downloads-v2').then(result => result['rename-downloads-v2'] === 'ask');
-    if (shouldPromptForRename) {
+    const renamePreference = await browser.storage.local.get('rename-downloads-v2').then(result => result['rename-downloads-v2']);
+    if (renamePreference === 'ask' ) {
       try{
       fileName = await mdui.prompt({
         headline: browser.i18n.getMessage("fileNamePromptTitle"),
@@ -1574,7 +1574,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
       mediaDiv.querySelector("#download-button").disabled = false;
       return;
     }
-    } else if (!fileName) {
+    } else if (renamePreference === 'url') {
       fileName = getFileName(url);
     }
 
