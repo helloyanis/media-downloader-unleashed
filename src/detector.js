@@ -495,7 +495,8 @@ function initListener() {
                     cookie: temporaryCookieMap.get(details.url) || '',
                     size: null,
                     timeStamp: null,
-                    tabId: details.tabId
+                    tabId: details.tabId,
+                    frameId: details.frameId
                 };
 
                 browser.storage.session.get(details.url, function (result) {
