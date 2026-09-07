@@ -577,6 +577,99 @@ function parseIsoDuration(duration) {
   return (years * 365 * 24 * 3600) + (months * 30 * 24 * 3600) + (days * 24 * 3600) + (hours * 3600) + (minutes * 60) + seconds;
 }
 
+
+function getMpdPlaybackInfo(manifestText) {
+  try {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(String(manifestText || ''), 'application/xml');
+    if (xmlDoc.querySelector('parsererror')) return null;
+
+    const NS = xmlDoc.documentElement.namespaceURI || 'urn:mpeg:dash:schema:mpd:2011';
+    const mpdRoot = xmlDoc.getElementsByTagNameNS(NS, 'MPD')[0];
+    if (!mpdRoot) return null;
+
+    let durationSeconds = parseIsoDuration(mpdRoot.getAttribute('mediaPresentationDuration'));
+    if (!durationSeconds) {
+      const periods = Array.from(xmlDoc.getElementsByTagNameNS(NS, 'Period'));
+      durationSeconds = periods.reduce((sum, p) => sum + parseIsoDuration(p.getAttribute('duration')), 0);
+    }
+
+    let approxSizeBytes = 0;
+    let hasBandwidthInfo = false;
+    const adaptationSets = Array.from(xmlDoc.getElementsByTagNameNS(NS, 'AdaptationSet'));
+    for (const asNode of adaptationSets) {
+      const mimeType = (asNode.getAttribute('mimeType') || '').toLowerCase();
+      const contentType = (asNode.getAttribute('contentType') || '').toLowerCase();
+      const reps = Array.from(asNode.getElementsByTagNameNS(NS, 'Representation'));
+
+      let isAudio = contentType === 'audio' || mimeType.startsWith('audio/');
+      let isVideo = contentType === 'video' || mimeType.startsWith('video/');
+      if (!isAudio && !isVideo) {
+        isAudio = reps.some(r => (r.getAttribute('mimeType') || '').toLowerCase().startsWith('audio/'));
+        isVideo = reps.some(r => (r.getAttribute('mimeType') || '').toLowerCase().startsWith('video/'));
+      }
+      if (!isAudio && !isVideo) continue;
+
+      const bestBandwidth = reps.reduce((max, r) => Math.max(max, parseInt(r.getAttribute('bandwidth') || '0', 10)), 0);
+      if (bestBandwidth > 0) {
+        hasBandwidthInfo = true;
+        approxSizeBytes += (bestBandwidth * durationSeconds) / 8;
+      }
+    }
+
+    return {
+      durationSeconds: durationSeconds || null,
+      approxSizeBytes: hasBandwidthInfo ? Math.round(approxSizeBytes) : null
+    };
+  } catch (error) {
+    console.warn('Failed to extract playback info from MPD manifest:', error);
+    return null;
+  }
+}
+
+function formatDuration(totalSeconds) {
+  if (!totalSeconds || isNaN(totalSeconds)) return null;
+  const seconds = Math.floor(totalSeconds % 60);
+  const minutes = Math.floor((totalSeconds / 60) % 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const pad = (n) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+async function getManifestText(url) {
+  const cached = await readCachedManifestText(url);
+  if (cached) return cached;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return await response.text();
+  } catch (error) {
+    console.warn('Failed to fetch manifest for playback info:', url, error);
+    return null;
+  }
+}
+
+async function buildManifestPlaybackInfoIndex(mediaRequests) {
+  const infoIndex = new Map();
+  const manifestCandidates = [];
+  for (const [url, requests] of Object.entries(mediaRequests || {})) {
+    const request = requests?.[0];
+    if (!request || !isManifestRequest(url, request)) continue;
+    const isMpd = new URL(url).pathname.toLowerCase().endsWith('.mpd') ||
+      normalizeContentType(getHeaderValue(request?.responseHeaders, 'content-type')) === 'applicationdashxml';
+    if (isMpd) manifestCandidates.push(url);
+  }
+
+  await Promise.all(manifestCandidates.map(async (url) => {
+    const manifestText = await getManifestText(url);
+    if (!manifestText) return;
+    const info = getMpdPlaybackInfo(manifestText);
+    if (info) infoIndex.set(url, info);
+  }));
+
+  return infoIndex;
+}
+
 function substituteMpdVariables(path, rep, extra = {}) {
   return String(path || '')
     .replace(/\$RepresentationID\$/g, rep.id || '')
@@ -932,6 +1025,8 @@ function loadMediaList() {
     const failedDownloads = normalizeSessionList(failedRaw?.failedDownloads);
     const hideSegments = await browser.storage.local.get('hide-segments').then(result => result['hide-segments']) === '1';
     const manifestSegmentIndex = hideSegments ? await buildManifestSegmentIndex(mediaRequests) : new Map();
+    const manifestPlaybackInfoIndex = await buildManifestPlaybackInfoIndex(mediaRequests);
+    const pageTitleFileNameIndex = await buildPageTitleFileNameIndex(mediaRequests);
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
       if (!Array.isArray(requests) || requests.length === 0) {
@@ -1019,7 +1114,12 @@ function loadMediaList() {
 
 
       // Display the media file name
-      const fileName = getFileName(url) || url;
+      let fileName = getFileName(url) || url;
+      const suggestedTitleFileName = pageTitleFileNameIndex.get(url);
+      if (suggestedTitleFileName) {
+        fileName = suggestedTitleFileName;
+        mediaDiv.dataset.suggestedFileName = suggestedTitleFileName;
+      }
       const fileNameDiv = document.createElement('div');
       fileNameDiv.textContent = fileName;
       mediaDiv.appendChild(fileNameDiv);
@@ -1091,7 +1191,13 @@ function loadMediaList() {
       for (const request of requests) {
         const option = document.createElement('mdui-menu-item');
         option.value = request.size;
-        option.textContent = getHumanReadableSize(request.size);
+        const playbackInfo = manifestPlaybackInfoIndex.get(url);
+        if (playbackInfo && playbackInfo.approxSizeBytes) {
+          const durationText = formatDuration(playbackInfo.durationSeconds);
+          option.textContent = getHumanReadableSize(playbackInfo.approxSizeBytes) + (durationText ? ` • ${durationText}` : '');
+        } else {
+          option.textContent = getHumanReadableSize(request.size);
+        }
         if (isFirstElement) {
           sizeSelect.value = request.size;
           isFirstElement = false;
@@ -1365,6 +1471,64 @@ function getFileName(url, maxLength = 20) {
   }
 }
 
+function sanitizeFileNameCandidate(name) {
+  return String(name || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    .trim();
+}
+
+
+async function getPageTitleFileName(refererUrl) {
+  if (!refererUrl) return null;
+  try {
+    const response = await fetch(refererUrl);
+    if (!response.ok) return null;
+    const html = await response.text();
+    const match = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+    if (!match) return null;
+    return sanitizeFileNameCandidate(match[1]) || null;
+  } catch (error) {
+    console.warn('Failed to read og:title from', refererUrl, error);
+    return null;
+  }
+}
+
+async function buildPageTitleFileNameIndex(mediaRequests) {
+  const titleIndex = new Map();
+  const streamExtensionsLocal = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
+
+  const candidates = [];
+  for (const [url, requests] of Object.entries(mediaRequests || {})) {
+    let mediaURL;
+    try { mediaURL = new URL(url); } catch { continue; }
+    if (!streamExtensionsLocal.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext))) continue;
+
+    const req = requests?.[0];
+    if (!req || typeof req.tabId !== 'number') continue;
+    candidates.push({ url, tabId: req.tabId, frameId: req.frameId });
+  }
+
+  await Promise.all(candidates.map(async ({ url, tabId, frameId }) => {
+    let pageTitle;
+    try {
+      pageTitle = await browser.runtime.sendMessage({ action: 'getBestKnownTitle', tabId, frameId });
+    } catch (e) {
+      console.warn('[MDU][popup] getBestKnownTitle failed ', url, e);
+      return;
+    }
+    if (!pageTitle) return;
+    const sanitized = sanitizeFileNameCandidate(pageTitle);
+    if (!sanitized) return;
+    const original = getFileName(url);
+    const ext = original.includes('.') ? original.substring(original.lastIndexOf('.')) : '';
+    titleIndex.set(url, `${sanitized}${ext}`);
+  }));
+
+  return titleIndex;
+}
+
 /**
  * Convert size in bytes to a human-readable format
  * @param {Number} size Size in bytes (like 1024, 2048, etc.)
@@ -1510,6 +1674,7 @@ async function downloadFile(url, mediaDiv) {
     const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationdashxml";
     let fileName = null;
     const shouldPromptForRename = await browser.storage.local.get('rename-downloads').then(result => result['rename-downloads'] === '1');
+    const suggestedFileName = mediaDiv.dataset.suggestedFileName || getFileName(url);
     if (shouldPromptForRename) {
       try{
       fileName = await mdui.prompt({
@@ -1518,7 +1683,7 @@ async function downloadFile(url, mediaDiv) {
         cancelText: browser.i18n.getMessage("cancelButton"),
         textFieldOptions: {
           label: browser.i18n.getMessage("fileNamePromptFieldLabel"),
-          placeholder: getFileName(url).substring(0, getFileName(url).lastIndexOf('.')),
+          placeholder: suggestedFileName.substring(0, suggestedFileName.lastIndexOf('.')),
           required: true,
           suffix: isM3U8 ? '.m3u8' : isMPD ? '.mpd' : url.substring(url.lastIndexOf('.')),
         }
@@ -1533,7 +1698,7 @@ async function downloadFile(url, mediaDiv) {
       return;
     }
     } else {
-      fileName = getFileName(url);
+      fileName = suggestedFileName;
     }
 
     console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders.find(h => h.name.toLowerCase() === "content-type")?.value}`);

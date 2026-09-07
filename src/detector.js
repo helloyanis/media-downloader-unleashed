@@ -172,6 +172,42 @@ const temporaryHeaderMap = new Map();
 const temporaryRequestBodyMap = new Map();
 const temporaryCookieMap = new Map();
 
+const tabFrameTitles = new Map();
+
+browser.runtime.onMessage.addListener((message, sender) => {
+  if (message?.action === 'pageTitleDetected') {
+    if (sender?.tab?.id !== undefined) {
+      const key = `${sender.tab.id}:${sender.frameId ?? 0}`;
+      tabFrameTitles.set(key, { title: message.title, timestamp: Date.now() });
+    }
+    return;
+  }
+
+  if (message?.action === 'getBestKnownTitle') {
+    const result = getBestKnownTitle(message.tabId, message.frameId);
+    return Promise.resolve(result);
+  }
+});
+
+function getBestKnownTitle(tabId, frameId) {
+  if (typeof tabId !== 'number' || tabId < 0) return null;
+
+  const topEntry = tabFrameTitles.get(`${tabId}:0`);
+  if (topEntry?.title) return topEntry.title;
+
+  if (typeof frameId === 'number') {
+    const frameEntry = tabFrameTitles.get(`${tabId}:${frameId}`);
+    if (frameEntry?.title) return frameEntry.title;
+  }
+
+  let latest = null;
+  for (const [key, entry] of tabFrameTitles) {
+    if (!key.startsWith(`${tabId}:`)) continue;
+    if (!latest || entry.timestamp > latest.timestamp) latest = entry;
+  }
+  return latest?.title ?? null;
+}
+
 // Helper: directory key for grouping segment URLs (origin + directory path)
 function getDirKeyFromUrl(urlString) {
     try {
@@ -458,7 +494,9 @@ function initListener() {
                     requestBody: cachedBody,
                     cookie: temporaryCookieMap.get(details.url) || '',
                     size: null,
-                    timeStamp: null
+                    timeStamp: null,
+                    tabId: details.tabId,
+                    frameId: details.frameId
                 };
 
                 browser.storage.session.get(details.url, function (result) {
@@ -538,6 +576,8 @@ function initListener() {
                             request.size = size;
                             request.responseHeaders = responseHeaders;
                             request.timeStamp = details.timeStamp;
+                            request.tabId = details.tabId;
+                            request.frameId = details.frameId;
                             updated = true;
                             break;
                         }
@@ -582,7 +622,9 @@ function initListener() {
                                 requestBody: cachedBody, // <-- now populated if available
                                 cookie: temporaryCookieMap.get(details.url) || '',
                                 size: size,
-                                timeStamp: details.timeStamp
+                                timeStamp: details.timeStamp,
+                                tabId: details.tabId,
+                                frameId: details.frameId
                             };
                             existingRequests.push(mediaRequest);
                             console.log('Media request added (onHeadersReceived):', mediaRequest);
