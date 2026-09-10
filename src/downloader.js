@@ -728,7 +728,6 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     // For Android with fetch method, queue the download instead of triggering immediately
     if (await isAndroid() && downloadMethod === 'fetch') {
       await queueAndroidDownload(videoBlob, audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`, request.requestId);
-      URL.revokeObjectURL(videoBlobUrl);
       
       if (audioUrl) {
         const { blob: audioBlob } = await downloadSegments(audioUrl, true);

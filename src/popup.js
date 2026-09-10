@@ -171,6 +171,7 @@ async function triggerQueuedAndroidDownloadsIfAny() {
         document.body.removeChild(a);
         // Small delay to avoid browser blocking multiple downloads at once
         await new Promise(resolve => setTimeout(resolve, 100));
+        URL.revokeObjectURL(download.blobUrl); // Revoke the blob URL after triggering the download
       }
       await browser.storage.session.set({ queuedAndroidDownloads: [] });
       await browser.runtime.sendMessage({ action: 'refreshBadgeState' });
