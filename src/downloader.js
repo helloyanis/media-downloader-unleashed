@@ -11,6 +11,11 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 const ongoingDownloads = new Map(); // requestId -> {abortController, ...}
 const pendingPromptResolvers = new Map(); // requestId -> {resolve}
 
+function sanitizeFileName(name) {
+  // Remove invalid characters for file names
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+}
+
 function isAbortError(error) {
   return !!(
     error && (
@@ -193,6 +198,7 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request,
     headersArr.push({ name: h.name, value: h.value });
   });
       handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
+      fileName = sanitizeFileName(fileName);
       if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
       browser.downloads.download({
@@ -722,7 +728,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
     // Then download video
     const { blob: videoBlob, ext } = await downloadSegments(videoUrl);
-    const baseFileName = fileName
+    const baseFileName = sanitizeFileName(fileName);
     const videoBlobUrl = URL.createObjectURL(videoBlob);
 
     // For Android with fetch method, queue the download instead of triggering immediately
@@ -1382,6 +1388,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         // Trigger download for this file
         const blob = new Blob([buffer]);
         const objectUrl = URL.createObjectURL(blob);
+        filename = sanitizeFileName(filename);
         if (downloadMethod === "browser") {
           await browser.downloads.download({ url: objectUrl, filename: filename });
         } else {
@@ -1810,7 +1817,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     console.log("▶️ All segments fetched; generating ZIP…");
     const zipBlob = await downloadZip(zipEntries).blob();
     const zipName = `${baseName}.zip`;
-
+    zipName = sanitizeFileName(zipName);
     // For Android with fetch method, queue the ZIP download instead of triggering immediately
     if (await isAndroid() && downloadMethod === 'fetch') {
       await queueAndroidDownload(zipBlob, zipName, request.requestId);
