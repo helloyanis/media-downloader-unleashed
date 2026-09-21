@@ -148,16 +148,18 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
       <mdui-tab-panel slot="panel" value="settings">
         <script src="settings.js"></script>
-        <h2 class="settings-section-title">
-          <mdui-icon>
+        <mdui-collapse accordion>
+          <mdui-collapse-item>
+        <mdui-list-item slot="header">
+          <mdui-icon slot="icon">
             <svg viewBox="0 -960 960 960">
               <path
                 d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v160H520v-160H160v480h240v80H160Zm0-80v-360 40-160 480ZM864-80 756-188q-22 13-46 20.5t-50 7.5q-75 0-127.5-52.5T480-340q0-75 52.5-127.5T660-520q75 0 127.5 52.5T840-340q0 26-7.5 50T812-244l108 108-56 56ZM731-269q29-29 29-71t-29-71q-29-29-71-29t-71 29q-29 29-29 71t29 71q29 29 71 29t71-29Z" />
             </svg>
           </mdui-icon>
+          <span slot="description" data-translate="settingsDetectionSectionDescription">Configure how the add-on detects media files</span>
           <span data-translate="settingsDetectionSectionTitle">Detection settings</span>
-        </h2>
-        <h4 data-translate="needToRefreshListWarning">⚠️ Need to load the media again after changing this!</h4>
+        </mdui-list-item>
         <div id="settings-container">
           <!-- Detection method -->
           <mdui-card id="detection-method" role="group" variant="filled">
@@ -208,15 +210,18 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           </mdui-card>
 
         </div>
-        <h2 class="settings-section-title">
-          <mdui-icon>
+        </mdui-collapse-item>
+        <mdui-collapse-item>
+        <mdui-list-item slot="header">
+          <mdui-icon slot="icon">
             <svg viewBox="0 -960 960 960">
               <path
                 d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
             </svg>
           </mdui-icon>
+          <span slot="description" data-translate="settingsDownloadSectionDescription">File naming and preferences for downloading streams and media</span>
           <span data-translate="settingsDownloadSectionTitle">Download settings</span>
-        </h2>
+        </mdui-list-item>
         <div id="settings-container">
 
           <!-- Download method -->
@@ -394,16 +399,18 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             </section>
           </mdui-card>
         </div>
-
-        <h2 class="settings-section-title">
-          <mdui-icon>
+        </mdui-collapse-item>
+        <mdui-collapse-item>
+        <mdui-list-item slot="header">
+          <mdui-icon slot="icon">
             <svg viewBox="0 -960 960 960">
               <path
                 d="M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-177 23q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120-160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm200 0q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120 160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z" />
             </svg>
           </mdui-icon>
+          <span slot="description" data-translate="settingsInterfaceSectionDescription">Change the color theme and how the add-on opens</span>
           <span data-translate="settingsInterfaceSectionTitle">Interface settings</span>
-        </h2>
+        </mdui-list-item>
 
         <div id="settings-container">
           <!-- Add-on opening preference -->
@@ -439,6 +446,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             </section>
           </mdui-card>
         </div>
+        </mdui-collapse-item>
+        </mdui-collapse>
 
         <div id="settings-container">
           <!-- Credits buttons -->

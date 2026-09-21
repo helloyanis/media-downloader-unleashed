@@ -155,13 +155,25 @@
         "message": "Paramètres de détection",
         "description": "The title of the detection settings section in the settings tab."
     },
+    "settingsDetectionSectionDescription": {
+        "message": "Configurer comment l'extension détecte et affiche les médias et les segments de flux.",
+        "description": "The description of the detection settings section in the settings tab."
+    },
     "settingsDownloadSectionTitle": {
         "message": "Paramètres de téléchargement",
         "description": "The title of the download settings section in the settings tab."
     },
+    "settingsDownloadSectionDescription": {
+        "message": "Nommage des fichiers et préférences pour le téléchargement des flux et des médias.",
+        "description": "The description of the download settings section in the settings tab."
+    },
     "settingsInterfaceSectionTitle": {
         "message": "Paramètres d'interface",
         "description": "The title of the interface settings section in the settings tab."
+    },
+    "settingsInterfaceSectionDescription": {
+        "message": "Modifier le thème de couleur et la manière dont l'extension s'ouvre.",
+        "description": "The description of the interface settings section in the settings tab."
     },
     "detectionMethodTitle": {
         "message": "Méthode de détection",

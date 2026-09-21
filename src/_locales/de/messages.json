@@ -155,13 +155,25 @@
     "message": "Detection settings",
     "description": "The title of the detection settings section in the settings tab."
   },
+  "settingsDetectionSectionDescription": {
+      "message": "Konfiguriere, wie das Add-on Medien-Dateien und Stream-Segmente erkennt.",
+      "description": "The description of the detection settings section in the settings tab."
+  },
   "settingsDownloadSectionTitle": {
       "message": "Download settings",
       "description": "The title of the download settings section in the settings tab."
   },
+  "settingsDownloadSectionDescription": {
+      "message": "Dateibenennung und Einstellungen für das Herunterladen von Streams und Medien.",
+      "description": "The description of the download settings section in the settings tab."
+  },
   "settingsInterfaceSectionTitle": {
       "message": "Interface settings",
       "description": "The title of the interface settings section in the settings tab."
+  },
+  "settingsInterfaceSectionDescription": {
+      "message": "Ändere das Farbschema und wie das Add-on geöffnet wird.",
+      "description": "The description of the interface settings section in the settings tab."
   },
   "detectionMethodTitle": {
     "message": "Medienerkennung",

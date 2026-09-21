@@ -155,13 +155,25 @@
         "message": "Detection settings",
         "description": "The title of the detection settings section in the settings tab."
     },
+    "settingsDetectionSectionDescription": {
+        "message": "Configure how the add-on detects media files and stream segment hiding.",
+        "description": "The description of the detection settings section in the settings tab."
+    },
     "settingsDownloadSectionTitle": {
         "message": "Download settings",
         "description": "The title of the download settings section in the settings tab."
     },
+    "settingsDownloadSectionDescription": {
+        "message": "File naming, and preferences for downloading streams and media.",
+        "description": "The description of the download settings section in the settings tab."
+    },
     "settingsInterfaceSectionTitle": {
         "message": "Interface settings",
         "description": "The title of the interface settings section in the settings tab."
+    },
+    "settingsInterfaceSectionDescription": {
+        "message": "Change the color theme and how the add-on opens.",
+        "description": "The description of the interface settings section in the settings tab."
     },
     "detectionMethodTitle": {
         "message": "Detection method",
@@ -701,5 +713,27 @@
                 "example": "5"
             }
         }
+    },
+    "androidDownloadPopupTitle": {
+        "message": "File is ready to download",
+        "description": "The title of the popup shown when a download is completed on Android."
+    },
+    "androidDownloadPopupDescription": {
+        "message": "$FILENAME$ is ready to download. Click on the button below to save it to your device.",
+        "description": "The description of the popup shown when a download is completed on Android.",
+        "placeholders": {
+            "FILENAME": {
+                "content": "$1",
+                "example": "video.mp4"
+            }
+        }
+    },
+    "androidDownloadPopupButton": {
+        "message": "Save",
+        "description": "The text of the button in the popup shown when a download is completed on Android."
+    },
+    "androidDownloadPopupCloseButton": {
+        "message": "Close",
+        "description": "The text of the close button in the popup shown when a download is completed on Android."
     }
 }
