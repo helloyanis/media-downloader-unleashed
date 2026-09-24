@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMediaList();
   });
   document.getElementById('clear-list').addEventListener('click', (event) => {
+    // Todo : Add a confirmation dialog before clearing the list
     clearMediaList();
   });
 
@@ -125,34 +126,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Helper: show settings tab and highlight a section
-function showSettingsSection(selector) {
+function showSettingsSection(selector, settingsSection) {
   try {
     const tabs = document.querySelectorAll('mdui-tab');
     if (tabs && tabs[1]) tabs[1].click(); // switch to settings tab
-    // Wait a tick for tab content to become visible then scroll
-    setTimeout(() => {
-      const el = document.querySelector(selector);
-      if (!el) return;
-      const target = el.parentElement || el;
-      target.classList.add('highlighted');
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => target.classList.remove('highlighted'), 4000);
-    }, 100);
+    // Open the specified settings section if provided
+    if (settingsSection) {
+      const sectionElement = document.querySelector(`mdui-collapse-item[value="${settingsSection}"]`);
+      const collapse = document.querySelectorAll('mdui-collapse');
+      const currentValue = collapse[0].value;
+      let shouldWaitForOpenEvent = false;
+      if(currentValue !== settingsSection) shouldWaitForOpenEvent = true;
+      collapse[0].value = settingsSection;
+      if (shouldWaitForOpenEvent) {
+        // Wait for the opened event to fire and then scroll to the section
+        sectionElement.addEventListener('opened', () => {
+          const el = document.querySelector(selector);
+          if (!el) return;
+          const target = el.parentElement || el;
+          target.classList.add('highlighted');
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => target.classList.remove('highlighted'), 4000);
+        });
+      } else {
+        // Wait a tick for tab content to become visible then scroll
+        setTimeout(() => {
+          const el = document.querySelector(selector);
+          if (!el) return;
+          const target = el.parentElement || el;
+          target.classList.add('highlighted');
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => target.classList.remove('highlighted'), 4000);
+        }, 100);
+      }
+    }
   } catch (e) {
     console.warn('Could not open settings section', selector, e);
   }
 }
-
-// Attach credits link handler to avoid relying on window.navigation (Tor incompatibility)
-document.addEventListener('DOMContentLoaded', () => {
-  const creditsLink = document.getElementById('credits-link');
-  if (creditsLink) {
-    creditsLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      showSettingsSection('#credits');
-    });
-  }
-});
 
 /**
  * Trigger queued Android downloads if any exist
@@ -1168,7 +1179,7 @@ function loadMediaList() {
                 helpLink.textContent = 'Download has not started?';
                 helpLink.addEventListener('click', (ev) => {
                   ev.preventDefault();
-                  showSettingsSection('#force-device-type');
+                  showSettingsSection('#force-device-type', "download");
                 });
                 mediaDiv.appendChild(helpLink);
               }
@@ -1325,34 +1336,36 @@ function loadMediaList() {
 
 /** Handle media requests from YouTube by showing an alert once per session */
 async function handleYoutubeMediaRequest(url) {
-  if (sessionStorage.getItem('shownYoutubeAlert') !== '1' && await browser.storage.local.get('show-youtube-alert').then(result => result['show-youtube-alert']) !== '0') {
-    sessionStorage.setItem('shownYoutubeAlert', '1');
-    showDialogCustom({
-      showTextField: false,
-      headline: browser.i18n.getMessage("youtubeDialogAskTitle"),
-      description: browser.i18n.getMessage("youtubeDialogAskMessage"),
-      confirmText: browser.i18n.getMessage("youtubeDialogAskOkButton"),
-      cancelText: browser.i18n.getMessage("cancelButton"),
-      onConfirm: () => {
-        // Show Invidious download page on Android
-        mdui.confirm({
-          headline: browser.i18n.getMessage("youtubeDialogDownloaderTitle"),
-          description: browser.i18n.getMessage("youtubeDialogDownloaderMessage"),
-          onConfirm: () => {
-            window.open('https://inv.nadeko.net', '_blank');
-          }
-        });
-      },
-      onCancel: () => { },
-    });
-    document.getElementById('youtube-dialog-dont-show-again').addEventListener('change', async (event) => {
-      if (event.target.checked) {
-        await browser.storage.local.set({ 'show-youtube-alert': '0' });
-      } else {
-        await browser.storage.local.set({ 'show-youtube-alert': '1' });
-      }
-    })
+  if(await browser.storage.local.get('show-youtube-alert').then(result => result['show-youtube-alert']) == '0' || sessionStorage.getItem('shownYoutubeAlert') === '1') {
+    return; // Do not show the alert if it's been disabled or already shown
   }
+  sessionStorage.setItem('shownYoutubeAlert', '1');
+  showDialogCustom({
+    showTextField: false,
+    headline: browser.i18n.getMessage("youtubeDialogAskTitle"),
+    description: browser.i18n.getMessage("youtubeDialogAskMessage"),
+    confirmText: browser.i18n.getMessage("youtubeDialogAskOkButton"),
+    cancelText: browser.i18n.getMessage("cancelButton"),
+    onConfirm: () => {
+      // Show Invidious download page on Android
+      mdui.confirm({
+        headline: browser.i18n.getMessage("youtubeDialogDownloaderTitle"),
+        description: browser.i18n.getMessage("youtubeDialogDownloaderMessage"),
+        onConfirm: () => {
+          window.open('https://inv.nadeko.net', '_blank');
+        }
+      });
+    },
+    onCancel: () => { },
+  });
+  document.getElementById('youtube-dialog-dont-show-again').addEventListener('change', async (event) => {
+    if (event.target.checked) {
+      await browser.storage.local.set({ 'show-youtube-alert': '0' });
+    } else {
+      await browser.storage.local.set({ 'show-youtube-alert': '1' });
+    }
+  })
+  
 }
 
 /**
@@ -1512,7 +1525,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
                 helpLink.textContent = 'Download has not started?';
                 helpLink.addEventListener('click', (ev) => {
                   ev.preventDefault();
-                  showSettingsSection('#force-device-type');
+                  showSettingsSection('#force-device-type', "download");
                 });
                 mediaDiv.appendChild(helpLink);
               }

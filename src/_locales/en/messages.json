@@ -705,7 +705,7 @@
         "description": "The label of the text field to enter a file name for the downloaded media."
     },
     "hiddenSegmentsInfo": {
-        "message": "⚠️ $SEGMENTCOUNT$ segment(s) are hidden because they are part of a stream. If you want to download them, enable the \"Show stream segments\" option in the settings.",
+        "message": "⚠️ $SEGMENTCOUNT$ segment(s) are hidden because they are part of a stream.",
         "description": "The info message shown when some segments are hidden in the media list.",
         "placeholders": {
             "SEGMENTCOUNT": {
@@ -713,6 +713,10 @@
                 "example": "5"
             }
         }
+    },
+    "hiddenSegmentsInfoShowButton": {
+        "message": "Show segments",
+        "description": "The label of the button to show hidden segments in the media list."
     },
     "androidDownloadPopupTitle": {
         "message": "File is ready to download",

@@ -109,17 +109,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               </mdui-icon>
             </mdui-button-icon>
           </mdui-tooltip>
-          <mdui-tooltip>
-            <span slot="content" data-translate="creditsTitle">Credits</span>
-            <mdui-button-icon class="bottom-button" variant="tonal" id="credits-link" href="#credits">
-              <mdui-icon>
-                <svg viewBox="0 -960 960 960">
-                  <path
-                    d="M592-379q49-39 63-101h-83q-12 27-37 43.5T480-420q-30 0-55-16.5T388-480h-83q14 62 63 101t112 39q63 0 112-39ZM405.5-554.5Q420-569 420-590t-14.5-35.5Q391-640 370-640t-35.5 14.5Q320-611 320-590t14.5 35.5Q349-540 370-540t35.5-14.5Zm220 0Q640-569 640-590t-14.5-35.5Q611-640 590-640t-35.5 14.5Q540-611 540-590t14.5 35.5Q569-540 590-540t35.5-14.5ZM480-120l-58-50q-101-88-167-152T150-437q-39-51-54.5-94T80-620q0-94 63-157t157-63q52 0 99 22t81 62q34-40 81-62t99-22q94 0 157 63t63 157q0 46-15.5 89T810-437q-39 51-105 115T538-170l-58 50Zm0-108q96-83 158-141t98-102.5q36-44.5 50-79t14-69.5q0-60-40-100t-100-40q-47 0-87 26.5T518-666h-76q-15-41-55-67.5T300-760q-60 0-100 40t-40 100q0 35 14 69.5t50 79Q260-427 322-369t158 141Zm0-266Z" />
-                </svg>
-              </mdui-icon>
-            </mdui-button-icon>
-          </mdui-tooltip>
           <div style="flex-grow: 1"></div>
           <div class="bottom-right">
             <mdui-fab id="clear-list" extended>
@@ -149,304 +138,345 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       <mdui-tab-panel slot="panel" value="settings">
         <script src="settings.js"></script>
         <mdui-collapse accordion>
-          <mdui-collapse-item>
-        <mdui-list-item slot="header">
-          <mdui-icon slot="icon">
-            <svg viewBox="0 -960 960 960">
-              <path
-                d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v160H520v-160H160v480h240v80H160Zm0-80v-360 40-160 480ZM864-80 756-188q-22 13-46 20.5t-50 7.5q-75 0-127.5-52.5T480-340q0-75 52.5-127.5T660-520q75 0 127.5 52.5T840-340q0 26-7.5 50T812-244l108 108-56 56ZM731-269q29-29 29-71t-29-71q-29-29-71-29t-71 29q-29 29-29 71t29 71q29 29 71 29t71-29Z" />
-            </svg>
-          </mdui-icon>
-          <span slot="description" data-translate="settingsDetectionSectionDescription">Configure how the add-on detects media files</span>
-          <span data-translate="settingsDetectionSectionTitle">Detection settings</span>
-        </mdui-list-item>
-        <div id="settings-container">
-          <!-- Detection method -->
-          <mdui-card id="detection-method" role="group" variant="filled">
-            <h3 data-translate="detectionMethodTitle">Detection method</h3>
-            <p data-translate="detectionDisabledExplain">Unchecking both options will not filter anything, showing
-              all requests (even non-media requests!) of the
-              browser.</p>
-            <div class="settings-switch-item">
-              <mdui-switch id="url-detection" name="url-detection" value="url"></mdui-switch>
-              <div class="settings-switch-description">
-                <b data-translate="urlDetectionCheckbox">Detection via URL</b>
-                <span class="settings-description-text" data-translate="urlDetectionExplain">Detection by checking if
-                  the URL contains a
-                  known media type (for example .mp4, .m3u8). It's fast, but some
-                  sites don't serve medias through these kind of URLs, so it might not detect everything.</span>
-              </div>
+          <mdui-collapse-item value="detection">
+            <mdui-list-item slot="header">
+              <mdui-icon slot="icon">
+                <svg viewBox="0 -960 960 960">
+                  <path
+                    d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v160H520v-160H160v480h240v80H160Zm0-80v-360 40-160 480ZM864-80 756-188q-22 13-46 20.5t-50 7.5q-75 0-127.5-52.5T480-340q0-75 52.5-127.5T660-520q75 0 127.5 52.5T840-340q0 26-7.5 50T812-244l108 108-56 56ZM731-269q29-29 29-71t-29-71q-29-29-71-29t-71 29q-29 29-29 71t29 71q29 29 71 29t71-29Z" />
+                </svg>
+              </mdui-icon>
+              <span slot="description" data-translate="settingsDetectionSectionDescription">Configure how the add-on
+                detects media files</span>
+              <span data-translate="settingsDetectionSectionTitle">Detection settings</span>
+            </mdui-list-item>
+            <div id="settings-container">
+              <!-- Detection method -->
+              <mdui-card id="detection-method" role="group" variant="filled">
+                <h3 data-translate="detectionMethodTitle">Detection method</h3>
+                <p data-translate="detectionDisabledExplain">Unchecking both options will not filter anything, showing
+                  all requests (even non-media requests!) of the
+                  browser.</p>
+                <div class="settings-switch-item">
+                  <mdui-switch id="url-detection" name="url-detection" value="url"></mdui-switch>
+                  <div class="settings-switch-description">
+                    <b data-translate="urlDetectionCheckbox">Detection via URL</b>
+                    <span class="settings-description-text" data-translate="urlDetectionExplain">Detection by checking
+                      if
+                      the URL contains a
+                      known media type (for example .mp4, .m3u8). It's fast, but some
+                      sites don't serve medias through these kind of URLs, so it might not detect everything.</span>
+                  </div>
+                </div>
+
+                <div class="settings-switch-item">
+                  <mdui-switch id="mime-detection" name="mime-detection" value="mime"></mdui-switch>
+                  <div class="settings-switch-description">
+                    <b data-translate="mimeDetectionCheckbox">Detection via server's MIME response</b>
+                    <span class="settings-description-text" data-translate="mimeDetectionExplain">Detection by checking
+                      the
+                      server's MIME
+                      response header to see if it's a known media type (for example video/mp4,
+                      application/vnd.apple.mpegurl). It's
+                      slower than URL detection as the add-on needs to monitor every request and response, but more
+                      reliable.</span>
+                  </div>
+                </div>
+              </mdui-card>
+
+              <!-- Hide segments -->
+              <mdui-card role="group" variant="filled">
+                <h3 data-translate="hideSegmentsTitle">Hide stream segments</h3>
+
+                <div class="settings-switch-item">
+                  <mdui-switch id="hide-segments" name="hide-segments" value="1"></mdui-switch>
+                  <div class="settings-switch-description">
+                    <b data-translate="hideSegmentsCheckbox">Hide stream segments in the media list</b>
+                    <span class="settings-description-text" data-translate="hideSegmentsExplain">Live streams use
+                      multiple
+                      segments to deliver content in small
+                      parts. Usually you only need the stream manifest, so the segments can be hidden to reduce
+                      clutter.</span>
+                  </div>
+                </div>
+
+              </mdui-card>
+
             </div>
+          </mdui-collapse-item>
+          <mdui-collapse-item value="download">
+            <mdui-list-item slot="header">
+              <mdui-icon slot="icon">
+                <svg viewBox="0 -960 960 960">
+                  <path
+                    d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+                </svg>
+              </mdui-icon>
+              <span slot="description" data-translate="settingsDownloadSectionDescription">File naming and preferences
+                for downloading streams and media</span>
+              <span data-translate="settingsDownloadSectionTitle">Download settings</span>
+            </mdui-list-item>
+            <div id="settings-container">
 
-            <div class="settings-switch-item">
-              <mdui-switch id="mime-detection" name="mime-detection" value="mime"></mdui-switch>
-              <div class="settings-switch-description">
-                <b data-translate="mimeDetectionCheckbox">Detection via server's MIME response</b>
-                <span class="settings-description-text" data-translate="mimeDetectionExplain">Detection by checking the
-                  server's MIME
-                  response header to see if it's a known media type (for example video/mp4,
-                  application/vnd.apple.mpegurl). It's
-                  slower than URL detection as the add-on needs to monitor every request and response, but more
-                  reliable.</span>
-              </div>
-            </div>
-          </mdui-card>
+              <!-- Download method -->
+              <mdui-card variant="filled">
+                <mdui-radio-group class="settings-radio-group" id="download-method" value="browser"
+                  name="download-method">
+                  <h3 data-translate="downloadMethodTitle">Download method</h3>
 
-          <!-- Hide segments -->
-          <mdui-card role="group" variant="filled">
-            <h3 data-translate="hideSegmentsTitle">Hide stream segments</h3>
+                  <mdui-radio id="browser-download" value="browser" name="download-method"
+                    data-translate="browserDownloadCheckbox">Native browser
+                    download</mdui-radio>
+                  <br />
 
-            <div class="settings-switch-item">
-              <mdui-switch id="hide-segments" name="hide-segments" value="1"></mdui-switch>
-              <div class="settings-switch-description">
-                <b data-translate="hideSegmentsCheckbox">Hide stream segments in the media list</b>
-                <span class="settings-description-text" data-translate="hideSegmentsExplain">Live streams use multiple
-                  segments to deliver content in small
-                  parts. Usually you only need the stream manifest, so the segments can be hidden to reduce
-                  clutter.</span>
-              </div>
-            </div>
+                  <span class="settings-description-text" data-translate="browserDownloadExplain">Download the media
+                    using
+                    the browser's
+                    native download manager. Fast and handles disconnects, but only works on some sites and on some
+                    browsers (Firefox for PC).</span>
 
-          </mdui-card>
+                  <br />
+                  <mdui-radio id="fetch-download" value="fetch" name="download-method"
+                    data-translate="fetchDownloadCheckbox">Fetch API</mdui-radio>
+                  <br />
 
-        </div>
-        </mdui-collapse-item>
-        <mdui-collapse-item>
-        <mdui-list-item slot="header">
-          <mdui-icon slot="icon">
-            <svg viewBox="0 -960 960 960">
-              <path
-                d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
-            </svg>
-          </mdui-icon>
-          <span slot="description" data-translate="settingsDownloadSectionDescription">File naming and preferences for downloading streams and media</span>
-          <span data-translate="settingsDownloadSectionTitle">Download settings</span>
-        </mdui-list-item>
-        <div id="settings-container">
+                  <span class="settings-description-text" data-translate="fetchDownloadExplain">Download the media using
+                    the
+                    Fetch API.
+                    Works on most sites and browsers, but can be slower and doesn't handle disconnects well.</span>
 
-          <!-- Download method -->
-          <mdui-card variant="filled">
-            <mdui-radio-group class="settings-radio-group" id="download-method" value="browser" name="download-method">
-              <h3 data-translate="downloadMethodTitle">Download method</h3>
+                </mdui-radio-group>
+              </mdui-card>
 
-              <mdui-radio id="browser-download" value="browser" name="download-method"
-                data-translate="browserDownloadCheckbox">Native browser
-                download</mdui-radio>
-              <br />
+              <!-- Media cache -->
+              <mdui-card role="group" variant="filled">
+                <h3 data-translate="mediaCacheTitle">Media cache</h3>
 
-              <span class="settings-description-text" data-translate="browserDownloadExplain">Download the media using
-                the browser's
-                native download manager. Fast and handles disconnects, but only works on some sites and on some
-                browsers (Firefox for PC).</span>
+                <div class="settings-switch-item">
+                  <mdui-switch id="media-cache" name="media-cache" value="1"></mdui-switch>
+                  <div class="settings-switch-description">
+                    <b data-translate="mediaCacheCheckbox">Enable media cache</b>
+                    <span class="settings-description-text" data-translate="mediaCacheExplain">Attempt to store the
+                      media
+                      response, so the download can occur without
+                      making a request to the server. Downloads will be faster but can slow down your browser. Disable
+                      this
+                      if
+                      you have issues with the add-on or pages freezing.</span>
+                  </div>
+                </div>
 
-              <br />
-              <mdui-radio id="fetch-download" value="fetch" name="download-method"
-                data-translate="fetchDownloadCheckbox">Fetch API</mdui-radio>
-              <br />
+              </mdui-card>
 
-              <span class="settings-description-text" data-translate="fetchDownloadExplain">Download the media using the
-                Fetch API.
-                Works on most sites and browsers, but can be slower and doesn't handle disconnects well.</span>
+              <!-- Renaming downloads -->
+              <mdui-card variant="filled">
+                <h3 data-translate="renameDownloadsTitle">Renaming downloads</h3>
+                <mdui-radio-group class="settings-radio-group" id="rename-downloads-v2" value="tab"
+                  name="rename-downloads-v2">
+                  <mdui-radio id="rename-downloads-tab" value="tab" name="rename-downloads-v2"
+                    data-translate="renameDownloadsTabNameCheckbox">Use the tab name</mdui-radio>
+                  <br />
 
-            </mdui-radio-group>
-          </mdui-card>
+                  <span class="settings-description-text" data-translate="renameDownloadsTabNameExplain">Use the name of
+                    the
+                    tab to rename the downloaded file. This is usually the best option, but some sites don't set a
+                    proper
+                    name.</span>
+                  <br />
 
-          <!-- Media cache -->
-          <mdui-card role="group" variant="filled">
-            <h3 data-translate="mediaCacheTitle">Media cache</h3>
+                  <mdui-radio id="rename-downloads-url" value="url" name="rename-downloads-v2"
+                    data-translate="renameDownloadsUrlCheckbox">Use the last part of the URL</mdui-radio>
+                  <br />
 
-            <div class="settings-switch-item">
-              <mdui-switch id="media-cache" name="media-cache" value="1"></mdui-switch>
-              <div class="settings-switch-description">
-                <b data-translate="mediaCacheCheckbox">Enable media cache</b>
-                <span class="settings-description-text" data-translate="mediaCacheExplain">Attempt to store the media
-                  response, so the download can occur without
-                  making a request to the server. Downloads will be faster but can slow down your browser. Disable this
-                  if
-                  you have issues with the add-on or pages freezing.</span>
-              </div>
-            </div>
+                  <span class="settings-description-text" data-translate="renameDownloadsUrlExplain">Use the URL of the
+                    media to rename the downloaded file. For example, https://example.com/video.mp4 would be renamed to
+                    video.mp4. This is usually not very descriptive, but it works on all sites.</span>
+                  <br />
+                  <mdui-radio id="rename-downloads-custom" value="ask" name="rename-downloads-v2"
+                    data-translate="renameDownloadsManualNameCheckbox">Enter filename manually</mdui-radio>
+                  <br />
 
-          </mdui-card>
+                  <span class="settings-description-text" data-translate="renameDownloadsManualNameExplain">A popup will
+                    appear when downloading a file, allowing you to specify a custom name for each downloaded
+                    file.</span>
 
-          <!-- Renaming downloads -->
-          <mdui-card variant="filled">
-            <h3 data-translate="renameDownloadsTitle">Renaming downloads</h3>
-            <mdui-radio-group class="settings-radio-group" id="rename-downloads-v2" value="tab" name="rename-downloads-v2">
-              <mdui-radio id="rename-downloads-tab" value="tab" name="rename-downloads-v2"
-                data-translate="renameDownloadsTabNameCheckbox">Use the tab name</mdui-radio>
-              <br />
+                </mdui-radio-group>
 
-              <span class="settings-description-text" data-translate="renameDownloadsTabNameExplain">Use the name of the
-                tab to rename the downloaded file. This is usually the best option, but some sites don't set a proper
-                name.</span>
-              <br />
+              </mdui-card>
 
-              <mdui-radio id="rename-downloads-url" value="url" name="rename-downloads-v2"
-                data-translate="renameDownloadsUrlCheckbox">Use the last part of the URL</mdui-radio>
-              <br />
-
-              <span class="settings-description-text" data-translate="renameDownloadsUrlExplain">Use the URL of the
-                media to rename the downloaded file. For example, https://example.com/video.mp4 would be renamed to video.mp4. This is usually not very descriptive, but it works on all sites.</span>
-              <br />
-              <mdui-radio id="rename-downloads-custom" value="ask" name="rename-downloads-v2"
-                data-translate="renameDownloadsManualNameCheckbox">Enter filename manually</mdui-radio>
-              <br />
-
-              <span class="settings-description-text" data-translate="renameDownloadsManualNameExplain">A popup will appear when downloading a file, allowing you to specify a custom name for each downloaded file.</span>
-              
-            </mdui-radio-group>
-              
-          </mdui-card>
-
-          <!-- Stream download preference -->
-          <mdui-card variant="filled">
-            <mdui-radio-group class="settings-radio-group" id="stream-download" value="stream" name="stream-download">
-              <h3 data-translate="streamDownloadTitle">Stream download preference</h3>
+              <!-- Stream download preference -->
+              <mdui-card variant="filled">
+                <mdui-radio-group class="settings-radio-group" id="stream-download" value="stream"
+                  name="stream-download">
+                  <h3 data-translate="streamDownloadTitle">Stream download preference</h3>
 
 
-              <mdui-radio id="stream-file-download" value="stream" name="stream-download"
-                data-translate="streamFileDownloadCheckbox">Download stream
-                manifest</mdui-radio>
-              <br />
+                  <mdui-radio id="stream-file-download" value="stream" name="stream-download"
+                    data-translate="streamFileDownloadCheckbox">Download stream
+                    manifest</mdui-radio>
+                  <br />
 
-              <span class="settings-description-text" data-translate="streamFileDownloadExplain">Download the stream
-                manifest file
-                (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
-                them. Lighter downloads, but you will need to be online with a working server to play the file. Some
-                servers also block playback this way.</span>
-              <br />
+                  <span class="settings-description-text" data-translate="streamFileDownloadExplain">Download the stream
+                    manifest file
+                    (.m3u8, .mpd) directly. You will need a media player that supports these formats (like VLC) to view
+                    them. Lighter downloads, but you will need to be online with a working server to play the file. Some
+                    servers also block playback this way.</span>
+                  <br />
 
-              <mdui-radio id="offline-download" value="offline" name="stream-download"
-                data-translate="offlineDownloadChecbox">Convert to offline video
-                file</mdui-radio>
-              <br />
+                  <mdui-radio id="offline-download" value="offline" name="stream-download"
+                    data-translate="offlineDownloadChecbox">Convert to offline video
+                    file</mdui-radio>
+                  <br />
 
-              <span class="settings-description-text" data-translate="offlineDownloadExplain">Convert the stream into a
-                single
-                offline video file (.ts or .zip) after downloading. This takes more time and storage, but the
-                resulting
-                file can be watched offline.</span>
-            </mdui-radio-group>
-          </mdui-card>
+                  <span class="settings-description-text" data-translate="offlineDownloadExplain">Convert the stream
+                    into a
+                    single
+                    offline video file (.ts or .zip) after downloading. This takes more time and storage, but the
+                    resulting
+                    file can be watched offline.</span>
+                </mdui-radio-group>
+              </mdui-card>
 
-          <!-- Stream quality -->
-          <mdui-card variant="filled">
-            <mdui-radio-group class="settings-radio-group" id="stream-quality" value="stream" name="stream-quality">
-              <h3 data-translate="streamQualityTitle">Stream quality preference</h3>
+              <!-- Stream quality -->
+              <mdui-card variant="filled">
+                <mdui-radio-group class="settings-radio-group" id="stream-quality" value="stream" name="stream-quality">
+                  <h3 data-translate="streamQualityTitle">Stream quality preference</h3>
 
-              <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality"
-                data-translate="askStreamQualityCheckbox">Always ask me</mdui-radio>
-              <br />
+                  <mdui-radio id="ask-stream-quality" value="ask" name="ask-quality"
+                    data-translate="askStreamQualityCheckbox">Always ask me</mdui-radio>
+                  <br />
 
-              <span class="settings-description-text" data-translate="askStreamQualityExplain">Always ask which quality
-                to
-                download when downloading a stream.</span>
-              <br />
+                  <span class="settings-description-text" data-translate="askStreamQualityExplain">Always ask which
+                    quality
+                    to
+                    download when downloading a stream.</span>
+                  <br />
 
-              <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality"
-                data-translate="highestStreamQualityCheckbox">Always highest
-                quality</mdui-radio>
-              <br />
+                  <mdui-radio id="highest-stream-quality" value="highest" name="highest-quality"
+                    data-translate="highestStreamQualityCheckbox">Always highest
+                    quality</mdui-radio>
+                  <br />
 
-              <span class="settings-description-text" data-translate="highestStreamQualityExplain">Always download the
-                highest
-                available quality for a stream. Better quality but larger files and slower downloads.</span>
-              <br />
+                  <span class="settings-description-text" data-translate="highestStreamQualityExplain">Always download
+                    the
+                    highest
+                    available quality for a stream. Better quality but larger files and slower downloads.</span>
+                  <br />
 
-              <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality"
-                data-translate="lowestStreamQualityCheckbox">Always lowest
-                quality</mdui-radio>
-              <br />
+                  <mdui-radio id="lowest-stream-quality" value="lowest" name="lowest-quality"
+                    data-translate="lowestStreamQualityCheckbox">Always lowest
+                    quality</mdui-radio>
+                  <br />
 
-              <span class="settings-description-text" data-translate="lowestStreamQualityExplain">Always download the
-                lowest
-                available quality for a stream. Lower quality but smaller files and faster downloads.</span>
-            </mdui-radio-group>
-            <br />
-            <div class="settings-switch-item">
-              <mdui-switch id="mpd-fix" name="mpd-fix" value="1"></mdui-switch>
-              <div class="settings-switch-description">
-                <b data-translate="mpdFixCheckbox">Fix MPD files (recommended)</b>
-                <span class="settings-description-text" data-translate="mpdFixExplain">This will modify the .mpd file
-                  you download to only
-                  include the quality you download. Otherwise, players like VLC will not play the file because it will
-                  try
-                  to request a quality you don't have downloaded.</span>
-              </div>
-            </div>
-          </mdui-card>
-
-          <!-- Force device type -->
-          <mdui-card variant="filled">
-            <section id="force-device-type">
-              <h3 data-translate="deviceTypeTitle">Device type override</h3>
-              <p data-translate="deviceTypeExplain">On Android and the Tor browser, starting downloads from the background is not supported by the browser. If downloads complete without an error and without saving a file, try forcing a different device type.</p>
-              <mdui-radio-group class="settings-radio-group" id="force-device-type-group" value="default" name="force-device-type">
-                <mdui-radio value="default" name="force-device-type" data-translate="deviceTypeDefaultTitle">Automatic (recommended)</mdui-radio><br />
-
-              <span class="settings-description-text" data-translate="deviceTypeDefaultExplain">Attempt to detect your device type automatically, from your user agent.</span>
-              <br />
-
-                <mdui-radio value="desktop" name="force-device-type" data-translate="deviceTypeDesktopTitle">Force desktop</mdui-radio>
+                  <span class="settings-description-text" data-translate="lowestStreamQualityExplain">Always download
+                    the
+                    lowest
+                    available quality for a stream. Lower quality but smaller files and faster downloads.</span>
+                </mdui-radio-group>
                 <br />
-                <span class="settings-description-text" data-translate="deviceTypeDesktopExplain">Always treat your browser as a desktop device. This will enable downloads in the background, but will not start any downloads on Android devices or the Tor browser.</span>
-                <br />
-                <mdui-radio value="android" name="force-device-type" data-translate="deviceTypeAndroidTitle">Force Android / Tor browser</mdui-radio>
-                <br />
-                <span class="settings-description-text" data-translate="deviceTypeAndroidExplain">Always treat your browser as an Android device. Enable this if the download appears to be completed but no file is saved. Downloads will progress in the background, but you will need to open the extension to finalize the download.</span>
-              </mdui-radio-group>
-            </section>
-          </mdui-card>
-        </div>
-        </mdui-collapse-item>
-        <mdui-collapse-item>
-        <mdui-list-item slot="header">
-          <mdui-icon slot="icon">
-            <svg viewBox="0 -960 960 960">
-              <path
-                d="M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-177 23q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120-160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm200 0q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120 160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z" />
-            </svg>
-          </mdui-icon>
-          <span slot="description" data-translate="settingsInterfaceSectionDescription">Change the color theme and how the add-on opens</span>
-          <span data-translate="settingsInterfaceSectionTitle">Interface settings</span>
-        </mdui-list-item>
+                <div class="settings-switch-item">
+                  <mdui-switch id="mpd-fix" name="mpd-fix" value="1"></mdui-switch>
+                  <div class="settings-switch-description">
+                    <b data-translate="mpdFixCheckbox">Fix MPD files (recommended)</b>
+                    <span class="settings-description-text" data-translate="mpdFixExplain">This will modify the .mpd
+                      file
+                      you download to only
+                      include the quality you download. Otherwise, players like VLC will not play the file because it
+                      will
+                      try
+                      to request a quality you don't have downloaded.</span>
+                  </div>
+                </div>
+              </mdui-card>
 
-        <div id="settings-container">
-          <!-- Add-on opening preference -->
-          <mdui-card variant="filled">
-            <mdui-radio-group class="settings-radio-group" id="open-preference" value="tab" name="open-preference">
-              <h3 data-translate="openPreference">Add-on opening preference</h3>
-              <p data-translate="openPreferenceExplain">Choose how the add-on opens when you click on the icon.</p>
-              <mdui-radio id="floating-window" value="floating" name="open-preference" data-translate="floatingWindowCheckbox">Open in a floating window</mdui-radio>
-              <mdui-radio id="new-tab" value="tab" name="open-preference" data-translate="newTabCheckbox">Open in new
-                tab</mdui-radio>
+              <!-- Force device type -->
+              <mdui-card variant="filled">
+                <section id="force-device-type">
+                  <h3 data-translate="deviceTypeTitle">Device type override</h3>
+                  <p data-translate="deviceTypeExplain">On Android and the Tor browser, starting downloads from the
+                    background is not supported by the browser. If downloads complete without an error and without
+                    saving a file, try forcing a different device type.</p>
+                  <mdui-radio-group class="settings-radio-group" id="force-device-type-group" value="default"
+                    name="force-device-type">
+                    <mdui-radio value="default" name="force-device-type"
+                      data-translate="deviceTypeDefaultTitle">Automatic (recommended)</mdui-radio><br />
 
-              <mdui-radio id="new-window" value="window" name="open-preference" data-translate="newWindowCheckbox">Open
-                in new window</mdui-radio>
-            </mdui-radio-group>
-          </mdui-card>
+                    <span class="settings-description-text" data-translate="deviceTypeDefaultExplain">Attempt to detect
+                      your device type automatically, from your user agent.</span>
+                    <br />
 
-          <!-- Color picker -->
-          <mdui-card variant="filled">
-            <section id="color-picker">
-              <h3 data-translate="colorPickerTitle">Interface color</h3>
-              <input type="color" id="color-picker-input">
-            </section>
-          </mdui-card>
+                    <mdui-radio value="desktop" name="force-device-type" data-translate="deviceTypeDesktopTitle">Force
+                      desktop</mdui-radio>
+                    <br />
+                    <span class="settings-description-text" data-translate="deviceTypeDesktopExplain">Always treat your
+                      browser as a desktop device. This will enable downloads in the background, but will not start any
+                      downloads on Android devices or the Tor browser.</span>
+                    <br />
+                    <mdui-radio value="android" name="force-device-type" data-translate="deviceTypeAndroidTitle">Force
+                      Android / Tor browser</mdui-radio>
+                    <br />
+                    <span class="settings-description-text" data-translate="deviceTypeAndroidExplain">Always treat your
+                      browser as an Android device. Enable this if the download appears to be completed but no file is
+                      saved. Downloads will progress in the background, but you will need to open the extension to
+                      finalize the download.</span>
+                  </mdui-radio-group>
+                </section>
+              </mdui-card>
+            </div>
+          </mdui-collapse-item>
+          <mdui-collapse-item value="interface">
+            <mdui-list-item slot="header">
+              <mdui-icon slot="icon">
+                <svg viewBox="0 -960 960 960">
+                  <path
+                    d="M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-177 23q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120-160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm200 0q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120 160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z" />
+                </svg>
+              </mdui-icon>
+              <span slot="description" data-translate="settingsInterfaceSectionDescription">Change the color theme and
+                how the add-on opens</span>
+              <span data-translate="settingsInterfaceSectionTitle">Interface settings</span>
+            </mdui-list-item>
 
-          <mdui-card variant="filled">
-            <section id="dialog-preferences">
-              <h3 data-translate="dialogPreferencesTitle">Reset dialog preferences</h3>
-              <p data-translate="dialogPreferencesExplain">If you have previously chosen to not be reminded again for
-                certain dialogs, you can reset those preferences here. This will make all reminder dialogs show up again
-                as they did the first time you encountered them.</p>
-              <mdui-button id="reset-dialog-preferences-button" variant="outlined"
-                data-translate="resetDialogPreferencesButton">Reset dialog preferences</mdui-button>
-            </section>
-          </mdui-card>
-        </div>
-        </mdui-collapse-item>
+            <div id="settings-container">
+              <!-- Add-on opening preference -->
+              <mdui-card variant="filled">
+                <mdui-radio-group class="settings-radio-group" id="open-preference" value="tab" name="open-preference">
+                  <h3 data-translate="openPreference">Add-on opening preference</h3>
+                  <p data-translate="openPreferenceExplain">Choose how the add-on opens when you click on the icon.</p>
+                  <mdui-radio id="floating-window" value="floating" name="open-preference"
+                    data-translate="floatingWindowCheckbox">Open in a floating window</mdui-radio>
+                  <mdui-radio id="new-tab" value="tab" name="open-preference" data-translate="newTabCheckbox">Open in
+                    new
+                    tab</mdui-radio>
+
+                  <mdui-radio id="new-window" value="window" name="open-preference"
+                    data-translate="newWindowCheckbox">Open
+                    in new window</mdui-radio>
+                </mdui-radio-group>
+              </mdui-card>
+
+              <!-- Color picker -->
+              <mdui-card variant="filled">
+                <section id="color-picker">
+                  <h3 data-translate="colorPickerTitle">Interface color</h3>
+                  <input type="color" id="color-picker-input">
+                </section>
+              </mdui-card>
+
+              <mdui-card variant="filled">
+                <section id="dialog-preferences">
+                  <h3 data-translate="dialogPreferencesTitle">Reset dialog preferences</h3>
+                  <p data-translate="dialogPreferencesExplain">If you have previously chosen to not be reminded again
+                    for
+                    certain dialogs, you can reset those preferences here. This will make all reminder dialogs show up
+                    again
+                    as they did the first time you encountered them.</p>
+                  <mdui-button id="reset-dialog-preferences-button" variant="outlined"
+                    data-translate="resetDialogPreferencesButton">Reset dialog preferences</mdui-button>
+                </section>
+              </mdui-card>
+            </div>
+          </mdui-collapse-item>
         </mdui-collapse>
 
         <div id="settings-container">
@@ -463,8 +493,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
                     href="https://github.com/helloyanis/media-downloader-unleashed" target="_blank"
                     data-translate="creditsDescription2">free and open-source project</a><span
                     data-translate="creditsDescription3"> made by </span><a
-                    href="https://xn--3s8h30f.ws/?utm_source=media_downloader_unleashed&utm_medium=referral" rel="me" target="_blank"
-                    data-translate="creditsDescription4">🦊 helloyanis</a><span
+                    href="https://xn--3s8h30f.ws/?utm_source=media_downloader_unleashed&utm_medium=referral" rel="me"
+                    target="_blank" data-translate="creditsDescription4">🦊 helloyanis</a><span
                     data-translate="creditsDescription5">.</span>
                 </p>
               </div>
