@@ -1857,7 +1857,6 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       throw new Error('DOWNLOAD_CANCELLED');
     }
     console.error("Error during MPD download process:", err);
-    // showDialog(browser.i18n.getMessage("mpdDownloadErrorMessage", [err.message]), browser.i18n.getMessage("mpdDownloadErrorTitle"), { error: err.message, url: mpdUrl, request, downloadMethod }); TODO move this
     browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, error: err.message });
     handleDownloadCompletion(request.requestId, true);
   }
