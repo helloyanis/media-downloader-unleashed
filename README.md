@@ -18,9 +18,9 @@ A browser add-on to easily download any media (audio, video and streams) played 
 1. Get the `addon.xpi` file from the [releases page](https://github.com/helloyanis/media-downloader-unleashed/releases) (scroll down for a bit to see it)
 2. Rename it to `addon.zip`, and extract it in its own folder
 3. Sideload it in your browser. See your browser documentation for more info. To sideload it on Chrome :
-   - Open Chrome's `...` menu, then `Extensions`, `Manage browers extensions`
-   - Enable the `Developer mode` switch
-   - Click `Load unpacked extension` and chose the folder you just extracted earlier. It should have a `manifest.json` file in it.
+- Open Chrome's `...` menu, then `Extensions`, `Manage browser extensions`
+- Enable the `Developer mode` switch
+- Click `Load unpacked extension` and chose the folder you just extracted earlier. It should have a `manifest.json` file in it.
 
 > [!WARNING]
 > The add-on is currently being rewritten and will not work on Chromium browsers. To use on Chromium, use [version 3.6.8](https://github.com/helloyanis/media-downloader-unleashed/releases/tag/v3.6.8).
@@ -31,9 +31,9 @@ A browser add-on to easily download any media (audio, video and streams) played 
 > - The "Report a problem" button does not work
 > - Some settings might be broken
 > 
-> The development is mainly focused towards Firefox for desktop and Android so these are not going to be fixed. Use firefox for the best experience!
+> The development is mainly focused towards Firefox for desktop and Android so these are not going to be fixed. Use Firefox for the best experience!
 
-## Supporded media types
+## Supported media types
 
 - 🎬 Video : `3g2`, `3gp`, `asx`, `avi`, `divx`, `4v`, `flv`, `ismv`, `m2t`, `m2ts`, `m2v`, `m4s`, `m4v`, `mk3d`, `mkv`, `mng`, `mov`, `mp2v`, `mp4`, `mp4v`, `mpe`, `mpeg`, `mpeg1`, `mpeg2`, `mpeg4`, `mpg`, `mxf`, `ogm`, `ogv`, `qt`, `rm`, `swf`, `ts`, `vob`, `vp9`, `webm`, `wmv`
 - 🎵 Audio : `3ga`, `aac`, `ac3`, `adts`, `aif`, `aiff`, `alac`, `ape`, `asf`, `au`, `dts`, `f4a`, `f4b`, `flac`, `isma`, `it`, `m4a`, `m4b`, `m4r`, `mid`, `mka`, `mod`, `mp1`, `mp2`, `mp3`, `mp4a`, `mpa`, `mpga`, `oga`, `ogg`, `ogx`, `opus`, `ra`, `shn`, `spx`, `vorbis`, `wav`, `weba`, `wma`, `xm`
@@ -49,7 +49,7 @@ A browser add-on to easily download any media (audio, video and streams) played 
 
 #### What this add-on does
 
-You can download audios, videos and streams to view offline, from most websites!
+You can download audio, videos and streams to view offline from most websites!
 
 - Support for video, audio, and .m3u8 streams
 - Clean interface with material design!
@@ -57,7 +57,7 @@ You can download audios, videos and streams to view offline, from most websites!
 - Multiple detection and download methods to try to find one that works on the site!
 - Media preview in the browser!
 - Spoof headers and referrer to play and download videos from sites with protections!
-- Completely free and open-source! Nothing to pay at all! (Except for donations, which are optional and does not unlock any features)
+- Completely free and open-source! Nothing to pay at all! (Except for donations, which are optional and do not unlock any features)
 
 ### Tried it? Like it? Please share it with others!
 
@@ -69,15 +69,16 @@ You can download audios, videos and streams to view offline, from most websites!
 ![image](https://github.com/user-attachments/assets/8fd28749-a1fa-4ca2-bcdd-c32acad89cfc)![image](https://github.com/user-attachments/assets/8e2619ca-d064-4705-9999-bf862f5379c8)
 
 <a href="https://www.star-history.com/#helloyanis/media-downloader-unleashed&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
- </picture>
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date&theme=dark" />
+<source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
+<img alt="Star History Chart" src="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
+</picture>
 </a>
 
 #### Third party libraries used :
 
 - [MDUI](https://www.mdui.org/en/) - Material Design UI framework (MIT License)
 - [HLS.js](https://github.com/video-dev/hls.js/) - HLS.js library to play media in the browser (Apache License 2.0) 
-- [JSZIP](https://github.com/Stuk/jszip) - Download zip files when getting mpd streams (Dual license, MIT and GPL v3)
+- [JSZIP](https://github.com/Stuk/jszip) - Download zip files when getting MPD streams (Dual license, MIT and GPL v3)
+
