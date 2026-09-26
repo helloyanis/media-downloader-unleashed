@@ -70,9 +70,9 @@ You can download audio, videos and streams to view offline from most websites!
 
 <a href="https://www.star-history.com/#helloyanis/media-downloader-unleashed&Date">
 <picture>
-<source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date&theme=dark" />
-<source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
-<img alt="Star History Chart" src="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date&theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=helloyanis/media-downloader-unleashed&type=Date" />
 </picture>
 </a>
 
