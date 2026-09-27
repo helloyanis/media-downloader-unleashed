@@ -13,7 +13,7 @@ It's easy!
 <img alt="Discord Invite Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FRdUJe4wJnP">
 </a>
 
-## [If you encounter any error, check here for an explaination!](https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting)
+## [If you encounter any error, check here for an explanation!](https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting)
 
 ---
 
