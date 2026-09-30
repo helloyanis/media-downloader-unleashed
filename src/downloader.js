@@ -149,7 +149,7 @@ function registerAbortController(requestId, url) {
  */
 async function fetchWithCache(url, options = {}, skipCache = false) {
 
-  if (skipCache || browser.extension.inIncognitoContext || (await browser.storage.local.get("media-cache").then((result) => result["media-cache"])) !== "1") {
+  if (skipCache || (browser.extension.inIncognitoContext && await browser.storage.local.get("media-cache-private").then((result) => result["media-cache-private"]) !== "1") || (!browser.extension.inIncognitoContext && await browser.storage.local.get("media-cache").then((result) => result["media-cache"]) !== "1")) {
     // Bypass cache in incognito/private mode or if media-cache is disabled
     console.log("⚡ Bypassing cache for:", url);
     return fetch(url, options);

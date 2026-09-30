@@ -747,8 +747,6 @@ function attachCacheListener() {
 
     cacheListener = (details) => {
         try {
-            // quick checks; avoid any async storage calls here
-            if (details.incognito) return;
 
             // attach filter to stream & capture the response body
             let filter;
@@ -793,7 +791,7 @@ function attachCacheListener() {
                             await storeInCache(details.url, blob, null, null); // Headers and status will be populated in headersReceivedListener
                             console.log("Cached response for:", details.url, "bytes:", blob.size);
                         } else {
-                            console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ",details.incognito)
+                            console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ",details.incognito, "mediaCacheEnabled:", mediaCacheEnabled, "mediaCachePrivateEnabled:", mediaCachePrivateEnabled);
                         }
                     } else {
                         console.warn("Skipping cache for empty response:", details.url);
@@ -827,7 +825,7 @@ async function initCacheState() {
         const enabled = !!isFlagEnabled(resCache['media-cache']);
         mediaCacheEnabled = enabled
         const resCachePrivate = await browser.storage.local.get('media-cache-private');
-        const enabledPrivate = !!isFlagEnabled(resCache['media-cacheprivate']);
+        const enabledPrivate = !!isFlagEnabled(resCachePrivate['media-cache-private']);
         mediaCachePrivateEnabled = enabledPrivate
 
         console.debug("Initialized cache state, with cache", mediaCacheEnabled," and private cache",mediaCachePrivateEnabled)
