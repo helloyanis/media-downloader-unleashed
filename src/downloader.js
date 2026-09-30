@@ -1816,8 +1816,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     // Generate ZIP and trigger download
     console.log("▶️ All segments fetched; generating ZIP…");
     const zipBlob = await downloadZip(zipEntries).blob();
-    const zipName = `${baseName}.zip`;
-    zipName = sanitizeFileName(zipName);
+    const zipName = sanitizeFileName(`${baseName}.zip`);
     // For Android with fetch method, queue the ZIP download instead of triggering immediately
     if (await isAndroid() && downloadMethod === 'fetch') {
       await queueAndroidDownload(zipBlob, zipName, request.requestId);
