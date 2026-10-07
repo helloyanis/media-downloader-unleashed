@@ -770,11 +770,16 @@ function attachCacheListener() {
                 try {
                     filter.disconnect();
                     // Skip cache if request has range header
-                    const rangeHeader = details.requestHeaders?.find(h => h.name.toLowerCase() === 'range');
-                    if (rangeHeader) {
+                    // Get the request headers from the temporary map
+                    const requestHeaders = temporaryHeaderMap.get(details.requestId) || [];
+                    const rangeHeader = requestHeaders.find(h => h.name.toLowerCase() === 'range')?.value?.trim().toLowerCase() || null;
+                    
+                    // If the range header is present and does not match the full content length, skip caching
+                    if (rangeHeader && (rangeHeader !== 'bytes=0-' && rangeHeader !== `bytes=0-${chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0) - 1}`)) { 
                         console.debug("Skipping cache for request with Range header:", details.url);
                         return;
                     }
+                    if (rangeHeader) console.debug("Range header present but matches full content length, proceeding to cache:", details.url);
 
                     // Also skip if request was already removed from session storage (e.g., cleared by user, not media...)
                     const sessionData = await browser.storage.session.get(details.url);
