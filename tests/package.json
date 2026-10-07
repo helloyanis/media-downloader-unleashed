@@ -1,0 +1,12 @@
+{
+  "name": "media-downloader-unleashed-tests",
+  "private": true,
+  "description": "Tests for the add-on: they load its pages and background scripts from ../src in headless Chromium, with a fake WebExtension API",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test --test-concurrency=1"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

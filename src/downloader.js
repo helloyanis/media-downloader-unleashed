@@ -10,6 +10,83 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 const ongoingDownloads = new Map(); // requestId -> {abortController, ...}
 const pendingPromptResolvers = new Map(); // requestId -> {resolve}
+// requestIds of the downloads started by the "Download all" button. Their files are saved with the downloads API and saveAs: false, so the browser doesn't open a "Save to" dialog for each file when it is set to always ask where to save files
+const noSaveDialogRequests = new Set();
+
+function skipsSaveDialog(requestId) {
+  return noSaveDialogRequests.has(requestId);
+}
+
+// Run a download from a popup message, remembering for its duration whether it should skip the "Save to" dialog
+async function runDownloadFromMessage(message, download) {
+  const requestId = message.request.requestId;
+  if (message.skipSaveDialog) {
+    noSaveDialogRequests.add(requestId);
+  }
+  try {
+    return await download();
+  } finally {
+    noSaveDialogRequests.delete(requestId);
+  }
+}
+
+// Whether a file made by the add-on (a blob) is saved with the downloads API rather than with a link click
+function usesDownloadsApi(downloadMethod, requestId) {
+  return downloadMethod === "browser" || skipsSaveDialog(requestId);
+}
+
+/**
+ * Save a blob URL with the downloads API, without the "Save to" dialog for the downloads started by "Download all".
+ * The blob URL is revoked only once the browser is done with it: revoking it right after downloads.download() can make the download fail.
+ * @param {String} blobUrl The blob URL of the file
+ * @param {String} filename The name to save the file with
+ * @param {String} requestId The requestId of the media
+ * @returns {Promise<Number>} The id of the download
+ */
+async function downloadBlobUrl(blobUrl, filename, requestId) {
+  let downloadId;
+  try {
+    downloadId = await browser.downloads.download({ url: blobUrl, filename, ...(skipsSaveDialog(requestId) && { saveAs: false }) });
+  } catch (error) {
+    URL.revokeObjectURL(blobUrl);
+    throw error;
+  }
+  const listener = (delta) => {
+    if (delta.id === downloadId && delta.state && delta.state.current !== 'in_progress') {
+      browser.downloads.onChanged.removeListener(listener);
+      URL.revokeObjectURL(blobUrl);
+    }
+  };
+  browser.downloads.onChanged.addListener(listener);
+  // A small file can be saved before the listener is added
+  const [download] = await browser.downloads.search({ id: downloadId });
+  if (download && download.state !== 'in_progress') {
+    listener({ id: downloadId, state: { current: download.state } });
+  }
+  return downloadId;
+}
+
+const extensionsByContentType = {
+  'audio/aac': '.aac', 'audio/flac': '.flac', 'audio/mp4': '.m4a', 'audio/mpeg': '.mp3', 'audio/ogg': '.ogg', 'audio/opus': '.opus',
+  'audio/wav': '.wav', 'audio/webm': '.weba', 'audio/x-wav': '.wav', 'video/mp2t': '.ts', 'video/mp4': '.mp4', 'video/ogg': '.ogv',
+  'video/quicktime': '.mov', 'video/webm': '.webm', 'video/x-flv': '.flv', 'video/x-matroska': '.mkv', 'video/x-msvideo': '.avi',
+};
+const mediaExtensions = new Set([
+  ...Object.values(extensionsByContentType),
+  '.3gp', '.aif', '.aiff', '.alac', '.f4v', '.m2ts', '.m4b', '.m4v', '.mka', '.mpeg', '.mpg', '.oga', '.ogm', '.ogx', '.wma', '.wmv',
+]);
+const getFileExtension = (name) => name.toLowerCase().match(/\.[a-z0-9]{2,5}$/)?.[0];
+
+// Names like the tab title have no extension, so the saved file couldn't be opened: add the media's extension, from its URL (if it is a media one, not like ".php") or else from its Content-Type
+function withMediaExtension(fileName, url, request) {
+  if (mediaExtensions.has(getFileExtension(fileName))) {
+    return fileName;
+  }
+  const urlExtension = getFileExtension(new URL(url).pathname);
+  const contentType = request.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value.split(';')[0].trim().toLowerCase();
+  const extension = mediaExtensions.has(urlExtension) ? urlExtension : extensionsByContentType[contentType];
+  return extension ? fileName + extension : fileName;
+}
 
 function sanitizeFileName(name) {
   // Remove invalid characters for file names
@@ -144,6 +221,25 @@ function registerAbortController(requestId, url) {
   return abortController;
 }
 /**
+ * Tells if a cached response holds the whole file. Media players often load a file in parts (Range requests answered with 206 Partial Content), and the cache then holds only the part the player loaded, like the first minute of an audio file.
+ * @param {Object} cachedItem The item from the IndexedDB cache, with the response status, headers and body
+ * @returns {Boolean} false if the cached body is only a part of the file
+ */
+function isCompleteCachedResponse(cachedItem) {
+  const headers = Array.isArray(cachedItem.headers) ? cachedItem.headers : []; // {} when the headers were never stored
+  const getHeader = (name) => headers.find(h => h.name.toLowerCase() === name)?.value;
+  if (isPartialResponse(cachedItem.status, headers)) { // from detector.js
+    return false;
+  }
+  // Content-Length is the size of the encoded body, so it can only be compared when the response isn't compressed
+  const contentLength = parseInt(getHeader('content-length'), 10);
+  if (!getHeader('content-encoding') && contentLength > 0 && cachedItem.data.size !== contentLength) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Tries to fetch from IndexedDB cache first.
  * If missing, falls back to network fetch.
  */
@@ -165,7 +261,9 @@ async function fetchWithCache(url, options = {}, skipCache = false) {
       req.onerror = () => reject(req.error);
     });
 
-    if (cachedItem && cachedItem.data) {
+    if (cachedItem && cachedItem.data && !isCompleteCachedResponse(cachedItem)) {
+      console.log("⚡ IndexedDB Cache has only part of the file, fetching it from the network:", url);
+    } else if (cachedItem && cachedItem.data) {
       console.log("⚡ IndexedDB Cache hit for:", url);
       const responseHeaders = new Headers();
 
@@ -198,14 +296,15 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request,
     headersArr.push({ name: h.name, value: h.value });
   });
       handleProgressUpdate({ action: 'updateProgress', percentage: null, requestId: request.requestId, processed: null, total: null }); // Initialize progress
-      fileName = sanitizeFileName(fileName);
+      fileName = withMediaExtension(sanitizeFileName(fileName), url, request);
       if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
       browser.downloads.download({
         url,
         filename: fileName,
         headers: headersArr,
-        method: request.method
+        method: request.method,
+        ...(skipsSaveDialog(request.requestId) && { saveAs: false })
       }).then((downloadId) => {
         console.log('Media file downloaded:', downloadId);
         handleDownloadCompletion(request.requestId);
@@ -281,14 +380,18 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request,
       }
       
       const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      if (skipsSaveDialog(request.requestId)) {
+        await downloadBlobUrl(blobUrl, fileName, request.requestId);
+      } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl); // Clean up the blob URL
+      }
       console.log('Media file downloaded:', blobUrl);
-      URL.revokeObjectURL(blobUrl); // Clean up the blob URL
       browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
       handleDownloadCompletion(request.requestId);
     }
@@ -745,11 +848,8 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       return;
     }
 
-    if (downloadMethod === "browser") {
-      await browser.downloads.download({
-        url: videoBlobUrl,
-        filename: audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`
-      });
+    if (usesDownloadsApi(downloadMethod, request.requestId)) {
+      await downloadBlobUrl(videoBlobUrl, audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`, request.requestId);
     } else {
       const videoAnchor = document.createElement("a");
       videoAnchor.href = videoBlobUrl;
@@ -757,9 +857,8 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       document.body.appendChild(videoAnchor);
       videoAnchor.click();
       document.body.removeChild(videoAnchor);
+      URL.revokeObjectURL(videoBlobUrl); // Clean up the blob URL after download
     }
-
-    URL.revokeObjectURL(videoBlobUrl); // Clean up the blob URL after download
 
 
     if (audioUrl) {
@@ -776,11 +875,8 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       // Save both blobs separately
       const audioBlobUrl = URL.createObjectURL(audioBlob);
 
-      if (downloadMethod === "browser") {
-        await browser.downloads.download({
-          url: audioBlobUrl,
-          filename: `${baseFileName}_audio.mp4`
-        });
+      if (usesDownloadsApi(downloadMethod, request.requestId)) {
+        await downloadBlobUrl(audioBlobUrl, `${baseFileName}_audio.mp4`, request.requestId);
       } else {
         console.log("Triggering audio download with FETCH for", audioBlobUrl); // TODO this is debug, remove
         const audioAnchor = document.createElement("a");
@@ -789,9 +885,9 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         document.body.appendChild(audioAnchor);
         audioAnchor.click();
         document.body.removeChild(audioAnchor);
+        URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
       }
       // TODO Handle the dialog for split downloads
-      URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
       browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId, baseName: baseFileName, mpdUrl: m3u8Url, downloadMethod: downloadMethod });
     }
     browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
@@ -1389,8 +1485,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         const blob = new Blob([buffer]);
         const objectUrl = URL.createObjectURL(blob);
         filename = sanitizeFileName(filename);
-        if (downloadMethod === "browser") {
-          await browser.downloads.download({ url: objectUrl, filename: filename });
+        if (usesDownloadsApi(downloadMethod, request.requestId)) {
+          await downloadBlobUrl(objectUrl, filename, request.requestId);
         } else {
           const a = document.createElement("a");
           a.href = objectUrl;
@@ -1398,8 +1494,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           document.body.appendChild(a);
           a.click();
           a.remove();
+          URL.revokeObjectURL(objectUrl);
         }
-        URL.revokeObjectURL(objectUrl);
       }
 
       // Finalize progress
@@ -1825,8 +1921,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       return;
     }
 
-    if (downloadMethod === "browser") {
-      await browser.downloads.download({ url: URL.createObjectURL(zipBlob), filename: zipName });
+    if (usesDownloadsApi(downloadMethod, request.requestId)) {
+      await downloadBlobUrl(URL.createObjectURL(zipBlob), zipName, request.requestId);
     } else {
       // Use a temporary <a> element to trigger download
       const a = document.createElement("a");
@@ -2027,14 +2123,16 @@ browser.runtime.onMessage.addListener((message) => {
   console.log("Received message in content script:", message);
   switch (message.action) {
     case 'downloadRawMedia':
-      return downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
+      return runDownloadFromMessage(message, () => downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache)).then(() => ({ success: true }))
       break;
     case 'downloadM3U8Offline':
-      return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
+      return runDownloadFromMessage(message, () => downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache)).then(() => ({ success: true }))
       break;
     case 'downloadMPDOffline':
-      return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
+      return runDownloadFromMessage(message, () => downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache)).then(() => ({ success: true }))
       break;
+    case 'isAndroid':
+      return isAndroid();
     case 'getOngoingDownloads':
       return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));
       break;

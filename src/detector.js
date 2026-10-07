@@ -40,6 +40,23 @@ let headersSentListener, headersReceivedListener;
 const DB_NAME = "MediaCacheDB";
 const STORE_NAME = "network-cache";
 
+/**
+ * Tells if a response is only a part of the file, like when a media player loads a file in parts with Range requests.
+ * A 206 Partial Content response can still hold the whole file: media elements request "bytes=0-", and the server answers "Content-Range: bytes 0-(N-1)/N".
+ * Also used by downloader.js on the cached headers.
+ * @param {Number|String} statusCode The response status
+ * @param {Array} responseHeaders The response headers, as [{name, value}]
+ * @returns {Boolean} true if the response body isn't the whole file
+ */
+function isPartialResponse(statusCode, responseHeaders) {
+    const contentRange = responseHeaders?.find(h => h.name.toLowerCase() === 'content-range')?.value;
+    if (!contentRange) {
+        return String(statusCode) === '206';
+    }
+    const range = /^bytes\s+(\d+)-(\d+)\/(\d+)$/i.exec(contentRange.trim());
+    return !range || Number(range[1]) !== 0 || Number(range[2]) !== Number(range[3]) - 1;
+}
+
 function openCacheDB() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
@@ -544,7 +561,8 @@ function initListener() {
                         }
                     }
 
-                    if(contentTypeHeader && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
+                    // The headers of a partial response would replace those of a whole cached file
+                    if(contentTypeHeader && !isPartialResponse(details.statusCode, responseHeaders) && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
                         addHeadersToCache(details.url, responseHeaders, details.statusCode)
                         console.debug("Added type", contentType, "to URL", details.url)
                     }
@@ -722,6 +740,9 @@ browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);
 // ------------------------------------------------------------------------------
 
 let cacheListener = null;
+let partialResponseListener = null;
+// requestId -> { partial } for the responses whose body is being captured by cacheListener. A response that is only a part of the file must not be cached as if it were the whole file
+const capturedResponses = new Map();
 let mediaCacheEnabled = false;
 let mediaCachePrivateEnabled = false;
 
@@ -730,8 +751,11 @@ function detachCacheListener() {
     if (!cacheListener) return;
     try {
         browser.webRequest.onBeforeRequest.removeListener(cacheListener);
+        browser.webRequest.onHeadersReceived.removeListener(partialResponseListener);
     } catch (e) { /* ignore if already removed */ }
     cacheListener = null;
+    partialResponseListener = null;
+    capturedResponses.clear();
     console.debug("Cache listener detached.");
 }
 
@@ -756,6 +780,7 @@ function attachCacheListener() {
                 console.warn("filterResponseData failed for requestId", details.requestId, e);
                 return;
             }
+            capturedResponses.set(details.requestId, { partial: false });
 
             const chunks = [];
             filter.ondata = (event) => {
@@ -769,10 +794,11 @@ function attachCacheListener() {
             filter.onstop = async () => {
                 try {
                     filter.disconnect();
-                    // Skip cache if request has range header
-                    const rangeHeader = details.requestHeaders?.find(h => h.name.toLowerCase() === 'range');
-                    if (rangeHeader) {
-                        console.debug("Skipping cache for request with Range header:", details.url);
+                    // Skip cache if the response is only a part of the file. The request headers (and so the Range header) aren't available in onBeforeRequest, so this relies on the response headers checked by partialResponseListener
+                    const capturedResponse = capturedResponses.get(details.requestId);
+                    capturedResponses.delete(details.requestId);
+                    if (capturedResponse?.partial) {
+                        console.debug("Skipping cache for partial response:", details.url);
                         return;
                     }
 
@@ -801,6 +827,7 @@ function attachCacheListener() {
                 }
             };
             filter.onerror = (err) => {
+                capturedResponses.delete(details.requestId);
                 try { filter.disconnect(); } catch (e) {}
                 console.error(`Filter error for request ${details.requestId}`, err);
             };
@@ -813,6 +840,20 @@ function attachCacheListener() {
         cacheListener,
         { urls: ["<all_urls>"], /*types: ["media", "object"]*/ }, // Types can't work with MPD files as the MPD request is categorized as "xmlhttprequest"
         ["blocking"]
+    );
+
+    // Response headers arrive before the body ends (filter.onstop), so the cache listener can check them.
+    // headersReceivedListener can't do it: it only gets the detected URLs, and isn't registered with every setting
+    partialResponseListener = (details) => {
+        const capturedResponse = capturedResponses.get(details.requestId);
+        if (capturedResponse && isPartialResponse(details.statusCode, details.responseHeaders)) {
+            capturedResponse.partial = true;
+        }
+    };
+    browser.webRequest.onHeadersReceived.addListener(
+        partialResponseListener,
+        { urls: ["<all_urls>"] },
+        ["responseHeaders"]
     );
 
     console.debug("Cache listener attached.");

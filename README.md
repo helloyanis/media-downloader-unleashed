@@ -76,6 +76,19 @@ You can download audio, videos and streams to view offline from most websites!
 </picture>
 </a>
 
+#### Running the tests
+
+The tests in the `tests` folder load the add-on's popup and background scripts from `src` in a headless Chromium, with a fake WebExtension API. They only need [Node.js](https://nodejs.org/), and they don't change the add-on itself.
+
+```sh
+cd tests
+npm ci
+npx playwright install chromium
+npm test
+```
+
+They also run on GitHub for each pull request.
+
 #### Third party libraries used :
 
 - [MDUI](https://www.mdui.org/en/) - Material Design UI framework (MIT License)
