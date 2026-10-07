@@ -65,7 +65,8 @@ body {
 }
 
 #refresh-list,
-#clear-list {
+#clear-list,
+#download-all {
     width: unset !important;
     /*This button seemed to bug with MDUI putting it at 0 width*/
 }

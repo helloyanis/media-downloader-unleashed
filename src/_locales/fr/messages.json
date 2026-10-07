@@ -151,6 +151,42 @@
         "message": "Actualiser la liste",
         "description": "The label of the button to refresh the media list."
     },
+    "downloadAllButton": {
+        "message": "Tout télécharger",
+        "description": "The label of the button to download all the media in the list, also used as the confirm button of its dialog."
+    },
+    "downloadAllConfirmTitle": {
+        "message": "Télécharger tous les médias ?",
+        "description": "The title of the dialog asking to confirm downloading all the media in the list."
+    },
+    "downloadAllConfirmMessage": {
+        "message": "$MEDIACOUNT$ médias seront téléchargés l'un après l'autre, avec la taille choisie pour chacun et vos paramètres de téléchargement actuels.",
+        "description": "The message of the dialog asking to confirm downloading all the media in the list.",
+        "placeholders": {
+            "MEDIACOUNT": {
+                "content": "$1",
+                "example": "5"
+            }
+        }
+    },
+    "downloadAllNothingToDownload": {
+        "message": "Il n'y a aucun média à télécharger.",
+        "description": "The snackbar shown when the Download all button is clicked but no media can be downloaded."
+    },
+    "downloadAllFinished": {
+        "message": "Tous les téléchargements sont terminés : $COMPLETED$ médias téléchargés sur $TOTAL$.",
+        "description": "The snackbar shown when all the downloads started by the Download all button are finished.",
+        "placeholders": {
+            "COMPLETED": {
+                "content": "$1",
+                "example": "4"
+            },
+            "TOTAL": {
+                "content": "$2",
+                "example": "5"
+            }
+        }
+    },
     "settingsDetectionSectionTitle": {
         "message": "Paramètres de détection",
         "description": "The title of the detection settings section in the settings tab."

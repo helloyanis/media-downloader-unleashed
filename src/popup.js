@@ -65,6 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refresh-list').addEventListener('click', (event) => {
     loadMediaList();
   });
+  document.getElementById('download-all').addEventListener('click', (event) => {
+    downloadAllMedia();
+  });
   document.getElementById('clear-list').addEventListener('click', (event) => {
     // Todo : Add a confirmation dialog before clearing the list
     clearMediaList();
@@ -898,12 +901,17 @@ function createProgressUI(requestId) {
  * This function retrieves media requests from the background script, filters them based on MIME types and file extensions, and displays them in a list format.
  * It's a chunky bit of code, but it does what it's supposed to so it's staying there ヾ(⌐■_■)ノ♪
  */
+let mediaListLoadId = 0; // Identifies the latest loadMediaList call
+
 function loadMediaList() {
   // Display a loading spinner while the media requests are being retrieved
-  const mediaContainer = document.getElementById('media-list');
+  const mediaList = document.getElementById('media-list');
   const loadingSpinner = document.getElementById('loading-media-list');
   loadingSpinner.style.display = 'block';
-  mediaContainer.innerHTML = ''; // Clear previous content
+  mediaList.innerHTML = ''; // Clear previous content
+  // The list is built apart and shown at the end, only if the list wasn't refreshed meanwhile: two loads running at once would otherwise show every media twice
+  const loadId = ++mediaListLoadId;
+  const mediaContainer = document.createDocumentFragment();
   // Send a message to the background script to get media requests
   browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
     console.log('Media requests:', mediaRequests);
@@ -995,6 +1003,11 @@ function loadMediaList() {
       const mediaDiv = document.createElement('mdui-list-item');
       mediaDiv.setAttribute('nonclickable', 'true');
       mediaDiv.classList.add('media-item');
+      // Used by the "Download all" button to download the media of each list item
+      mediaDiv.dataset.url = url;
+      if (requests[0]?.name) {
+        mediaDiv.dataset.fileName = requests[0].name;
+      }
 
       // Add an icon to the media item
       const mediaIcon = document.createElementNS("http://www.w3.org/2000/svg", 'svg');
@@ -1072,7 +1085,7 @@ function loadMediaList() {
       const descriptionDiv = document.createElement('div');
       descriptionDiv.style.fontSize = '0.8em';
       console.log(requests)
-      descriptionDiv.textContent = browser.i18n.getMessage("requestText", [requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), new URL(decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value || requests[0].url)).hostname || browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"]);
+      descriptionDiv.textContent = browser.i18n.getMessage("requestText", [requests[0]?.method ?? browser.i18n.getMessage("requestMethodUnknown"), getRequestSourceHostname(requests[0]) || browser.i18n.getMessage("requestSourceUnknown"), new Date(requests[0]?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"]);
       subtitleDiv.appendChild(descriptionDiv);
 
       mediaDiv.appendChild(subtitleDiv);
@@ -1215,7 +1228,7 @@ function loadMediaList() {
       sizeSelect.addEventListener('change', () => {
         const selectedSize = sizeSelect.value;
         const request = requests.find(request => request.size === selectedSize);
-        const referer = new URL(decodeURI(requests[0]?.requestHeaders?.find(h => h.name.toLowerCase() === "referer")?.value || requests[0].url)).hostname || browser.i18n.getMessage("requestSourceUnknown");
+        const referer = getRequestSourceHostname(requests[0]) || browser.i18n.getMessage("requestSourceUnknown");
         const timeStamp = new Date(request?.timeStamp).toLocaleTimeString(browser.i18n.getUILanguage()) || "??:??"
         descriptionDiv.textContent = browser.i18n.getMessage("requestText", [request?.method || browser.i18n.getMessage("requestMethodUnknown"), referer, timeStamp]);
       });
@@ -1310,7 +1323,6 @@ function loadMediaList() {
     endOfMediaList.setAttribute("id", "end-of-media-list");
     endOfMediaList.textContent = browser.i18n.getMessage("endOfMediaList");
     endOfMediaList.style.textAlign = 'center';
-    loadingSpinner.style.display = 'none'; // Hide the loading spinner
     mediaContainer.appendChild(endOfMediaList);
 
     if(navigator.userAgent.includes("Mobile;")){
@@ -1326,9 +1338,100 @@ function loadMediaList() {
     endOfMediaListLink.target = "_blank";
     endOfMediaListLink.href = "https://docs.google.com/forms/d/e/1FAIpQLSdXpVKZaJm-Yk6DmnkFZHxPLRH4xK51uk7NeioKJ8CxZbxXVA/viewform?usp=pp_url&entry.1792028239=My+media+is+not+being+detected";
     endOfMediaList.appendChild(endOfMediaListLink);
+
+    if (loadId !== mediaListLoadId) {
+      return; // A newer load will show the list
+    }
+    mediaList.replaceChildren(mediaContainer);
+    loadingSpinner.style.display = 'none'; // Hide the loading spinner
   }).catch((error) => {
+    if (loadId !== mediaListLoadId) {
+      return;
+    }
+    loadingSpinner.style.display = 'none';
     console.error('Error retrieving media requests:', error);
     showDialog(browser.i18n.getMessage("listLoadError", [error]), null, { error: `Error retrieving media requests. ${error}` });
+  });
+}
+
+let isDownloadAllRunning = false; // Prevents starting a second "Download all" while one is running, even if the list is refreshed
+
+/**
+ * Download every media in the list that isn't already being downloaded, after asking for confirmation.
+ * The media are downloaded one after the other with downloadFile, so each one uses the size selected in its list item and the current settings, and the prompts it may show (file name, stream quality, DRM warning) appear one at a time.
+ * @returns {Promise<void>} A promise that resolves when all the downloads are finished or failed
+ */
+async function downloadAllMedia() {
+  if (isDownloadAllRunning) {
+    return;
+  }
+
+  // The URLs rather than the list items: the list can be refreshed during the downloads, which replaces its items
+  const mediaUrls = Array.from(document.querySelectorAll('#media-list .media-item'))
+    .filter(mediaDiv => !mediaDiv.querySelector('#download-button')?.disabled) // Skip the media already being downloaded
+    .map(mediaDiv => mediaDiv.dataset.url);
+
+  if (mediaUrls.length === 0) {
+    mdui.snackbar({
+      message: browser.i18n.getMessage("downloadAllNothingToDownload"),
+      autoCloseDelay: 5000,
+      closeable: true,
+    });
+    return;
+  }
+
+  // Asked before the dialog: the permission request must stay the first thing done when the confirm button is clicked.
+  // Same check as the background, which also uses the device type forced in the settings. On Android the files are queued for the popup, without the downloads API
+  const isAndroid = await browser.runtime.sendMessage({ action: 'isAndroid' }).catch(() => navigator.userAgent.includes("Mobile;"));
+  let skipSaveDialog = false;
+  const confirmed = await showDialogCustom({
+    headline: browser.i18n.getMessage("downloadAllConfirmTitle"),
+    description: browser.i18n.getMessage("downloadAllConfirmMessage", [String(mediaUrls.length)]),
+    confirmText: browser.i18n.getMessage("downloadAllButton"),
+    cancelText: browser.i18n.getMessage("cancelButton"),
+    showTextField: false,
+    onConfirm: async () => {
+      // Without the downloads permission, a browser set to always ask where to save files opens a "Save to" dialog for every file.
+      // The permission must be requested while handling the click, so this is the first thing done here
+      if (!isAndroid) {
+        skipSaveDialog = await browser.permissions.request({ permissions: ['downloads'] }).catch((error) => {
+          console.warn('Could not request the downloads permission:', error);
+          return false;
+        });
+      }
+    },
+  });
+  if (!confirmed) {
+    return;
+  }
+
+  const downloadAllButton = document.getElementById('download-all');
+  isDownloadAllRunning = true;
+  downloadAllButton.disabled = true;
+  downloadAllButton.loading = true;
+  let completedCount = 0;
+  try {
+    for (const url of mediaUrls) {
+      const mediaDiv = Array.from(document.querySelectorAll('#media-list .media-item')).find(item => item.dataset.url === url);
+      // The list may have been cleared, or the download started from the item's own button, since the confirmation
+      if (!mediaDiv || mediaDiv.querySelector('#download-button')?.disabled) {
+        continue;
+      }
+      const outcome = await downloadFile(mediaDiv.dataset.url, mediaDiv.dataset.fileName, mediaDiv, skipSaveDialog); // Errors are shown by downloadFile, so a failed download doesn't stop the next ones
+      if (outcome === 'completed') {
+        completedCount++;
+      }
+    }
+  } finally {
+    isDownloadAllRunning = false;
+    downloadAllButton.disabled = false;
+    downloadAllButton.loading = false;
+  }
+  // Tell that everything is done, as the downloads go on one after the other for a long time
+  mdui.snackbar({
+    message: browser.i18n.getMessage("downloadAllFinished", [String(completedCount), String(mediaUrls.length)]),
+    closeable: true,
+    autoCloseDelay: 0, // Stays until closed, so it isn't missed
   });
 }
 
@@ -1388,6 +1491,7 @@ function clearMediaList() {
 /**
  * Get the file name from the URL, limiting it to 20 characters. This is what's displayed in the media list.
  * @param {String} url The URL of the media file
+ * @param {Number} [maxLength=20] The maximum length of the name before its extension. Infinity to get the whole name, to save a file with
  * @returns {String} The file name extracted from the URL, limited to 20 characters
 */
 function getFileName(url, maxLength = 20) {
@@ -1401,6 +1505,13 @@ function getFileName(url, maxLength = 20) {
     // Remove query string from file name
     fileName = fileName.split('?')[0];
 
+    // Decode before replacing the characters below (an encoded "/" is one of them) and before shortening the name, which could cut a %XX sequence
+    try {
+      fileName = decodeURIComponent(fileName);
+    } catch (error) {
+      // Not valid percent-encoding, like a lone "%": keep the name as it is
+    }
+
     // Replace these characters with underscores as they are not allowed in Windows file names : < > : " / \ | ? * and control characters (0-31)
     fileName = fileName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
 
@@ -1410,13 +1521,28 @@ function getFileName(url, maxLength = 20) {
 
     //Limit to xx characters, but still show the extension
     if (fileName.length > maxLength) {
-      fileName = fileName.substring(0, maxLength) + '…' + fileName.substring(fileName.lastIndexOf('.'));
+      const extension = fileName.lastIndexOf('.') > 0 ? fileName.substring(fileName.lastIndexOf('.')) : '';
+      fileName = fileName.substring(0, maxLength) + '…' + extension;
     }
 
-    return decodeURIComponent(fileName);
+    return fileName;
   } catch (error) {
     console.error("Invalid URL", error);
     throw new Error('Invalid URL:', error);
+  }
+}
+
+/**
+ * Get the host name of the page a media request comes from (its Referer), or of the media itself.
+ * @param {Object} request The media request
+ * @returns {String} The host name, or '' if the URL can't be parsed
+ */
+function getRequestSourceHostname(request) {
+  // Not decoded first: decodeURI throws on a "%" that isn't an escape, like in "?q=50%off", and the host name doesn't need it
+  try {
+    return new URL(getHeaderValue(request?.requestHeaders, 'referer') || request?.url).hostname;
+  } catch (error) {
+    return '';
   }
 }
 
@@ -1443,9 +1569,10 @@ function getHumanReadableSize(size) {
 * Download the media file using the selected size and method
 * @param {String} url The URL of the media file to download
 * @param {HTMLElement} mediaDiv The div element of the list item to be downloaded, used to get the selected size, show the loading bar and change the button state
-* @returns {Promise<void>} A promise that resolves when the download is complete or fails
+* @param {Boolean} [skipSaveDialog=false] Save the file to the downloads folder without the browser's "Save to" dialog (needs the "downloads" permission). Used by the "Download all" button
+* @returns {Promise<String>} A promise that resolves when the download is complete or fails, with 'completed', 'failed' or 'cancelled'
 */
-async function downloadFile(url, fileName = null, mediaDiv) {
+async function downloadFile(url, fileName = null, mediaDiv, skipSaveDialog = false) {
   console.log('Downloading media file:', url);
   let wakeLock = null
   let progressListener = null;
@@ -1572,7 +1699,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
         cancelText: browser.i18n.getMessage("cancelButton"),
         textFieldOptions: {
           label: browser.i18n.getMessage("fileNamePromptFieldLabel"),
-          placeholder: getFileName(url).substring(0, getFileName(url).lastIndexOf('.')),
+          placeholder: getFileName(url, Infinity).substring(0, getFileName(url, Infinity).lastIndexOf('.')),
           required: true,
           suffix: isM3U8 ? '.m3u8' : isMPD ? '.mpd' : url.substring(url.lastIndexOf('.')),
         }
@@ -1584,10 +1711,10 @@ async function downloadFile(url, fileName = null, mediaDiv) {
       }
       mediaDiv.querySelector("#download-button").loading = false;
       mediaDiv.querySelector("#download-button").disabled = false;
-      return;
+      return 'cancelled';
     }
     } else if (renamePreference === 'url') {
-      fileName = getFileName(url);
+      fileName = getFileName(url, Infinity); // The whole name: the 20 characters limit is only for the list
     }
 
     console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders?.find(h => h.name.toLowerCase() === "content-type")?.value}`);
@@ -1595,29 +1722,30 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
       //await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
+      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache, skipSaveDialog });
       if (result && result.error) {
         throw new Error(result.error);
       }
-      return;
+      return 'completed';
     }
 
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       //await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
+      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache, skipSaveDialog });
       if (result && result.error) {
         throw new Error(result.error);
       }
-      return;
+      return 'completed';
     }
 
 
     //At this point the media is not a stream or should not be treated as such, so initiate a regular download
-    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
+    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache, skipSaveDialog });
     if (result && result.error) {
       throw new Error(result.error);
     }
+    return 'completed';
   } catch (error) {
     if (progressListener) {
       browser.runtime.onMessage.removeListener(progressListener);
@@ -1630,7 +1758,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     mediaDiv.querySelector("#download-button").disabled = false;
 
     if (isDownloadCancelledError(error)) {
-      return;
+      return 'cancelled';
     }
 
     if (!navigator.onLine) {
@@ -1642,6 +1770,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     }
     console.error('Error downloading media file:', error);
     showDialog(browser.i18n.getMessage("downloadError", [error.message]), null, { error: `Error downloading media file: ${error.message}`, url: url });
+    return 'failed';
   }
   finally {
     if (wakeLock) {
