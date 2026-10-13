@@ -1586,7 +1586,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
       mediaDiv.querySelector("#download-button").disabled = false;
       return;
     }
-    } else if (renamePreference === 'url') {
+    } else if (renamePreference === 'url' || fileName === null) {
       fileName = getFileName(url);
     }
 
