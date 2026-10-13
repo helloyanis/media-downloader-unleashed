@@ -1810,12 +1810,20 @@ async function promptStreamVariant(variants, url, requestId, audioTracks = [], t
       const bitrateLabel = variant.bandwidth ? `${Math.round(variant.bandwidth / 1000)} kbps` : null;
       const label = bitrateLabel ? `${baseLabel} (${bitrateLabel})` : baseLabel;
 
-      return { label, value: variant.uri || variant.url, type: 'video' };
+      return {
+        ...variant,
+        label,
+        value: variant.uri || variant.url,
+        uri: variant.uri || variant.url,
+        type: 'video'
+      };
     });
 
     const audioOptions = audioTracks.map((track, index) => ({
+      ...track,
       label: `${track.name || `Audio track ${index + 1}`} (${track.language || `${Math.round((track.bandwidth || 0) / 1000)} kbps`})`,
       value: track.uri,
+      uri: track.uri,
       type: 'audio'
     }));
 

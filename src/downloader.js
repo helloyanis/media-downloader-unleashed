@@ -359,6 +359,10 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       }
       const selectedVideoTracks = selectedTracks.filter(track => track.type === 'video');
       const selectedAudioTracks = selectedTracks.filter(track => track.type === 'audio');
+      const invalidTrack = selectedTracks.find(track => !track.uri);
+      if (invalidTrack) {
+        throw new Error('The selected M3U8 track did not include a valid playlist URL.');
+      }
       videoUrls = selectedVideoTracks.map(track => ({
         url: new URL(track.uri, base).href,
         name: track.name,
@@ -1306,6 +1310,47 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       return buffer.buffer;
     }
 
+    // Keep ZIP inputs lazy. Buffering every segment before client-zip runs can
+    // duplicate several gigabytes of media in memory.
+    async function fetchStreamWithProgress(url, { onStart, onChunk } = {}) {
+      const response = await fetchWithCache(url, {
+        method: request.method,
+        headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
+        referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
+        body: request.method !== 'GET' ? request.requestBody : null,
+        signal,
+      }, skipCache);
+      if (!response.ok) throw new Error(`Fetch failed: ${url} (${response.status})`);
+
+      const contentLength = Number(response.headers.get("Content-Length")) || 0;
+      if (onStart) onStart(contentLength);
+      if (!response.body) return new Uint8Array(0);
+
+      const reader = response.body.getReader();
+      let received = 0;
+      return new ReadableStream({
+        async pull(controller) {
+          try {
+            if (signal.aborted) throw createAbortError();
+            const { done, value } = await reader.read();
+            if (done) {
+              controller.close();
+              return;
+            }
+            received += value.byteLength;
+            if (onChunk) onChunk(received, contentLength);
+            controller.enqueue(value);
+          } catch (error) {
+            controller.error(error);
+            try { await reader.cancel(); } catch (e) { }
+          }
+        },
+        async cancel(reason) {
+          try { await reader.cancel(reason); } catch (e) { }
+        }
+      });
+    }
+
     // If SegmentBase-only -> download files directly (no ZIP)
     if (isSegmentBaseOnly) {
       const snackbar = document.createElement('mdui-snackbar');
@@ -1722,7 +1767,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         // and keep totals cumulative across tasks.
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
 
-        const initBuf = await fetchWithProgress(t.info.initUrl, {
+        const initBuf = await fetchStreamWithProgress(t.info.initUrl, {
           onStart: (contentLength) => {
             // If content-length known, account for it in maxBytes as bytes.
             // We keep the count-based max for template flows for simplicity.
@@ -1749,7 +1794,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           const segZipPath = t.info.mediaZipPaths[i];
           console.log(`>>> Fetching template segment #${i + 1}:`, segUrl);
           let lastReceived = 0;
-          const buf = await fetchWithProgress(segUrl, {
+          const buf = await fetchStreamWithProgress(segUrl, {
             onStart: (contentLength) => {
               // per-segment start
             },
@@ -1765,7 +1810,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       } else if (t.type === "base") {
         console.log(">>> Fetching SegmentBase file (single-file MP4):", t.url);
         let lastReceivedForFile = 0;
-        const arrayBuffer = await fetchWithProgress(t.url, {
+        const arrayBuffer = await fetchStreamWithProgress(t.url, {
           onStart: (contentLength) => {
             if (contentLength && contentLength > 0) addToMax(contentLength);
             else handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: null, percentage: null });
@@ -1786,7 +1831,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       } else if (t.type === "list") {
         console.log(">>> Fetching SegmentList init:", t.info.initUrl);
         let lastReceivedForFile = 0;
-        const initBuf = await fetchWithProgress(t.info.initUrl, {
+        const initBuf = await fetchStreamWithProgress(t.info.initUrl, {
           onStart: (contentLength) => {
             if (contentLength && contentLength > 0) addToMax(contentLength);
             else handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: null, percentage: null });
@@ -1811,7 +1856,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 
           console.log(`>>> Fetching SegmentList segment #${i + 1}:`, segUrl);
           let lastReceived = 0;
-          const buf = await fetchWithProgress(segUrl, {
+          const buf = await fetchStreamWithProgress(segUrl, {
             onStart: (contentLength) => {
             },
             onChunk: (received) => {
@@ -1918,7 +1963,12 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     }
 
     if (downloadMethod === "browser") {
-      await browser.downloads.download({ url: URL.createObjectURL(zipBlob), filename: zipName });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      try {
+        await browser.downloads.download({ url: zipUrl, filename: zipName });
+      } finally {
+        URL.revokeObjectURL(zipUrl);
+      }
     } else {
       // Use a temporary <a> element to trigger download
       const a = document.createElement("a");
@@ -1931,7 +1981,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     }
 
 
-    browser.runtime.sendMessage({ action: 'showMPDDownloadCompleteDialog', requestId: request.requestId, baseName: baseName, mpdUrl: mpdUrl, downloadMethod: downloadMethod, zipUrl: URL.createObjectURL(zipBlob) });
+    browser.runtime.sendMessage({ action: 'showMPDDownloadCompleteDialog', requestId: request.requestId, baseName: baseName, mpdUrl: mpdUrl, downloadMethod: downloadMethod });
     browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
     handleDownloadCompletion(request.requestId);
 
