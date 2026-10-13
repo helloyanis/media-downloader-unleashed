@@ -338,32 +338,44 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
     const isMasterPlaylist = m3u8Text.includes("#EXT-X-STREAM-INF");
 
     let videoUrl = m3u8Url;
+    let videoUrls = [m3u8Url];
     let audioUrl = null;
+    let audioUrls = [];
 
     if (isMasterPlaylist) {
       const lines = m3u8Text.split("\n");
       const base = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
 
-      let selectedVariant = await selectStreamVariant(lines, base, {
+      const selectedTracks = await selectStreamVariant(lines, base, {
         headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
         referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value,
         method: request.method,
         requestId: request.requestId,
         url: m3u8Url
       }, skipCache);
-      if (!selectedVariant) {
+      if (!selectedTracks) {
         //User canceled the variant selection, abort the download
         throw new Error("Download aborted by user during stream variant selection.");
       }
-      videoUrl = new URL(selectedVariant.uri, base).href;
-
-      const audioLine = lines.find(l => l.startsWith("#EXT-X-MEDIA:") && l.includes('TYPE=AUDIO'));
-      if (audioLine) {
-        const uriMatch = audioLine.match(/URI="([^"]+)"/);
-        if (uriMatch) {
-          const audioUri = uriMatch[1];
-          audioUrl = new URL(audioUri, base).href;
-        }
+      const selectedVideoTracks = selectedTracks.filter(track => track.type === 'video');
+      const selectedAudioTracks = selectedTracks.filter(track => track.type === 'audio');
+      videoUrls = selectedVideoTracks.map(track => ({
+        url: new URL(track.uri, base).href,
+        name: track.name,
+        bandwidth: track.bandwidth
+      }));
+      videoUrl = videoUrls[0]?.url || null;
+      audioUrls = selectedAudioTracks.map(track => ({
+        url: new URL(track.uri, base).href,
+        name: track.name,
+        language: track.language,
+        bandwidth: track.bandwidth
+      }));
+      audioUrl = audioUrls[0]?.url || null;
+      if (!videoUrl && !audioUrls.length) {
+        browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+        handleDownloadCompletion(request.requestId);
+        return;
       }
     }
     if (audioUrl) {
@@ -720,24 +732,39 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
 
 
     // Count segments first
-    globalTotalSegments += await countSegments(videoUrl);
+    for (const videoTrack of videoUrls) {
+      globalTotalSegments += await countSegments(typeof videoTrack === 'string' ? videoTrack : videoTrack.url);
+    }
 
-    if (audioUrl) {
-      globalTotalSegments += await countSegments(audioUrl);
+    if (audioUrls.length) {
+      for (const audioTrack of audioUrls) {
+        globalTotalSegments += await countSegments(audioTrack.url);
+      }
     }
 
     // Then download video
-    const { blob: videoBlob, ext } = await downloadSegments(videoUrl);
+    const downloadedTracks = [];
+    for (const [index, videoTrack] of videoUrls.entries()) {
+      const videoResult = await downloadSegments(typeof videoTrack === 'string' ? videoTrack : videoTrack.url);
+      downloadedTracks.push({ ...videoResult, type: 'video', name: videoTrack.name, bandwidth: videoTrack.bandwidth, index });
+    }
     const baseFileName = sanitizeFileName(fileName);
-    const videoBlobUrl = URL.createObjectURL(videoBlob);
+    const getTrackSuffix = (track, index) => {
+      if (track.name) return `_${sanitizeFileName(track.name)}`;
+      if (track.bandwidth) return `_${Math.round(track.bandwidth / 1000)}kbps`;
+      return `_track${index + 1}`;
+    };
 
     // For Android with fetch method, queue the download instead of triggering immediately
     if (await isAndroid() && downloadMethod === 'fetch') {
-      await queueAndroidDownload(videoBlob, audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`, request.requestId);
-      
-      if (audioUrl) {
-        const { blob: audioBlob } = await downloadSegments(audioUrl, true);
-        await queueAndroidDownload(audioBlob, `${baseFileName}_audio.mp4`, request.requestId);
+      for (const track of downloadedTracks) {
+        const suffix = downloadedTracks.length > 1 ? getTrackSuffix(track, track.index) : '';
+        await queueAndroidDownload(track.blob, `${baseFileName}${track.type === 'video' ? '_video' : '_audio'}${sanitizeFileName(suffix)}${track.ext}`, request.requestId);
+      }
+      for (const [index, audioTrack] of audioUrls.entries()) {
+        const audioResult = await downloadSegments(audioTrack.url);
+        const suffix = audioTrack.name ? `_${sanitizeFileName(audioTrack.name)}` : audioTrack.bandwidth ? `_${Math.round(audioTrack.bandwidth / 1000)}kbps` : `_track${index + 1}`;
+        await queueAndroidDownload(audioResult.blob, `${baseFileName}_audio${suffix}${audioResult.ext}`, request.requestId);
       }
       
       browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
@@ -745,24 +772,25 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       return;
     }
 
-    if (downloadMethod === "browser") {
-      await browser.downloads.download({
-        url: videoBlobUrl,
-        filename: audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`
-      });
-    } else {
-      const videoAnchor = document.createElement("a");
-      videoAnchor.href = videoBlobUrl;
-      videoAnchor.download = audioUrl ? `${baseFileName}_video${ext}` : `${baseFileName}${ext}`;
-      document.body.appendChild(videoAnchor);
-      videoAnchor.click();
-      document.body.removeChild(videoAnchor);
+    for (const track of downloadedTracks) {
+      const objectUrl = URL.createObjectURL(track.blob);
+      const suffix = downloadedTracks.length > 1 ? getTrackSuffix(track, track.index) : '';
+      const filename = `${baseFileName}${audioUrls.length ? '_video' : ''}${sanitizeFileName(suffix)}${track.ext}`;
+      if (downloadMethod === "browser") {
+        await browser.downloads.download({ url: objectUrl, filename });
+      } else {
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      }
+      URL.revokeObjectURL(objectUrl);
     }
 
-    URL.revokeObjectURL(videoBlobUrl); // Clean up the blob URL after download
 
-
-    if (audioUrl) {
+    if (audioUrls.length) {
       const snackbar = document.createElement('mdui-snackbar');
       snackbar.setAttribute('open', true);
       snackbar.setAttribute('timeout', 10000);
@@ -771,28 +799,36 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       snackbar.addEventListener('close', () => {
         snackbar.remove();
       });
-      const { blob: audioBlob } = await downloadSegments(audioUrl, true);
-
-      // Save both blobs separately
-      const audioBlobUrl = URL.createObjectURL(audioBlob);
-
-      if (downloadMethod === "browser") {
-        await browser.downloads.download({
-          url: audioBlobUrl,
-          filename: `${baseFileName}_audio.mp4`
-        });
-      } else {
-        console.log("Triggering audio download with FETCH for", audioBlobUrl); // TODO this is debug, remove
-        const audioAnchor = document.createElement("a");
-        audioAnchor.href = audioBlobUrl;
-        audioAnchor.download = `${baseFileName}_audio.mp4`;
-        document.body.appendChild(audioAnchor);
-        audioAnchor.click();
-        document.body.removeChild(audioAnchor);
+      const audioFiles = [];
+      for (const [index, audioTrack] of audioUrls.entries()) {
+        const audioResult = await downloadSegments(audioTrack.url);
+        const suffix = audioTrack.name ? `_${sanitizeFileName(audioTrack.name)}` : audioTrack.bandwidth ? `_${Math.round(audioTrack.bandwidth / 1000)}kbps` : `_track${index + 1}`;
+        const filename = `${baseFileName}_audio${suffix}${audioResult.ext}`;
+        const audioBlobUrl = URL.createObjectURL(audioResult.blob);
+        if (downloadMethod === "browser") {
+          await browser.downloads.download({ url: audioBlobUrl, filename });
+        } else {
+          const audioAnchor = document.createElement("a");
+          audioAnchor.href = audioBlobUrl;
+          audioAnchor.download = filename;
+          document.body.appendChild(audioAnchor);
+          audioAnchor.click();
+          document.body.removeChild(audioAnchor);
+        }
+        URL.revokeObjectURL(audioBlobUrl);
+        audioFiles.push(filename);
       }
-      // TODO Handle the dialog for split downloads
-      URL.revokeObjectURL(audioBlobUrl); // Clean up the blob URLs
-      browser.runtime.sendMessage({ action: 'showSplitDownloadDialog', requestId: request.requestId, baseName: baseFileName, mpdUrl: m3u8Url, downloadMethod: downloadMethod });
+      if (downloadedTracks.length) {
+        browser.runtime.sendMessage({
+          action: 'showSplitDownloadDialog',
+          requestId: request.requestId,
+          baseName: baseFileName,
+          videoFiles: downloadedTracks.map(track => `${baseFileName}_video${downloadedTracks.length > 1 ? getTrackSuffix(track, track.index) : ''}${track.ext}`),
+          audioFiles,
+          mpdUrl: m3u8Url,
+          downloadMethod: downloadMethod
+        });
+      }
     }
     browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
     handleDownloadCompletion(request.requestId);
@@ -849,6 +885,8 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}, skipCac
     audioGroups.get(groupId).push({
       name: attrs.NAME || null,
       language: attrs.LANGUAGE || null,
+      uri: attrs.URI || null,
+      bandwidth: parseInt(attrs.BANDWIDTH || '0', 10),
       isDefault: String(attrs.DEFAULT || '').toUpperCase() === 'YES'
     });
   }
@@ -894,28 +932,61 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}, skipCac
     }
   }));
 
-  // If only one variant, return it
-  if (variants.length === 1) return variants[0];
+  const audioTracks = Array.from(audioGroups.values()).flat().filter(track => track.uri);
+  variants.audioTracks = audioTracks;
+
+  // If there is only one selectable track, avoid prompting.
+  if (variants.length === 1 && audioTracks.length <= 1) {
+    return [
+      { ...variants[0], type: 'video' },
+      ...audioTracks.map(track => ({ ...track, type: 'audio' }))
+    ];
+  }
 
   const preference = (await browser.storage.local.get("stream-quality").then((result) => result["stream-quality"]));
-  if (preference === "highest") return variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
-  if (preference === "lowest") return variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
+  if (preference === "highest") return [{ ...variants.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b)), type: 'video' }];
+  if (preference === "lowest") return [{ ...variants.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b)), type: 'video' }];
 
   const requestId = options.requestId;
   if (!requestId) return null;
 
-  const promptState = {
-    type: 'streamVariant',
+  const promptUrl = options.url || baseUrl;
+  const selectedVideoResult = await requestPopupPrompt(requestId, {
+    type: 'streamVideoTracks',
     requestId,
-    url: options.url || baseUrl,
+    url: promptUrl,
     variants
-  };
+  }, {
+    action: 'promptStreamVariant',
+    trackType: 'video',
+    variants,
+    requestId,
+    url: promptUrl
+  });
 
-  await setPendingPopupState(promptState);
-  const waitForResult = waitForPopupResolution(requestId);
-  browser.runtime.sendMessage({ action: 'promptStreamVariant', variants, requestId, url: promptState.url }).catch(() => {});
-  const result = await waitForResult;
-  return result?.selectedVariant ?? null;
+  if (!selectedVideoResult) return null;
+
+  let selectedAudioTracks = [];
+  if (audioTracks.length > 1) {
+    const selectedAudioResult = await requestPopupPrompt(requestId, {
+      type: 'streamAudioTracks',
+      requestId,
+      url: promptUrl,
+      audioTracks
+    }, {
+      action: 'promptStreamVariant',
+      trackType: 'audio',
+      audioTracks,
+      requestId,
+      url: promptUrl
+    });
+    if (!selectedAudioResult) return null;
+    selectedAudioTracks = selectedAudioResult.selectedTracks || [];
+  } else if (audioTracks.length === 1) {
+    selectedAudioTracks = [{ ...audioTracks[0], type: 'audio' }];
+  }
+
+  return [...(selectedVideoResult.selectedTracks || []), ...selectedAudioTracks];
 }
 
 
@@ -1152,29 +1223,38 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     });
 
     // find video/audio and prompt selection
-    const videoAdaptation = parsedAdaptations.find(a => a.contentType === "video");
-    const audioAdaptation = parsedAdaptations.find(a => a.contentType === "audio");
+    const videoAdaptations = parsedAdaptations.filter(a => a.contentType === "video");
+    const audioAdaptations = parsedAdaptations.filter(a => a.contentType === "audio");
 
-    if (!videoAdaptation && !audioAdaptation) {
+    if (!videoAdaptations.length && !audioAdaptations.length) {
       throw new Error("MPD has no audio or video AdaptationSet.");
     }
 
-      const chosenVideoRep = videoAdaptation
-        ? await selectMPDVideoRepresentation(videoAdaptation.representations, request.requestId, mpdUrl)
-      : null;
-
-      const chosenAudioRep = audioAdaptation
-        ? await selectMPDAudioRepresentation(audioAdaptation.representations, request.requestId, mpdUrl)
-      : null;
+    const videoRepresentations = videoAdaptations.flatMap(adaptation => adaptation.representations);
+    const audioRepresentations = audioAdaptations.flatMap(adaptation => adaptation.representations);
+    const chosenVideoReps = videoRepresentations.length
+      ? await selectMPDVideoRepresentation(videoRepresentations, request.requestId, mpdUrl)
+      : [];
+    const chosenAudioReps = audioRepresentations.length
+      ? await selectMPDAudioRepresentation(audioRepresentations, request.requestId, mpdUrl)
+      : [];
+    if (chosenVideoReps === null || chosenAudioReps === null) {
+      throw new Error("Download aborted by user during MPD track selection.");
+    }
+    if (!chosenVideoReps.length && !chosenAudioReps.length) {
+      browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      handleDownloadCompletion(request.requestId);
+      return;
+    }
 
     const mpdBase = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
     const mpdFilename = fileName
     const baseName = mpdFilename.replace(/\.mpd$/i, "");
 
     const isSegmentBaseOnly =
-      (!!chosenVideoRep || !!chosenAudioRep) &&
-      (!chosenVideoRep || chosenVideoRep.type === "segmentBase") &&
-      (!chosenAudioRep || chosenAudioRep.type === "segmentBase");
+      (chosenVideoReps.length || chosenAudioReps.length) &&
+      chosenVideoReps.every(rep => rep.type === "segmentBase") &&
+      chosenAudioReps.every(rep => rep.type === "segmentBase");
 
     // Unified streaming fetch with progress (single GET, no HEAD)
     // onStart(contentLength) — called once after headers are available (contentLength may be 0 if unknown)
@@ -1237,8 +1317,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         snackbar.remove();
       });
       const downloads = [];
-      if (chosenVideoRep) downloads.push({ rep: chosenVideoRep, label: "video" });
-      if (chosenAudioRep) downloads.push({ rep: chosenAudioRep, label: "audio" });
+      chosenVideoReps.forEach(rep => downloads.push({ rep, label: "video" }));
+      chosenAudioReps.forEach(rep => downloads.push({ rep, label: "audio" }));
       const useSplitTrackWeighting = downloads.length === 2;
 
       // Set up byte-tracking (max will grow as we discover Content-Lengths)
@@ -1267,10 +1347,11 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           const d = downloads[fileIndex];
           const url = new URL(d.rep.baseURL, mpdBase).href;
           let candidate = baseName;
+          const trackSuffix = downloads.length > 1 ? `_${d.rep.name || d.rep.id || fileIndex + 1}` : '';
           if (!candidate || candidate === "") {
-            candidate = d.label === "video" ? `${baseName}_video.mp4` : `${baseName}_audio.mp4`;
+            candidate = d.label === "video" ? `${baseName}_video${trackSuffix}.mp4` : `${baseName}_audio${trackSuffix}.mp4`;
           } else {
-            candidate += d.label === "video" ? "_video.mp4" : "_audio.mp3";
+            candidate += d.label === "video" ? `_video${trackSuffix}.mp4` : `_audio${trackSuffix}.mp3`;
           }
           const filename = candidate;
 
@@ -1335,10 +1416,11 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         const url = new URL(d.rep.baseURL, mpdBase).href;
         // Determine filename: prefer extension from baseURL, otherwise fallback
         let candidate = baseName;
+        const trackSuffix = downloads.length > 1 ? `_${d.rep.name || d.rep.id || fileIndex + 1}` : '';
         if (!candidate || candidate === "") {
-          candidate = d.label === "video" ? `${baseName}_video.mp4` : `${baseName}_audio.mp4`;
+          candidate = d.label === "video" ? `${baseName}_video${trackSuffix}.mp4` : `${baseName}_audio${trackSuffix}.mp4`;
         } else {
-          candidate += d.label === "video" ? "_video.mp4" : "_audio.mp3";
+          candidate += d.label === "video" ? `_video${trackSuffix}.mp4` : `_audio${trackSuffix}.mp3`;
         }
         const filename = candidate;
 
@@ -1601,18 +1683,11 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     }
 
     // Queue chosen reps
-    if (chosenVideoRep) {
-      if (chosenVideoRep.type === "segmentTemplate") queueTemplateDownloads(chosenVideoRep);
-      else if (chosenVideoRep.type === "segmentBase") queueBaseDownload(chosenVideoRep);
-      else if (chosenVideoRep.type === "segmentList") queueListDownload(chosenVideoRep);
-      else throw new Error("Unsupported video representation type");
-    }
-
-    if (chosenAudioRep) {
-      if (chosenAudioRep.type === "segmentTemplate") queueTemplateDownloads(chosenAudioRep);
-      else if (chosenAudioRep.type === "segmentBase") queueBaseDownload(chosenAudioRep);
-      else if (chosenAudioRep.type === "segmentList") queueListDownload(chosenAudioRep);
-      else throw new Error("Unsupported audio representation type");
+    for (const representation of [...chosenVideoReps, ...chosenAudioReps]) {
+      if (representation.type === "segmentTemplate") queueTemplateDownloads(representation);
+      else if (representation.type === "segmentBase") queueBaseDownload(representation);
+      else if (representation.type === "segmentList") queueListDownload(representation);
+      else throw new Error("Unsupported representation type");
     }
 
     // Setup progress tracking for ZIP flow
@@ -1657,6 +1732,13 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           }
         });
         zipEntries.push({ name: prefixedName(t.info.initZipPath), input: initBuf });
+        if (mpdFixEnabled) {
+          repIdToLocalName[t.rep.id] = {
+            type: "template",
+            initialization: sanitizeZipPath(t.rep.segmentTemplate.initialization),
+            media: sanitizeZipPath(t.rep.segmentTemplate.media)
+          };
+        }
         // mark init file as processed
         downloadedBytes += 1;
         handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
@@ -1767,8 +1849,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     if (mpdFixEnabled) {
       // Build selected representations set
       const selectedRepIds = new Set();
-      if (chosenVideoRep) selectedRepIds.add(chosenVideoRep.id);
-      if (chosenAudioRep) selectedRepIds.add(chosenAudioRep.id);
+      [...chosenVideoReps, ...chosenAudioReps].forEach(rep => selectedRepIds.add(rep.id));
 
       // Remove unused representations
       pruneToSelectedRepresentations(xmlDoc, NS, selectedRepIds);
@@ -1802,6 +1883,17 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
               node.setAttribute("media", meta.segments[idx]);
             }
           });
+        } else if (meta?.type === "template") {
+          const segmentTemplate = repNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0]
+            || repNode.parentElement?.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+          if (segmentTemplate) {
+            if (meta.initialization) {
+              segmentTemplate.setAttribute("initialization", meta.initialization);
+            }
+            if (meta.media) {
+              segmentTemplate.setAttribute("media", meta.media);
+            }
+          }
         }
       }
 
@@ -1873,16 +1965,16 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
 async function selectMPDVideoRepresentation(reps, requestId, url = null) {
   // If there's only one rep, no need to ask.
   if (reps.length === 1) {
-    return reps[0];
+    return [reps[0]];
   }
 
   // Check saved preference
   const preference = (await browser.storage.local.get("stream-quality").then((result) => result["stream-quality"])); // "highest" | "lowest" or "ask"
 
   if (preference === "highest") {
-    return reps.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
+    return [reps.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b))];
   } else if (preference === "lowest") {
-    return reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
+    return [reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b))];
   }
 
   const promptResult = await requestPopupPrompt(requestId, {
@@ -1897,7 +1989,7 @@ async function selectMPDVideoRepresentation(reps, requestId, url = null) {
     url
   });
 
-  return promptResult?.selectedRepresentation ?? null;
+  return promptResult?.selectedRepresentations ?? null;
 }
 
 /**
@@ -1911,16 +2003,16 @@ async function selectMPDVideoRepresentation(reps, requestId, url = null) {
 async function selectMPDAudioRepresentation(reps, requestId, url = null) {
   // If there's only one rep, no need to ask.
   if (reps.length === 1) {
-    return reps[0];
+    return [reps[0]];
   }
 
   // Check saved preference
   const preference = (await browser.storage.local.get("stream-quality").then((result) => result["stream-quality"])); // "highest" | "lowest" or "ask"
 
   if (preference === "highest") {
-    return reps.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b));
+    return [reps.reduce((a, b) => (a.bandwidth > b.bandwidth ? a : b))];
   } else if (preference === "lowest") {
-    return reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b));
+    return [reps.reduce((a, b) => (a.bandwidth < b.bandwidth ? a : b))];
   }
 
   const promptResult = await requestPopupPrompt(requestId, {
@@ -1935,7 +2027,7 @@ async function selectMPDAudioRepresentation(reps, requestId, url = null) {
     url
   });
 
-  return promptResult?.selectedRepresentation ?? null;
+  return promptResult?.selectedRepresentations ?? null;
 }
 
 function handleProgressUpdate(message) {

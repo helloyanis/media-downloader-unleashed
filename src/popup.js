@@ -202,8 +202,8 @@ async function restorePendingPopupIfExists() {
       console.log('Restoring pending popup:', stored);
       
       // Restore and display the pending popup based on its type
-      if (stored.type === 'streamVariant') {
-        await promptStreamVariant(stored.variants, stored.url, stored.requestId);
+      if (stored.type === 'streamVideoTracks' || stored.type === 'streamAudioTracks') {
+        await promptStreamVariant(stored.variants || [], stored.url, stored.requestId, stored.audioTracks || [], stored.type === 'streamAudioTracks' ? 'audio' : 'video');
       } else if (stored.type === 'drmWarning') {
         await promptDRMWarning(stored.requestId);
       } else if (stored.type === 'mpdVideoRepresentation') {
@@ -1439,6 +1439,53 @@ function getHumanReadableSize(size) {
   return `${sizeInBytes.toFixed(2)} ${units[unitIndex]}`;
 }
 
+async function isAndroid() {
+  // Used to check if the add-on should initiate downloads from the background or if it should queue them for the popup to handle, since on Firefox for Android, downloads triggered from background scripts using the downloads API or blob URLs don't work properly.
+  const forcedDeviceType = await browser.storage.local.get('force-device-type').then(result => result['force-device-type']);
+  if (forcedDeviceType === 'android') {
+    return true;
+  }
+  if (forcedDeviceType === 'desktop') {
+    return false;
+  }
+  return navigator.userAgent.includes("Mobile;")
+}
+
+async function shouldDownload() {
+  if(await isAndroid() && browser.extension.inIncognitoContext ) {
+    if(await browser.storage.local.get('android-incognito-download-warning').then(result => result['android-incognito-download-warning']) === '0') {
+      return true; // User has opted to not show the warning again, proceed with download
+    }
+    // On Android, downloads from extension incognito windows are not allowed, so we show a dialog to the user and ask if they want to cancel the download
+    return new Promise((resolve) => {
+      showDialogCustom({
+        showTextField: false,
+        headline: browser.i18n.getMessage("androidIncognitoDownloadTitle"),
+        description: browser.i18n.getMessage("androidIncognitoDownloadMessage"),
+        confirmText: browser.i18n.getMessage("androidIncognitoDownloadOkButton"),
+        cancelText: browser.i18n.getMessage("cancelButton"),
+        onConfirm: () => {
+          resolve(true); // User confirmed, proceed with download
+        },
+        onCancel: () => {
+          resolve(false); // User cancelled, do not proceed with download
+        },
+        showDontShowAgainCheckbox: true,
+        onDontShowAgainChange: async (checked) => {
+          if (checked) {
+            await browser.storage.local.set({ 'android-incognito-download-warning': '0' });
+          } else {
+            await browser.storage.local.set({ 'android-incognito-download-warning': '1' });
+          }
+        },
+      });
+    });
+  } else {
+    return true; // If not on Android or not in incognito, proceed with download
+  }
+}
+
+
 /**
 * Download the media file using the selected size and method
 * @param {String} url The URL of the media file to download
@@ -1446,6 +1493,10 @@ function getHumanReadableSize(size) {
 * @returns {Promise<void>} A promise that resolves when the download is complete or fails
 */
 async function downloadFile(url, fileName = null, mediaDiv) {
+  if(!await shouldDownload()) {
+    console.warn('Download was cancelled.');
+    return;
+  }
   console.log('Downloading media file:', url);
   let wakeLock = null
   let progressListener = null;
@@ -1660,24 +1711,32 @@ function handleMessage(message, sender, sendResponse) {
   console.log('Received message in popup:', message);
   switch (message.action) {
     case 'promptStreamVariant':
-      return promptStreamVariant(message.variants, message.url, message.requestId)
-        .then(selectedVariant => ({ selectedVariant }));
+      return promptStreamVariant(message.variants || [], message.url, message.requestId, message.audioTracks || [], message.trackType || 'video')
+        .then(selectedTracks => ({ selectedTracks }));
         break;
     case 'showSplitDownloadDialog':
+      {
+      const videoFiles = message.videoFiles || [`${message.baseName}_video.mp4`];
+      const audioFiles = message.audioFiles || [`${message.baseName}_audio.mp4`];
+      const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+      const inputs = [...videoFiles, ...audioFiles].map(file => `-i "${escapeHtml(file)}"`).join(' ');
+      const videoMaps = videoFiles.map((file, index) => `-map ${index}:v?`).join(' ');
+      const audioMaps = audioFiles.map((file, index) => `-map ${videoFiles.length + index}:a?`).join(' ');
       void showPreferenceAwareCompletionNotice({
         preferenceKey: "split-download-complete-dont-remind-me",
         headline: browser.i18n.getMessage("splitAudioVideoDownloadCompleteTitle"),
-        description: browser.i18n.getMessage("splitAudioVideoDownloadCompleteDescription", [message.baseName, ".mp4"]),
+        description: `The selected audio and video tracks were downloaded separately. Merge them with ffmpeg:<br><code>ffmpeg ${inputs} ${videoMaps} ${audioMaps} -c copy "${escapeHtml(message.baseName)}.mp4"</code>`,
       }).catch((error) => console.error('Error showing split download completion notice:', error));
       return Promise.resolve();
+      }
       break;
     case 'promptMPDVideoRepresentation':
       return promptMPDVideoRepresentation(message.reps, "video", message.requestId)
-        .then(selectedRepresentation => ({ selectedRepresentation }));
+        .then(selectedRepresentations => ({ selectedRepresentations }));
         break;
     case 'promptMPDAudioRepresentation':
       return promptMPDVideoRepresentation(message.reps, "audio", message.requestId)
-        .then(selectedRepresentation => ({ selectedRepresentation }));
+        .then(selectedRepresentations => ({ selectedRepresentations }));
         break;
     case 'showMPDDownloadCompleteDialog':
       void showPreferenceAwareCompletionNotice({
@@ -1705,12 +1764,13 @@ function handleMessage(message, sender, sendResponse) {
 }
 
 
-async function promptStreamVariant(variants, url, requestId) {
+async function promptStreamVariant(variants, url, requestId, audioTracks = [], trackType = 'video') {
   return new Promise((resolve) => {
     // Mark this popup as pending
     pendingPopupState = {
-      type: 'streamVariant',
+      type: trackType === 'audio' ? 'streamAudioTracks' : 'streamVideoTracks',
       variants,
+      audioTracks,
       url,
       requestId
     };
@@ -1750,26 +1810,30 @@ async function promptStreamVariant(variants, url, requestId) {
       const bitrateLabel = variant.bandwidth ? `${Math.round(variant.bandwidth / 1000)} kbps` : null;
       const label = bitrateLabel ? `${baseLabel} (${bitrateLabel})` : baseLabel;
 
-      return { label, value: variant.uri || variant.url };
+      return { label, value: variant.uri || variant.url, type: 'video' };
     });
 
-    // Build an MDUI popup with radio buttons for each variant
+    const audioOptions = audioTracks.map((track, index) => ({
+      label: `${track.name || `Audio track ${index + 1}`} (${track.language || `${Math.round((track.bandwidth || 0) / 1000)} kbps`})`,
+      value: track.uri,
+      type: 'audio'
+    }));
+
+    const options = trackType === 'audio' ? audioOptions : variantOptions;
+
+    // Build a dialog for one track type at a time.
     const dialog = document.createElement("mdui-dialog");
     dialog.headline = browser.i18n.getMessage("streamQualityDialogTitle")
 
     const form = document.createElement("form");
-    const radioGroup = document.createElement("mdui-radio-group");
-    radioGroup.name = "stream-variant";
-    radioGroup.className = "mdui-dialog-content";
-    form.appendChild(radioGroup);
-    variantOptions.forEach((option, index) => {
-      const radio = document.createElement("mdui-radio");
-      radio.value = index; // Use index as value to identify the selected variant
-
-      radio.innerText = option.label;
-
-      radioGroup.appendChild(radio);
-      radioGroup.appendChild(document.createElement("br"));
+    const checkboxes = [];
+    options.forEach((option, index) => {
+      const checkbox = document.createElement("mdui-checkbox");
+      checkbox.value = index;
+      checkbox.innerText = `${trackType === 'audio' ? 'Audio' : 'Video'}: ${option.label}`;
+      checkboxes.push(checkbox);
+      form.appendChild(checkbox);
+      form.appendChild(document.createElement("br"));
     });
 
     dialog.appendChild(form);
@@ -1783,9 +1847,9 @@ async function promptStreamVariant(variants, url, requestId) {
     cancelBtn.setAttribute("variant", "text");
     cancelBtn.addEventListener("click", () => {
       pendingPopupState = null;
-      resolve(null); // Resolve with null if the user cancels
+      resolve(null);
       dialog.open = false;
-      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedVariant: null } }).catch(() => {});
+      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedTracks: null } }).catch(() => {});
     });
     actions.appendChild(cancelBtn);
 
@@ -1795,16 +1859,12 @@ async function promptStreamVariant(variants, url, requestId) {
     confirmBtn.addEventListener("click", () => {
       pendingPopupState = null;
       dialog.open = false;
-      const selectedIndex = radioGroup.value;
-
-      if (selectedIndex === undefined) {
-        resolve(null);
-        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedVariant: null } }).catch(() => {});
-      } else {
-        const selectedVariant = variants[selectedIndex];
-        resolve(selectedVariant); // return actual variant
-        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedVariant } }).catch(() => {});
-      }
+      const selectedTracks = checkboxes.filter(checkbox => checkbox.checked).map(checkbox => {
+        const optionIndex = Number(checkbox.value);
+        return options[optionIndex];
+      });
+      resolve(selectedTracks);
+      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedTracks } }).catch(() => {});
 
     });
     actions.appendChild(confirmBtn);
@@ -1834,10 +1894,7 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
     }
 
     const form = document.createElement("form");
-    const radioGroup = document.createElement("mdui-radio-group");
-    radioGroup.name = "video-representation";
-    radioGroup.className = "mdui-dialog-content";
-    form.appendChild(radioGroup);
+    const checkboxes = [];
     const humanizeLanguage = (languageTag) => {
       if (!languageTag || typeof languageTag !== 'string') return null;
       const normalized = languageTag.trim();
@@ -1852,8 +1909,8 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
     };
 
     reps.forEach((rep, index) => {
-      const radio = document.createElement("mdui-radio");
-      radio.value = index; // Use index as value to identify the selected representation
+      const checkbox = document.createElement("mdui-checkbox");
+      checkbox.value = index;
 
       const trackPrefix = type === 'audio' ? `Audio track ${index + 1}` : `Video track ${index + 1}`;
       const labelParts = [trackPrefix];
@@ -1875,10 +1932,11 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
       }
 
       const detailsSuffix = details.length ? ` (${details.join(', ')})` : '';
-      radio.innerText = `${labelParts.join(' - ')}${detailsSuffix}`;
+      checkbox.innerText = `${labelParts.join(' - ')}${detailsSuffix}`;
 
-      radioGroup.appendChild(radio);
-      radioGroup.appendChild(document.createElement("br"));
+      checkboxes.push(checkbox);
+      form.appendChild(checkbox);
+      form.appendChild(document.createElement("br"));
     });
 
     dialog.appendChild(form);
@@ -1892,9 +1950,9 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
     cancelBtn.setAttribute("variant", "text");
     cancelBtn.addEventListener("click", () => {
       pendingPopupState = null;
-      resolve(null); // Resolve with null if the user cancels
+      resolve(null);
       dialog.open = false;
-      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentation: null } }).catch(() => {});
+      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentations: null } }).catch(() => {});
     });
     actions.appendChild(cancelBtn);
 
@@ -1904,16 +1962,9 @@ async function promptMPDVideoRepresentation(reps, type, requestId) {
     confirmBtn.addEventListener("click", () => {
       pendingPopupState = null;
       dialog.open = false;
-      const selectedIndex = radioGroup.value;
-
-      if (selectedIndex === undefined) {
-        resolve(null);
-        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentation: null } }).catch(() => {});
-      } else {
-        const selectedRepresentation = reps[selectedIndex];
-        resolve(selectedRepresentation); // return actual representation
-        browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentation } }).catch(() => {});
-      }
+      const selectedRepresentations = checkboxes.filter(checkbox => checkbox.checked).map(checkbox => reps[Number(checkbox.value)]);
+      resolve(selectedRepresentations);
+      browser.runtime.sendMessage({ action: 'popupResolved', requestId, result: { selectedRepresentations } }).catch(() => {});
 
     });
     actions.appendChild(confirmBtn);

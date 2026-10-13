@@ -739,5 +739,17 @@
     "androidDownloadPopupCloseButton": {
         "message": "Close",
         "description": "The text of the close button in the popup shown when a download is completed on Android."
+    },
+        "androidIncognitoDownloadTitle": {
+        "message": "Ce téléchargement peut échouer",
+        "description": "The title of the popup shown when a download starts on Android in incognito mode."
+    },
+    "androidIncognitoDownloadMessage": {
+        "message": "A cause de restrictions dans le mode incognito d'Android, ce téléchargement peut ne pas se terminer avec succès. Si aucun fichier n'est téléchargé, essayez à nouveau en ouvrant cette extension dans une fenêtre de navigation normale. (Peut toujours détecter les vidéos depuis les onglets incognito)",
+        "description": "The description of the popup shown when a download starts on Android in incognito mode."
+    },
+    "androidIncognitoDownloadOkButton": {
+        "message": "Continuer malgré tout",
+        "description": "The text of the OK button in the popup shown when a download starts on Android in incognito mode."
     }
 }
