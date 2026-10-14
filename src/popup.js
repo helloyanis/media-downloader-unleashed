@@ -837,11 +837,14 @@ function shouldHideSegment(url, request, manifestIndex) {
 
   const segmentContentTypeRe = /video\/mp2t|video\/iso\.segment|application\/octet-stream|video\/x-mpegurl/i;
   const segmentExtRe = /\.(ts|m4s|seg|frag|fragment)(?:$|\?)/i;
+  const subtitleExtRe = /\.(srt|vtt|sub|ass|ssa|idx|ttml|dfxp)(?:$|\?)/i;
+  const mayBeSubtitle = subtitleExtRe.test(pathname);
 
   const looksLikeSegmentByType = contentType && segmentContentTypeRe.test(contentType);
   const looksLikeSegmentByExt = segmentExtRe.test(pathname);
 
-  if (looksLikeSegmentByType || looksLikeSegmentByExt) {
+
+  if ((looksLikeSegmentByType && !mayBeSubtitle) || looksLikeSegmentByExt) {
     console.debug('Hiding stream segment:', url, { contentType, contentLength });
     return true;
   }
@@ -910,8 +913,11 @@ function loadMediaList() {
     const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
     const audioExtensions = [".3ga", ".aac", ".ac3", ".adts", ".aif", ".aiff", ".alac", ".ape", ".asf", ".au", ".dts", ".f4a", ".f4b", ".flac", ".isma", ".it", ".m4a", ".m4b", ".m4r", ".mid", ".mka", ".mod", ".mp1", ".mp2", ".mp3", ".mp4a", ".mpa", ".mpga", ".oga", ".ogg", ".ogx", ".opus", ".ra", ".shn", ".spx", ".vorbis", ".wav", ".weba", ".wma", ".xm"];
     const streamExtensions = [".f4f", ".f4m", ".m3u8", ".mpd", ".smil"];
+    const subtitleExtensions = [".srt", ".vtt", ".sub", ".ass", ".ssa", ".idx", ".ttml", ".dfxp"];
 
-    const fileExtensions = [...videoExtensions, ...audioExtensions, ...streamExtensions];
+
+
+    const fileExtensions = [...videoExtensions, ...audioExtensions, ...streamExtensions, ...subtitleExtensions];
 
     const mediaTypes = [
       "videoxflv",
@@ -1029,6 +1035,9 @@ function loadMediaList() {
         else if (audioExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && h.value.startsWith("audio/"))) {
           //Media is an audio
           path.setAttribute('d', 'M400-120q-66 0-113-47t-47-113q0-66 47-113t113-47q23 0 42.5 5.5T480-418v-422h240v160H560v400q0 66-47 113t-113 47Z');
+        } else if (subtitleExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value.includes("text/vtt") || h.value.includes("application/x-subrip") || h.value.includes("application/ttml+xml")))) {
+          //Media is a subtitle
+          path.setAttribute('d', 'M240-320h320v-80H240v80Zm400 0h80v-80h-80v80ZM240-480h80v-80h-80v80Zm160 0h320v-80H400v80ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80h640v-480H160v480Zm0 0v-480 480Z');
         }
         else {
           //Media is unknown
