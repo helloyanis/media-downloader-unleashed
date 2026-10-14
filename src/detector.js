@@ -503,10 +503,10 @@ function initListener() {
                 const mimeMatches = (
                     contentType.startsWith('audio/') ||
                     contentType.startsWith('video/') ||
-                    contentType === 'application/vnd.apple.mpegurl' ||
-                    contentType === 'application/x-mpegurl' ||
-                    contentType === 'application/dash+xml' ||
-                    contentType === 'application/octet-stream' // <-- treat generic binary as potential media (or segments)
+                    contentType.includes('application/vnd.apple.mpegurl') ||
+                    contentType.includes('application/x-mpegurl') ||
+                    contentType.includes('application/dash+xml') ||
+                    contentType.includes('application/octet-stream') // <-- treat generic binary as potential media (or segments)
                 );
 
                 const urlMatches = detectionRegex.test(decodeURI(details.url));

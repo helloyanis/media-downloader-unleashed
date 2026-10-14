@@ -549,9 +549,9 @@ function isManifestRequest(url, request) {
 
   return pathname.endsWith('.m3u8') ||
     pathname.endsWith('.mpd') ||
-    contentType === 'applicationxmpegurl' ||
-    contentType === 'applicationvndapplempegurl' ||
-    contentType === 'applicationdashxml';
+    contentType.includes('applicationxmpegurl') ||
+    contentType.includes('applicationvndapplempegurl') ||
+    contentType.includes('applicationdashxml');
 }
 
 // Read the cached response body for a manifest URL from IndexedDB. This is used to extract segment URLs for DASH and HLS streams, as the manifest file contains the list of segments to download.
@@ -925,7 +925,7 @@ function loadMediaList() {
       "audioaac",
       "audioogg",
       "audioxmswma",
-      "applicationvdnapplempegurl",
+      "applicationvndapplempegurl",
       "applicationxmpegurl",
       "applicationdashxml",
       "applicationoctetstream"
@@ -955,10 +955,10 @@ function loadMediaList() {
 
       // Check if the request matches the media types or file extensions
       if (useMimeDetection && requests[0]?.responseHeaders) {
-        // Also allow numbers (mp4)
+        // Also allow if the content type contains something else than what's in the media types, for example "contenttype : video/mp4; codecs="avc1.42E01E, mp4a.40.2" should match "video/mp4" (no matter the header name)
         mimeMatch =
-          requests[0].responseHeaders.find(header => mediaTypes.includes(header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))) !== undefined // Any of the media types match the content type header (with non-alphanumeric characters removed to allow things like "VIDEO-mp4" to match "video/mp4")
-          || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("video") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').startsWith("audio")) !== undefined // Or if any content type header starts with video/ or audio/
+          requests[0].responseHeaders.find(header => mediaTypes.some(type => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').includes(type))) !== undefined
+          || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').includes("video") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').includes("audio")) !== undefined // Or if any content type header starts with video/ or audio/
       }
 
       let mediaURL;
@@ -1003,7 +1003,7 @@ function loadMediaList() {
       const hasResponseHeaders = requests[0]?.responseHeaders && requests[0].responseHeaders.length > 0;
       let path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
       if (hasResponseHeaders) {
-        if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value === "application/x-mpegURL" || h.value === "application/vnd.apple.mpegurl" || h.value === "application/dash+xml"))) {
+        if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value.includes("application/x-mpegURL") || h.value.includes("application/vnd.apple.mpegurl") || h.value.includes("application/dash+xml")))) {
           //Media is a stream
           // Check if it's an audio stream or a video stream based on the cached body of the manifest file. If it's an audio stream, show the audio icon, otherwise show the video icon.
           const manifestText = await readCachedManifestText(url);
@@ -1612,8 +1612,12 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     mediaDiv.appendChild(progressContainer);
 
     const lowerPath = new URL(url).pathname.toLowerCase();
-    const isM3U8 = lowerPath.endsWith('.m3u8') || requests[url][selectedSizeIndex].responseHeaders?.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationxmpegurl" || requests[url][selectedSizeIndex].responseHeaders?.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationvndapplempegurl";
-    const isMPD = lowerPath.endsWith('.mpd') || requests[url][selectedSizeIndex].responseHeaders?.find(h => h.name.toLowerCase() === "content-type")?.value.toLowerCase().replace(/[^a-zA-Z]/g, '') === "applicationdashxml";
+    const responseHeaders = requests[url][selectedSizeIndex].responseHeaders || [];
+    const hasMimeType = mimeType => responseHeaders.some(header =>
+      /*header.name.toLowerCase() === 'content-type' &&*/ normalizeContentType(header.value).includes(mimeType)
+    );
+    const isM3U8 = lowerPath.endsWith('.m3u8') || hasMimeType('applicationxmpegurl') || hasMimeType('applicationvndapplempegurl');
+    const isMPD = lowerPath.endsWith('.mpd') || hasMimeType('applicationdashxml');
     const renamePreference = await browser.storage.local.get('rename-downloads-v2').then(result => result['rename-downloads-v2']);
     if (renamePreference === 'ask' ) {
       try{
