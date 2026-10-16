@@ -1399,7 +1399,7 @@ function clearMediaList() {
  * @param {String} url The URL of the media file
  * @returns {String} The file name extracted from the URL, limited to the specified length
 */
-function getFileName(url, maxLength = 50) {
+function getFileName(url, maxLength = 100) {
   try {
     let parsedUrl = new URL(url);
 

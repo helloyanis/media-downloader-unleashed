@@ -17,22 +17,6 @@ if (typeof browser === 'undefined') {
     var browser = chrome;
 }
 
-const mediaTypes = [
-    "video/x-flv",
-    "video/x-msvideo",
-    "video/x-ms-wmv",
-    "video/quicktime",
-    "video/mp4",
-    "audio/x-pcm",
-    "audio/wav",
-    "audio/mpeg",
-    "audio/aac",
-    "audio/ogg",
-    "audio/x-ms-wma",
-    "application/vnd.apple.mpegurl",
-    "application/x-mpegURL"
-];
-
 let urlList = [];
 let headersSentListener, headersReceivedListener;
 
@@ -507,7 +491,13 @@ function initListener() {
                     contentType.includes('application/vnd.apple.mpegurl') ||
                     contentType.includes('application/x-mpegurl') ||
                     contentType.includes('application/dash+xml') ||
-                    contentType.includes('application/octet-stream') // <-- treat generic binary as potential media (or segments)
+                    contentType.includes('application/x-matroska') || // <-- MKV
+                    contentType.includes('application/octet-stream') || // <-- treat generic binary as potential media (or segments)
+                    // Subtitles
+                    contentType.includes('text/vtt') ||
+                    contentType.includes('application/ttml+xml') ||
+                    contentType.includes('application/x-subrip') ||
+                    contentType.includes('application/x-srt')
                 );
 
                 const urlMatches = detectionRegex.test(decodeURI(details.url));
