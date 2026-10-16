@@ -4,7 +4,7 @@
     "description": "The contents of the context menu when hovering over the extension icon."
   },
   "extensionDescription": {
-    "message": "Lade Videos, Musik und Live-Streams direkt auf dein Gerät herunter!",
+    "message": "Lade Videos, Musik, Streams und Untertitel direkt auf dein Gerät herunter!",
     "description": "The description of the extension shown in the browser's settings page."
   },
   "errorTitle1": {
