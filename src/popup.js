@@ -1395,11 +1395,11 @@ function clearMediaList() {
 }
 
 /**
- * Get the file name from the URL, limiting it to 20 characters. This is what's displayed in the media list.
+ * Get the file name from the URL, limiting it to 50 characters. This is what's displayed in the media list.
  * @param {String} url The URL of the media file
- * @returns {String} The file name extracted from the URL, limited to 20 characters
+ * @returns {String} The file name extracted from the URL, limited to the specified length
 */
-function getFileName(url, maxLength = 20) {
+function getFileName(url, maxLength = 50) {
   try {
     let parsedUrl = new URL(url);
 
