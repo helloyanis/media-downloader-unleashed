@@ -4,7 +4,7 @@
         "description": "The contents of the context menu when hovering over the extension icon."
     },
     "extensionDescription": {
-        "message": "Téléchargez facilement des vidéos, des flux vidéos et des fichiers audios depuis la plupart des sites web, directement sur votre appareil!",
+        "message": "Téléchargez facilement des vidéos, de l'audio et des sous-titres depuis la plupart des sites web, directement sur votre appareil!",
         "description": "The description of the extension shown in the browser's settings page."
     },
     "errorTitle1": {

@@ -306,7 +306,11 @@ function initListener() {
         beforeRequestListener = function (details) {
             try {
                 if (!details || !details.requestBody) return;
-
+                const protocol = new URL(details.originUrl).protocol
+            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+                // Requests is from extension itself, so no need to capture request body
+                return;
+            }
                 const rb = details.requestBody;
 
                 if (rb.formData) {
@@ -397,6 +401,10 @@ function initListener() {
         console.log("Attached onBeforeSendHeaders listener.");
 
         headersSentListener = async function (details) {
+            const protocol = new URL(details.originUrl).protocol
+            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+                return;
+            }
             try {
                 // [NEW] Always capture headers to the temporary map first
                 if (details.requestHeaders) {
@@ -450,6 +458,18 @@ function initListener() {
                 browser.storage.session.get(details.url, function (result) {
                     let existingRequests = result[details.url] || [];
 
+                    if(existingRequests.length > 1000) {
+                        // Remove the oldest request
+                        // Also delete the corresponding cached request body and headers for the removed requestId
+                        const oldestRequest = existingRequests.shift();
+                        temporaryRequestBodyMap.delete(oldestRequest.requestId);
+                        temporaryHeaderMap.delete(oldestRequest.requestId);
+                        temporaryCookieMap.delete(oldestRequest.requestId);
+                        removeFromCache(oldestRequest.url).catch(e => {
+                            console.error("Failed to remove from cache for oldest request:", oldestRequest.url, e);
+                        });
+                        console.warn("Removed oldest request to maintain limit of 1000 for", details.url);
+                    }
                     // push the new request
                     existingRequests.push(mediaRequest);
                     let requestsObj = {};
@@ -471,6 +491,10 @@ function initListener() {
 
         // onHeadersReceived: used to update size/responseHeaders and also to save requests when mime-detection triggers
         headersReceivedListener = async function (details) {
+            const protocol = new URL(details.originUrl).protocol
+            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+                return;
+            }
             try {
                 // Extract content-length and content-type (if present)
                 const responseHeaders = details.responseHeaders || [];

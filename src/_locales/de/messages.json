@@ -605,7 +605,7 @@
         "description": "The text of the Cancel button in the prompt to enter an e-mail when sharing diagnostic data."
     },
     "noRequestFoundError": {
-        "message": "No request found for the selected size. Please try again.",
+        "message": "Cannot find the corresponding request's info in the request history. This can happen when the request was already made and cached in your browser before installing the add-on. Clear your browsing data from the website you try to download from, then restart the browser and try again.",
         "description": "The error message shown when no request is found for the selected size during download."
     },
     "drmWarningTitle": {
