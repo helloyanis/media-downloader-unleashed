@@ -13,7 +13,7 @@ const pendingPromptResolvers = new Map(); // requestId -> {resolve}
 
 function sanitizeFileName(name) {
   // Remove invalid characters for file names
-  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+  return name.replace(/[.<>:"/\\|?*\x00-\x1F]/g, '_').trim();
 }
 
 function isAbortError(error) {
@@ -1010,6 +1010,12 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
   try {
     const abortController = registerAbortController(request.requestId, mpdUrl);
     const signal = abortController.signal;
+    const requestHeaders = [...headers];
+    const referer = request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value;
+    if (referer && !requestHeaders.some(h => h.name.toLowerCase() === "referer")) {
+      requestHeaders.push({ name: "Referer", value: referer });
+    }
+    const browserDownloadHeaders = requestHeaders.map(h => ({ name: h.name, value: h.value }));
     // --- Helpers
     function sanitizeZipPath(originalPath) {
       if (!originalPath || typeof originalPath !== "string") return originalPath || "";
@@ -1040,13 +1046,16 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     }
 
     // Fetch MPD manifest
-    const resp = await fetchWithCache(mpdUrl, {
+    const manifestFetchOptions = {
       method: request.method,
-      headers: Object.fromEntries(headers.map(h => [h.name, h.value])),
-      referrer: request.requestHeaders.find(h => h.name.toLowerCase() === "referer")?.value || "",
+      headers: Object.fromEntries(requestHeaders.map(h => [h.name, h.value])),
+      referrer: referer || "",
       body: request.method !== 'GET' ? request.requestBody : null,
       signal,
-    }, skipCache);
+    };
+    const resp = downloadMethod === "browser"
+      ? await fetch(mpdUrl, manifestFetchOptions)
+      : await fetchWithCache(mpdUrl, manifestFetchOptions, skipCache);
     if (!resp.ok) throw new Error(`Failed to fetch MPD manifest: ${resp.status}.`);
     let mpdXmlText = await resp.text();
 
@@ -1252,10 +1261,11 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     }
 
     const mpdBase = mpdUrl.substring(0, mpdUrl.lastIndexOf("/") + 1);
-    const mpdFilename = fileName
+    const mpdFilename = sanitizeFileName(fileName);
     const baseName = mpdFilename.replace(/\.mpd$/i, "");
 
     const isSegmentBaseOnly =
+      downloadMethod !== "browser" &&
       (chosenVideoReps.length || chosenAudioReps.length) &&
       chosenVideoReps.every(rep => rep.type === "segmentBase") &&
       chosenAudioReps.every(rep => rep.type === "segmentBase");
@@ -1467,7 +1477,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         } else {
           candidate += d.label === "video" ? `_video${trackSuffix}.mp4` : `_audio${trackSuffix}.mp3`;
         }
-        const filename = candidate;
+        const filename = sanitizeFileName(candidate);
 
         console.log(`>>> Direct download ${filename} at ${d.label}:`, url);
 
@@ -1515,7 +1525,6 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         // Trigger download for this file
         const blob = new Blob([buffer]);
         const objectUrl = URL.createObjectURL(blob);
-        filename = sanitizeFileName(filename);
         if (downloadMethod === "browser") {
           await browser.downloads.download({ url: objectUrl, filename: filename });
         } else {
@@ -1735,6 +1744,136 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       else throw new Error("Unsupported representation type");
     }
 
+    const mpdFixEnabled = (await browser.storage.local.get("mpd-fix").then((result) => result["mpd-fix"])) === "1";
+
+    if (downloadMethod === "browser") {
+      const downloadFolder = sanitizeFileName(baseName || "media");
+      const browserRepIdToLocalName = {};
+      const browserFiles = [{ url: mpdUrl, path: `${downloadFolder}/${mpdFilename}` }];
+
+      for (const task of tasks) {
+        if (task.type === "template") {
+          browserFiles.push({ url: task.info.initUrl, path: `${downloadFolder}/${prefixedName(task.info.initZipPath)}` });
+          for (let i = 0; i < task.info.segmentUrls.length; i++) {
+            browserFiles.push({ url: task.info.segmentUrls[i], path: `${downloadFolder}/${prefixedName(task.info.mediaZipPaths[i])}` });
+          }
+          if (mpdFixEnabled) browserRepIdToLocalName[task.rep.id] = {
+            type: "template",
+            initialization: prefixedName(task.info.initZipPath),
+            media: prefixedName(sanitizeZipPath(task.rep.segmentTemplate.media))
+          };
+        } else if (task.type === "base") {
+          const localPath = prefixedName(task.zipName);
+          browserFiles.push({ url: task.url, path: `${downloadFolder}/${localPath}` });
+          if (mpdFixEnabled) browserRepIdToLocalName[task.rep.id] = localPath;
+        } else if (task.type === "list") {
+          browserFiles.push({ url: task.info.initUrl, path: `${downloadFolder}/${prefixedName(task.info.initZipPath)}` });
+          for (let i = 0; i < task.info.segmentUrls.length; i++) {
+            browserFiles.push({ url: task.info.segmentUrls[i], path: `${downloadFolder}/${prefixedName(task.info.segmentZipPaths[i])}` });
+          }
+          if (mpdFixEnabled) browserRepIdToLocalName[task.rep.id] = {
+            type: "list",
+            init: prefixedName(task.info.initZipPath),
+            segments: task.info.segmentZipPaths.map(path => prefixedName(path))
+          };
+        }
+      }
+
+      if (mpdFixEnabled) {
+        const selectedRepIds = new Set([...chosenVideoReps, ...chosenAudioReps].map(rep => rep.id));
+        pruneToSelectedRepresentations(xmlDoc, NS, selectedRepIds);
+        for (const repId in browserRepIdToLocalName) {
+          const repNode = Array.from(xmlDoc.getElementsByTagNameNS(NS, "Representation"))
+            .find(r => r.getAttribute("id") === repId);
+          if (!repNode) continue;
+          const meta = browserRepIdToLocalName[repId];
+          if (typeof meta === "string") {
+            const segmentBase = repNode.getElementsByTagNameNS(NS, "SegmentBase")[0];
+            segmentBase?.parentElement?.removeChild(segmentBase);
+            let baseNode = repNode.getElementsByTagNameNS(NS, "BaseURL")[0];
+            if (!baseNode) {
+              baseNode = xmlDoc.createElementNS(NS, "BaseURL");
+              repNode.insertBefore(baseNode, repNode.firstChild);
+            }
+            baseNode.textContent = meta;
+          } else if (meta.type === "list") {
+            const initNode = repNode.getElementsByTagNameNS(NS, "Initialization")[0];
+            if (initNode) initNode.setAttribute("sourceURL", meta.init);
+            Array.from(repNode.getElementsByTagNameNS(NS, "SegmentURL")).forEach((node, index) => {
+              if (meta.segments[index]) node.setAttribute("media", meta.segments[index]);
+            });
+          } else if (meta.type === "template") {
+            const segmentTemplate = repNode.getElementsByTagNameNS(NS, "SegmentTemplate")[0]
+              || repNode.parentElement?.getElementsByTagNameNS(NS, "SegmentTemplate")[0];
+            if (segmentTemplate) {
+              segmentTemplate.setAttribute("initialization", meta.initialization);
+              segmentTemplate.setAttribute("media", meta.media);
+            }
+          }
+        }
+        const modifiedManifest = new Blob([new XMLSerializer().serializeToString(xmlDoc)], { type: "application/dash+xml" });
+        browserFiles[0] = { blob: modifiedManifest, path: `${downloadFolder}/${mpdFilename}` };
+      }
+
+      async function downloadBrowserFile(file, index) {
+        if (signal.aborted) throw createAbortError();
+        let downloadId;
+        let settled = false;
+        let resolveDownload;
+        let rejectDownload;
+        const onChanged = (delta) => {
+          if (delta.id !== downloadId) return;
+          const totalBytes = delta.totalBytes?.current;
+          const bytesReceived = delta.bytesReceived?.current;
+          if (typeof totalBytes === "number" && totalBytes > 0 && typeof bytesReceived === "number") {
+            const fileProgress = bytesReceived / totalBytes;
+            handleProgressUpdate({ action: "updateProgress", requestId: request.requestId, processed: index + fileProgress, total: browserFiles.length, percentage: ((index + fileProgress) / browserFiles.length) * 100 });
+          }
+          if (delta.state?.current === "complete") finish(resolveDownload);
+          if (delta.state?.current === "interrupted") finish(() => rejectDownload(new Error(delta.error?.current || "Browser download interrupted.")));
+        };
+        const finish = (callback) => {
+          if (settled) return;
+          settled = true;
+          browser.downloads.onChanged.removeListener(onChanged);
+          const entry = ongoingDownloads.get(request.requestId);
+          if (entry?.downloadId === downloadId) ongoingDownloads.set(request.requestId, { ...entry, downloadId: null });
+          callback();
+        };
+
+        return new Promise((resolve, reject) => {
+          resolveDownload = resolve;
+          rejectDownload = reject;
+          browser.downloads.onChanged.addListener(onChanged);
+          const objectUrl = file.blob ? URL.createObjectURL(file.blob) : null;
+          browser.downloads.download({
+            url: objectUrl || file.url,
+            filename: file.path,
+            headers: browserDownloadHeaders,
+            method: request.method,
+            saveAs: false
+          }).then(id => {
+            downloadId = id;
+            const entry = ongoingDownloads.get(request.requestId);
+            ongoingDownloads.set(request.requestId, { ...entry, downloadId });
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+          }).catch(error => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            finish(() => reject(error));
+          });
+        });
+      }
+
+      handleProgressUpdate({ action: "updateProgress", requestId: request.requestId, processed: 0, total: browserFiles.length, percentage: 0 });
+      for (let index = 0; index < browserFiles.length; index++) {
+        await downloadBrowserFile(browserFiles[index], index);
+        handleProgressUpdate({ action: "updateProgress", requestId: request.requestId, processed: index + 1, total: browserFiles.length, percentage: ((index + 1) / browserFiles.length) * 100 });
+      }
+      browser.runtime.sendMessage({ action: "downloadComplete", requestId: request.requestId });
+      handleDownloadCompletion(request.requestId);
+      return;
+    }
+
     // Setup progress tracking for ZIP flow
     handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: 0, total: tasks.length, percentage: 0 });
     let downloadedBytes = 0;
@@ -1745,7 +1884,6 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       handleProgressUpdate({ action: 'updateProgress', requestId: request.requestId, processed: downloadedBytes, total: maxBytes, percentage: Math.round((downloadedBytes / maxBytes) * 100) });
     }
 
-    const mpdFixEnabled = (await browser.storage.local.get("mpd-fix").then((result) => result["mpd-fix"])) === "1";
     const repIdToLocalName = {};
 
     //Calculate maxBytes for template flows (count-based)
@@ -2193,6 +2331,13 @@ browser.runtime.onMessage.addListener((message) => {
           return Promise.resolve({ cancelled: true });
         }
         return Promise.resolve({ cancelled: false });
+      }
+
+      if (entry.downloadId !== null && entry.downloadId !== undefined) {
+        browser.downloads.cancel(entry.downloadId).catch((error) => {
+          console.error('Failed to cancel browser download:', error);
+        });
+        // When cancellation cleanup is enabled, call browser.downloads.removeFile(entry.downloadId) here.
       }
 
       if (entry.abortController && !entry.abortController.signal.aborted) {
