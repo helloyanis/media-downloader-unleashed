@@ -1821,14 +1821,39 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         let settled = false;
         let resolveDownload;
         let rejectDownload;
+        let latestBytesReceived = 0;
+        let latestTotalBytes = 0;
+        let lastProgressUpdateAt = 0;
+        let progressTimer = null;
+        const reportProgress = (force = false) => {
+          if (latestTotalBytes <= 0 || latestBytesReceived < 0) return;
+          const now = Date.now();
+          if (!force && now - lastProgressUpdateAt < 1000) return;
+          lastProgressUpdateAt = now;
+          const fileProgress = Math.min(latestBytesReceived / latestTotalBytes, 1);
+          handleProgressUpdate({
+            action: "updateProgress",
+            requestId: request.requestId,
+            processed: index + fileProgress,
+            total: browserFiles.length,
+            percentage: ((index + fileProgress) / browserFiles.length) * 100
+          });
+        };
+        const updateFromDownloadItem = (item) => {
+          if (!item) return;
+          if (typeof item.totalBytes === "number" && item.totalBytes > 0) latestTotalBytes = item.totalBytes;
+          if (typeof item.bytesReceived === "number" && item.bytesReceived >= 0) latestBytesReceived = item.bytesReceived;
+          reportProgress(item.state === "complete");
+          if (item.state === "complete") finish(resolveDownload);
+          if (item.state === "interrupted") finish(() => rejectDownload(new Error(item.error || "Browser download interrupted.")));
+        };
         const onChanged = (delta) => {
           if (delta.id !== downloadId) return;
           const totalBytes = delta.totalBytes?.current;
           const bytesReceived = delta.bytesReceived?.current;
-          if (typeof totalBytes === "number" && totalBytes > 0 && typeof bytesReceived === "number") {
-            const fileProgress = bytesReceived / totalBytes;
-            handleProgressUpdate({ action: "updateProgress", requestId: request.requestId, processed: index + fileProgress, total: browserFiles.length, percentage: ((index + fileProgress) / browserFiles.length) * 100 });
-          }
+          if (typeof totalBytes === "number" && totalBytes > 0) latestTotalBytes = totalBytes;
+          if (typeof bytesReceived === "number" && bytesReceived >= 0) latestBytesReceived = bytesReceived;
+          reportProgress(delta.state?.current === "complete");
           if (delta.state?.current === "complete") finish(resolveDownload);
           if (delta.state?.current === "interrupted") finish(() => rejectDownload(new Error(delta.error?.current || "Browser download interrupted.")));
         };
@@ -1836,6 +1861,10 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
           if (settled) return;
           settled = true;
           browser.downloads.onChanged.removeListener(onChanged);
+          if (progressTimer) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+          }
           const entry = ongoingDownloads.get(request.requestId);
           if (entry?.downloadId === downloadId) ongoingDownloads.set(request.requestId, { ...entry, downloadId: null });
           callback();
@@ -1844,7 +1873,6 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         return new Promise((resolve, reject) => {
           resolveDownload = resolve;
           rejectDownload = reject;
-          browser.downloads.onChanged.addListener(onChanged);
           const objectUrl = file.blob ? URL.createObjectURL(file.blob) : null;
           browser.downloads.download({
             url: objectUrl || file.url,
@@ -1854,9 +1882,18 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             saveAs: false
           }).then(id => {
             downloadId = id;
+            browser.downloads.onChanged.addListener(onChanged);
             const entry = ongoingDownloads.get(request.requestId);
             ongoingDownloads.set(request.requestId, { ...entry, downloadId });
             if (objectUrl) URL.revokeObjectURL(objectUrl);
+
+            const pollProgress = () => {
+              browser.downloads.search({ id: downloadId })
+                .then(items => updateFromDownloadItem(items[0]))
+                .catch(error => console.warn("Could not read browser download progress:", error));
+            };
+            pollProgress();
+            progressTimer = setInterval(pollProgress, 1000);
           }).catch(error => {
             if (objectUrl) URL.revokeObjectURL(objectUrl);
             finish(() => reject(error));
@@ -2133,11 +2170,12 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
     if (isAbortError(err)) {
       browser.runtime.sendMessage({ action: 'downloadCancelled', requestId: request.requestId });
       await handleDownloadCompletion(request.requestId, false, true);
-      throw new Error('DOWNLOAD_CANCELLED');
+    } else {
+      console.error("Error during MPD download process:", err);
+      browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, message: err.message || String(err) });
+      handleDownloadCompletion(request.requestId, true, false);
+      throw err; // rethrow to show error popup
     }
-    console.error("Error during MPD download process:", err);
-    browser.runtime.sendMessage({ action: 'downloadFailed', requestId: request.requestId, error: err.message });
-    handleDownloadCompletion(request.requestId, true);
   }
 }
 
