@@ -285,23 +285,6 @@ function initListener() {
             beforeRequestListener = null;
         }
 
-        const cleanupListener = (details) => {
-            if (temporaryHeaderMap.has(details.requestId)) {
-                temporaryHeaderMap.delete(details.requestId);
-            }
-            if (temporaryRequestBodyMap.has(details.requestId)) {
-                temporaryRequestBodyMap.delete(details.requestId);
-            }
-            if (temporaryCookieMap.has(details.url)) {
-                temporaryCookieMap.delete(details.url);
-            }
-        };
-        // Ensure we don't duplicate cleanup listeners if initListener runs multiple times
-        if (!browser.webRequest.onCompleted.hasListener(cleanupListener)) {
-            browser.webRequest.onCompleted.addListener(cleanupListener, { urls: ["<all_urls>"] });
-            browser.webRequest.onErrorOccurred.addListener(cleanupListener, { urls: ["<all_urls>"] });
-        }
-
         // NEW: capture request bodies in onBeforeRequest (formData or raw bytes).
         beforeRequestListener = function (details) {
             try {
