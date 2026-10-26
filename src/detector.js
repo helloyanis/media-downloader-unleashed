@@ -285,23 +285,6 @@ function initListener() {
             beforeRequestListener = null;
         }
 
-        const cleanupListener = (details) => {
-            if (temporaryHeaderMap.has(details.requestId)) {
-                temporaryHeaderMap.delete(details.requestId);
-            }
-            if (temporaryRequestBodyMap.has(details.requestId)) {
-                temporaryRequestBodyMap.delete(details.requestId);
-            }
-            if (temporaryCookieMap.has(details.url)) {
-                temporaryCookieMap.delete(details.url);
-            }
-        };
-        // Ensure we don't duplicate cleanup listeners if initListener runs multiple times
-        if (!browser.webRequest.onCompleted.hasListener(cleanupListener)) {
-            browser.webRequest.onCompleted.addListener(cleanupListener, { urls: ["<all_urls>"] });
-            browser.webRequest.onErrorOccurred.addListener(cleanupListener, { urls: ["<all_urls>"] });
-        }
-
         // NEW: capture request bodies in onBeforeRequest (formData or raw bytes).
         beforeRequestListener = function (details) {
             try {
@@ -368,9 +351,21 @@ function initListener() {
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so try to add cookies
                 try {
-                    const cookie = temporaryCookieMap.get(details.url) || '';
+                    const cookie = await browser.storage.session.get(details.url).then(result => {
+                        return result[details.url][0].cookie || '';
+                    });
                     if (cookie) {
-                        details.requestHeaders.push({ name: 'Cookie', value: cookie });
+                       if (!details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie')) {
+                            details.requestHeaders.push({ name: 'Cookie', value: cookie });
+                        } else {
+                            // If a Cookie header already exists, we can choose to overwrite it or append. Here we overwrite.
+                            details.requestHeaders = details.requestHeaders.map(h => {
+                                if (h.name.toLowerCase() === 'cookie') {
+                                    return { name: 'Cookie', value: cookie };
+                                }
+                                return h;
+                            });
+                        }
                         console.debug("Added Cookie header to extension request:", cookie);
                     }
                 } catch (e) {
