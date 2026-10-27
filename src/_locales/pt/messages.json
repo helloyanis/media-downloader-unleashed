@@ -654,7 +654,7 @@
         "description": "The label of the button to be reminded later in the rating banner."
     },
     "youtubeDialogAskTitle": {
-        "message": "Are you trying to download from YouTube?",
+        "message": "Are you trying to download a YouTube video?",
         "description": "The title of the dialog shown when a YouTube media request is detected."
     },
     "youtubeDialogAskMessage": {
@@ -720,5 +720,25 @@
     "androidDownloadPopupCloseButton": {
         "message": "Close",
         "description": "The text of the close button in the popup shown when a download is completed on Android."
-    }
+    },
+    "androidIncognitoDownloadTitle": {
+        "message": "This download may fail",
+        "description": "The title of the popup shown when a download starts on Android in incognito mode."
+    },
+    "androidIncognitoDownloadMessage": {
+        "message": "Due to restrictions in Android's incognito mode, this download may not complete successfully. If no file is downloaded, try again by opening this add-on in a normal browsing window. (Can still detect videos from incognito tabs)",
+        "description": "The description of the popup shown when a download starts on Android in incognito mode."
+    },
+    "androidIncognitoDownloadOkButton": {
+        "message": "Continue anyways",
+        "description": "The text of the OK button in the popup shown when a download starts on Android in incognito mode."
+    },
+    "mediaFromThisTab": {
+        "message": "Media from this tab",
+        "description": "The label of the media list section showing media from the current tab."
+    },
+    "mediaFromOtherTabs": {
+        "message": "Media from other tabs",
+        "description": "The label of the media list section showing media from other tabs."
+    }  
 }

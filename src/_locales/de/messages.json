@@ -669,7 +669,7 @@
         "description": "The label of the button to be reminded later in the rating banner."
     },
     "youtubeDialogAskTitle": {
-        "message": "Are you trying to download from YouTube?",
+        "message": "Are you trying to download a YouTube video?",
         "description": "The title of the dialog shown when a YouTube media request is detected."
     },
     "youtubeDialogAskMessage": {
@@ -747,5 +747,13 @@
     "androidIncognitoDownloadOkButton": {
         "message": "Continue anyways",
         "description": "The text of the OK button in the popup shown when a download starts on Android in incognito mode."
-    }
+    },
+      "mediaFromThisTab": {
+        "message": "From this tab",
+        "description": "The label of the media list section showing media from the current tab."
+    },
+    "mediaFromOtherTabs": {
+        "message": "From other tabs",
+        "description": "The label of the media list section showing media from other tabs."
+    }  
 }

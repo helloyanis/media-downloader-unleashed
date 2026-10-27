@@ -294,6 +294,7 @@ function initListener() {
                 // Requests is from extension itself, so no need to capture request body
                 return;
             }
+
                 const rb = details.requestBody;
 
                 if (rb.formData) {
@@ -447,7 +448,8 @@ function initListener() {
                     requestBody: cachedBody,
                     cookie: temporaryCookieMap.get(details.url) || '',
                     size: null,
-                    timeStamp: null
+                    timeStamp: null,
+                    tabId: details.tabId
                 };
 
                 browser.storage.session.get(details.url, function (result) {
@@ -502,6 +504,13 @@ function initListener() {
                 // Normalize contentType (strip parameters)
                 if (contentType.indexOf(';') !== -1) {
                     contentType = contentType.split(';')[0].trim().toLowerCase();
+                }
+
+                // If youtube video, add a placeholder empty entry to session storage (used to show the youtube incompatible dialog in the popup)
+                if(contentType === 'application/vnd.yt-ump') {
+                    console.debug("Detected youtube video, adding placeholder entry for", details.url);
+                    await browser.storage.session.set({ [details.url]: [{ contentType : contentType }] });
+                    return; // skip further processing for this special case
                 }
 
                 const mimeMatches = (
@@ -594,7 +603,8 @@ function initListener() {
                                 requestBody: cachedBody, // <-- now populated if available
                                 cookie: temporaryCookieMap.get(details.url) || '',
                                 size: size,
-                                timeStamp: details.timeStamp
+                                timeStamp: details.timeStamp,
+                                tabId: details.tabId
                             };
                             existingRequests.push(mediaRequest);
                             console.log('Media request added (onHeadersReceived):', mediaRequest);
@@ -630,7 +640,20 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             delete items['failedDownloads'];
             delete items['queuedAndroidDownloads'];
             delete items['pendingPopupState'];
-            sendResponse(items);
+            // If the message has the tabId parameter, move the corresponding media requests to the top of the list in their original order
+            if (message.tabId !== undefined && message.tabId !== NaN) {
+                const tabId = parseInt(message.tabId, 10);
+                const tabMediaUrls = Object.keys(items).filter(url => Array.isArray(items[url]) && items[url].some(r => r.tabId === tabId));
+                const otherMediaUrls = Object.keys(items).filter(url => !tabMediaUrls.includes(url));
+                const sortedUrls = [...tabMediaUrls, ...otherMediaUrls];
+                const sortedItems = {};
+                for (const url of sortedUrls) {
+                    sortedItems[url] = items[url];
+                }
+                sendResponse(sortedItems);
+            } else {
+                sendResponse(items);
+            }
         });
         return true; // Indicate that the response will be sent asynchronously
     }
@@ -695,20 +718,20 @@ browser.action.onClicked.addListener((tab) => {
         console.log('Open preference:', result['open-preference']);
         if (result['open-preference'] === 'window') {
             browser.windows.create({
-                url: browser.runtime.getURL(`popup.html`),
+                url: browser.runtime.getURL(`popup.html?tabId=${tab.id}`),
                 type: 'popup',
                 width: 800,
                 height: 600,
             });
         } else if (result['open-preference'] === 'floating') {
-            await browser.action.setPopup({ popup: 'popup.html' });
+            await browser.action.setPopup({ popup: 'popup.html?tabId=' + tab.id });
             console.log( await browser.action.getPopup({}))
             await browser.action.openPopup(); // Open in default popup behavior (floating window)
             await browser.action.setPopup({ popup: null }); // Reset to no popup in case the user changes preference while the popup is open
         }else {
             // Open the popup in a new tab
             browser.tabs.create({
-                url: browser.runtime.getURL(`popup.html`),
+                url: browser.runtime.getURL(`popup.html?tabId=${tab.id}`),
             });
         }
     });
@@ -800,6 +823,12 @@ function attachCacheListener() {
 
                     // Pre-emptively cache everything else while waiting for the server
 
+                    // If size is > 2gb, skip caching to avoid IndexedDB & blob quota issues
+                    const totalSize = chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
+                    if (totalSize > 2 * 1024 * 1024 * 1024) { // 2GB
+                        console.warn("Skipping cache for large response (>2GB):", details.url, "size:", totalSize);
+                        return;
+                    }
                     const blob = new Blob(chunks, { type: details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value || 'application/octet-stream' });
                     if (blob.size > 0) {
                         if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {

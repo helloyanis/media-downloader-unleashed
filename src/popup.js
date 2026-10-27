@@ -908,7 +908,8 @@ function loadMediaList() {
   loadingSpinner.style.display = 'block';
   mediaContainer.innerHTML = ''; // Clear previous content
   // Send a message to the background script to get media requests
-  browser.runtime.sendMessage({ action: 'getMediaRequests' }).then(async (mediaRequests) => {
+  // If the URL has the tabId parameter, move the corresponding media requests to the top of the list in their original order
+  browser.runtime.sendMessage({ action: 'getMediaRequests', tabId: parseInt(new URLSearchParams(window.location.search).get('tabId'), 10) }).then(async (mediaRequests) => {
     console.log('Media requests:', mediaRequests);
     const videoExtensions = [".3g2", ".3gp", ".asx", ".avi", ".divx", ".4v", ".flv", ".ismv", ".m2t", ".m2ts", ".m2v", ".m4s", ".m4v", ".mk3d", ".mkv", ".mng", ".mov", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg", ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mxf", ".ogm", ".ogv", ".qt", ".rm", ".swf", ".ts", ".vob", ".vp9", ".webm", ".wmv"]
     const audioExtensions = [".3ga", ".aac", ".ac3", ".adts", ".aif", ".aiff", ".alac", ".ape", ".asf", ".au", ".dts", ".f4a", ".f4b", ".flac", ".isma", ".it", ".m4a", ".m4b", ".m4r", ".mid", ".mka", ".mod", ".mp1", ".mp2", ".mp3", ".mp4a", ".mpa", ".mpga", ".oga", ".ogg", ".ogx", ".opus", ".ra", ".shn", ".spx", ".vorbis", ".wav", ".weba", ".wma", ".xm"];
@@ -948,8 +949,24 @@ function loadMediaList() {
     const hideSegments = await browser.storage.local.get('hide-segments').then(result => result['hide-segments']) === '1';
     const manifestSegmentIndex = hideSegments ? await buildManifestSegmentIndex(mediaRequests) : new Map();
     let hiddenSegmentCount = 0;
+    let isTabSortEnded = false
+    let isFirstRequest = true;
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
+
+      let mediaURL;
+      
+      try {
+        mediaURL = new URL(url);
+      } catch (error) {
+        continue;
+      }
+      // If the request is from youtube, show a popup to inform the user that downloading from youtube is not supported
+      if (mediaURL.hostname.includes("youtube.com") || mediaURL.hostname.includes("youtu.be") || mediaURL.hostname.includes("googlevideo.com")) {
+        handleYoutubeMediaRequest(url);
+        continue;
+      }
+
       if (!Array.isArray(requests) || requests.length === 0) {
         continue;
       }
@@ -967,12 +984,6 @@ function loadMediaList() {
           || requests[0].responseHeaders.find(header => header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').includes("video") || header.value.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').includes("audio")) !== undefined // Or if any content type header starts with video/ or audio/
       }
 
-      let mediaURL;
-      try {
-        mediaURL = new URL(url);
-      } catch (error) {
-        continue;
-      }
       // Check if the request matches the file extensions
       if (useUrlDetection) {
         urlMatch = fileExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext));
@@ -990,10 +1001,35 @@ function loadMediaList() {
         // If neither detection matched, skip
         continue;
       }
-      // If the request is from youtube, show a popup to inform the user that downloading from youtube is not supported
-      if (mediaURL.hostname.includes("youtube.com") || mediaURL.hostname.includes("youtu.be")) {
-        handleYoutubeMediaRequest(url);
-        continue;
+
+      if(isFirstRequest) {
+        // First list element
+        isFirstRequest = false;
+        // Display the corresponding separator if any of the requests is from the current tab, otherwise display the "media from other tabs" separator
+        if(requests.some(request => request.tabId === parseInt(new URLSearchParams(window.location.search).get('tabId'), 10))) {
+          const separator = document.createElement('mdui-list-subheader');
+          separator.setAttribute('nonclickable', 'true');
+          separator.classList.add('separator');
+          separator.textContent = browser.i18n.getMessage('mediaFromThisTab');
+          mediaContainer.appendChild(separator);
+        } else {
+          // Nothing from this tab here
+          const separator = document.createElement('mdui-list-subheader');
+          separator.setAttribute('nonclickable', 'true');
+          separator.classList.add('separator');
+          separator.textContent = browser.i18n.getMessage('mediaFromOtherTabs');
+          mediaContainer.appendChild(separator);
+          isTabSortEnded = true;
+        }
+      } else if(!isTabSortEnded && !requests.some(request => request.tabId === parseInt(new URLSearchParams(window.location.search).get('tabId'), 10))) {
+        // End of the sorted tab list
+        isTabSortEnded = true;
+        const separator = document.createElement('mdui-list-subheader');
+        separator.setAttribute('nonclickable', 'true');
+        separator.classList.add('separator');
+        separator.textContent = browser.i18n.getMessage('mediaFromOtherTabs');
+        mediaContainer.appendChild(separator);
+        isTabSortEnded = true;
       }
 
 
