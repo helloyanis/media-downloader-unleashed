@@ -4,8 +4,8 @@ A browser add-on to easily download any media (audio, video and streams) played 
 
 <a href="https://addons.mozilla.org/addon/media-downloader-unleashed?utm_source=github-readme"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="drawing" width="200"/></a>
 
-<a href="https://discord.gg/RdUJe4wJnP">
-<img alt="Discord Invite Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FRdUJe4wJnP">
+<a href="https://discord.gg/FW6Dame5PU">
+<img alt="Discord Invite Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FFW6Dame5PU">
 </a>
 
 > [!IMPORTANT]

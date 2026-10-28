@@ -9,8 +9,8 @@ This add-on is a powerful tool that allows you to download files from the web to
 
 It's easy!
 
-<a href="https://discord.gg/RdUJe4wJnP">
-<img alt="Discord Invite Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FRdUJe4wJnP">
+<a href="https://discord.gg/FW6Dame5PU">
+<img alt="Discord Invite Badge" width="200" src="https://img.shields.io/badge/Discord-Join%20to%20get%20help-blue?style=social&logo=discord&link=https%3A%2F%2Fdiscord.gg%2FFW6Dame5PU">
 </a>
 
 ## [If you encounter any error, check here for an explanation!](https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting)
