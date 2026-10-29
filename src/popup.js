@@ -556,23 +556,7 @@ function isManifestRequest(url, request) {
 
 // Read the cached response body for a manifest URL from IndexedDB. This is used to extract segment URLs for DASH and HLS streams, as the manifest file contains the list of segments to download.
 async function readCachedManifestText(url) {
-
-  try {
-    const db = await openCacheDB();
-    const cachedItem = await new Promise((resolve, reject) => {
-      const tx = db.transaction([CACHE_STORE_NAME], 'readonly');
-      const store = tx.objectStore(CACHE_STORE_NAME);
-      const req = store.get(url);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-
-    if (!cachedItem?.data) return null;
-    return await cachedItem.data.text();
-  } catch (error) {
-    console.warn('Failed to read cached manifest body for', url, error);
-    return null;
-  }
+  return await browser.runtime.sendMessage({ action: 'readCachedBodyText', url });
 }
 
 function parseIsoDuration(duration) {
@@ -935,7 +919,12 @@ function loadMediaList() {
       "applicationvndapplempegurl",
       "applicationxmpegurl",
       "applicationdashxml",
-      "applicationoctetstream"
+      "applicationoctetstream",
+      "textplain",
+      "textvtt",
+      "applicationttml+xml",
+      "applicationx-subrip",
+      "applicationxsrt",
     ];
 
     const useMimeDetection = await browser.storage.local.get('mime-detection').then(result => result['mime-detection']) === '1';
@@ -1045,7 +1034,23 @@ function loadMediaList() {
       const hasResponseHeaders = requests[0]?.responseHeaders && requests[0].responseHeaders.length > 0;
       let path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
       if (hasResponseHeaders) {
-        if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value.includes("application/x-mpegURL") || h.value.includes("application/vnd.apple.mpegurl") || h.value.includes("application/dash+xml")))) {
+        let contentType = getHeaderValue(requests[0].responseHeaders, 'content-type').toLowerCase();
+        // If the content type is text/plain, check if the body of the response starts with #EXTM3U, which indicates that it's an HLS manifest file. If so, treat it as a stream.
+        if (contentType.includes('text/plain')) {
+          const manifestText = await readCachedManifestText(url);
+          if (manifestText && manifestText.startsWith('#EXTM3U')) {
+            contentType = 'application/vnd.apple.mpegurl';
+            requests[0].responseHeaders.find(h => h.name.toLowerCase() === 'content-type').value = contentType;
+          }
+        }
+        // If it's still a text file now, no need to show
+        if (!useMimeDetection && !useUrlDetection) {
+          // No filtering at all, proceed
+        } else if (!contentType || contentType.includes('text/plain')) {
+          // If the content type is empty or text/plain, skip
+          continue;
+        }
+        if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || contentType.includes('application/vnd.apple.mpegurl') || contentType.includes('application/x-mpegurl') || contentType.includes('application/dash+xml')) {
           //Media is a stream
           // Check if it's an audio stream or a video stream based on the cached body of the manifest file. If it's an audio stream, show the audio icon, otherwise show the video icon.
           const manifestText = await readCachedManifestText(url);
@@ -1302,7 +1307,7 @@ function loadMediaList() {
 
         let isStream = streamExtensions.some(ext =>
           new URL(url).pathname.toLowerCase().endsWith(ext)
-        );
+        ) || requests[0]?.responseHeaders.find(h => h.name.toLowerCase() === "content-type" && (h.value.includes("application/x-mpegURL") || h.value.includes("application/vnd.apple.mpegurl") || h.value.includes("application/dash+xml"))) !== undefined;
         if (isStream && new URL(url).pathname.toLowerCase().endsWith('.mpd')) {
           // For MPD no need to handle stream differently, just pass the URL
           isStream = '';
@@ -1455,7 +1460,7 @@ function getFileName(url, maxLength = 100) {
 
     //Limit to xx characters, but still show the extension
     if (fileName.length > maxLength) {
-      fileName = fileName.substring(0, maxLength) + '…' + fileName.substring(fileName.lastIndexOf('.'));
+      fileName.includes(".") ? fileName = fileName.substring(0, maxLength) + '…' + fileName.substring(fileName.lastIndexOf('.') + 1) : fileName = fileName.substring(0, maxLength) + '…';
     }
 
     return decodeURIComponent(fileName);
@@ -1597,7 +1602,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
       if (message.action === 'updateProgress' && message.requestId === requestId) {
         if (message.percentage !== null) {
           loadingBar.removeAttribute('indeterminate');
-          loadingBar.value = message.percentage / 100;
+          loadingBar.value = message.processed / message.total;
         } else {
           loadingBar.setAttribute('indeterminate', 'true');
         }
@@ -1661,7 +1666,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     const hasMimeType = mimeType => responseHeaders.some(header =>
       /*header.name.toLowerCase() === 'content-type' &&*/ normalizeContentType(header.value).includes(mimeType)
     );
-    const isM3U8 = lowerPath.endsWith('.m3u8') || hasMimeType('applicationxmpegurl') || hasMimeType('applicationvndapplempegurl');
+    const isM3U8 = lowerPath.endsWith('.m3u8') || hasMimeType('applicationxmpegurl') || hasMimeType('applicationvndapplempegurl') || hasMimeType('textplain');
     const isMPD = lowerPath.endsWith('.mpd') || hasMimeType('applicationdashxml');
     const renamePreference = await browser.storage.local.get('rename-downloads-v2').then(result => result['rename-downloads-v2']);
     if (renamePreference === 'ask' ) {
@@ -1690,7 +1695,9 @@ async function downloadFile(url, fileName = null, mediaDiv) {
       fileName = getFileName(url);
     }
 
-    console.log(`MIME is : ${requests[url][selectedSizeIndex].responseHeaders?.find(h => h.name.toLowerCase() === "content-type")?.value}`);
+    let contentType = requests[url][selectedSizeIndex].responseHeaders?.find(h => h.name.toLowerCase() === "content-type")?.value;
+
+    console.log(`MIME is : ${contentType}, isM3U8: ${isM3U8}, isMPD: ${isMPD}, fileName: ${fileName}`);
 
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');

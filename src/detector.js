@@ -126,6 +126,24 @@ async function addHeadersToCache(url, headers, status) {
     }
 }
 
+async function getResponseHeadersFromCache(url) {
+    try {
+        const db = await openCacheDB();
+
+        return await new Promise((resolve, reject) => {
+            const tx = db.transaction([STORE_NAME], "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(url);
+
+            req.onsuccess = () => resolve(req.result?.headers || []);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.error("Failed to get response headers from cache:", e);
+        return [];
+    }
+}
+
 async function removeFromCache(url) {
     try {
         const db = await openCacheDB();
@@ -353,7 +371,7 @@ function initListener() {
                 // Requests is from extension itself, so try to add cookies
                 try {
                     const cookie = await browser.storage.session.get(details.url).then(result => {
-                        return result[details.url][0].cookie || '';
+                        return result[details.url]?.[0]?.cookie || '';
                     });
                     if (cookie) {
                        if (!details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie')) {
@@ -494,7 +512,7 @@ function initListener() {
             }
             try {
                 // Extract content-length and content-type (if present)
-                const responseHeaders = details.responseHeaders || [];
+                let responseHeaders = details.responseHeaders || [];
                 let mediaSizeHeader = responseHeaders.find(header => header.name && header.name.toLowerCase() === 'content-length');
                 let size = mediaSizeHeader ? mediaSizeHeader.value : 'unknown';
 
@@ -521,6 +539,7 @@ function initListener() {
                     contentType.includes('application/dash+xml') ||
                     contentType.includes('application/x-matroska') || // <-- MKV
                     contentType.includes('application/octet-stream') || // <-- treat generic binary as potential media (or segments)
+                    contentType.includes('text/plain') || //Some .m3u8 files are treated as text files
                     // Subtitles
                     contentType.includes('text/vtt') ||
                     contentType.includes('application/ttml+xml') ||
@@ -656,6 +675,39 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         });
         return true; // Indicate that the response will be sent asynchronously
+    }
+    if (message && message.action === 'readCachedBodyText') {
+        const url = message.url;
+        openCacheDB().then(db => {
+            const tx = db.transaction([STORE_NAME], "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get(url);
+
+            request.onsuccess = async function (event) {
+                const cachedItem = event.target.result;
+                if (!cachedItem?.data) {
+                    sendResponse(null);
+                    return;
+                }
+
+                try {
+                    // Response bodies are stored as Blobs, which must be read with text().
+                    sendResponse(await cachedItem.data.text());
+                } catch (e) {
+                    console.error("Failed to decode cached body:", e);
+                    sendResponse(null);
+                }
+            };
+            request.onerror = function (event) {
+                console.error("Failed to read from IndexedDB cache:", event.target.error);
+                sendResponse(null);
+            };
+        }).catch(e => {
+            console.error("Failed to open IndexedDB cache:", e);
+            sendResponse(null);
+        });
+
+        return true; // Keep the message channel open for the IndexedDB response.
     }
 });
 
@@ -829,7 +881,7 @@ function attachCacheListener() {
                         console.warn("Skipping cache for large response (>2GB):", details.url, "size:", totalSize);
                         return;
                     }
-                    const blob = new Blob(chunks, { type: details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value || 'application/octet-stream' });
+                    const blob = new Blob(chunks, { type: "unknown" }); // type will be updated in headersReceivedListener
                     if (blob.size > 0) {
                         if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {
                             await storeInCache(details.url, blob, null, null); // Headers and status will be populated in headersReceivedListener

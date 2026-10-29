@@ -740,5 +740,13 @@
     "mediaFromOtherTabs": {
         "message": "Media from other tabs",
         "description": "The label of the media list section showing media from other tabs."
-    }  
+    },
+    "previewNetworkError": {
+        "message": "Network error while trying to load the media preview. The website may be blocking requests from the extension. You can try to download the media instead.",
+        "description": "The message shown when there is a network error while loading the media preview."
+    },
+    "previewMediaError": {
+        "message": "Media error. The media preview could not be loaded. The media format may not be supported by hls.js. You can try to download the media instead.",
+        "description": "The message shown when there is an error while loading the media preview."
+    } 
 }

@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    if (videoExtensions.includes(mediaExtension) || streamExtensions.includes(mediaExtension) || isStream === '1') {
+    if (videoExtensions.includes(mediaExtension) || streamExtensions.includes(mediaExtension) || isStream === 'true') {
         const video = document.createElement('video');
         video.controls = true;
         video.style.maxWidth = '100%';
@@ -88,11 +88,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.error("Fatal network error encountered, trying to recover...");
-                                hls.startLoad();
+                                console.error("Fatal network error encountered.");
+                                      mdui.snackbar({
+                                        message: browser.i18n.getMessage("previewNetworkError"),
+                                        autoCloseDelay: 0,
+                                        closeable: false,
+                                    });
+                                hls.destroy();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
-                                console.error("Fatal media error encountered, trying to recover...");
+                                console.error("Fatal media error encountered.");
+                                mdui.snackbar({
+                                    message: browser.i18n.getMessage("previewMediaError"),
+                                    autoCloseDelay: 0,
+                                    closeable: false,
+                                });
                                 hls.recoverMediaError();
                                 break;
                             default:
