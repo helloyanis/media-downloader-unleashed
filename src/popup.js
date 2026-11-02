@@ -940,6 +940,7 @@ function loadMediaList() {
     let hiddenSegmentCount = 0;
     let isTabSortEnded = false
     let isFirstRequest = true;
+    let shouldDisplayFromOtherTabSection = false;
     for (const url in mediaRequests) {
       const requests = mediaRequests[url];
 
@@ -1013,12 +1014,7 @@ function loadMediaList() {
       } else if(!isTabSortEnded && !requests.some(request => request.tabId === parseInt(new URLSearchParams(window.location.search).get('tabId'), 10))) {
         // End of the sorted tab list
         isTabSortEnded = true;
-        const separator = document.createElement('mdui-list-subheader');
-        separator.setAttribute('nonclickable', 'true');
-        separator.classList.add('separator');
-        separator.textContent = browser.i18n.getMessage('mediaFromOtherTabs');
-        mediaContainer.appendChild(separator);
-        isTabSortEnded = true;
+        shouldDisplayFromOtherTabSection = true // Don't add yet as we can still filter out some media
       }
 
 
@@ -1049,6 +1045,15 @@ function loadMediaList() {
         } else if (!contentType || contentType.includes('text/plain')) {
           // If the content type is empty or text/plain, skip
           continue;
+        }
+        // Now we can place the "From other tabs" section
+        if(shouldDisplayFromOtherTabSection){
+          const separator = document.createElement('mdui-list-subheader');
+          separator.setAttribute('nonclickable', 'true');
+          separator.classList.add('separator');
+          separator.textContent = browser.i18n.getMessage('mediaFromOtherTabs');
+          mediaContainer.appendChild(separator);
+          shouldDisplayFromOtherTabSection = false;
         }
         if (streamExtensions.some(ext => mediaURL.pathname.toLowerCase().endsWith(ext)) || contentType.includes('application/vnd.apple.mpegurl') || contentType.includes('application/x-mpegurl') || contentType.includes('application/dash+xml')) {
           //Media is a stream
