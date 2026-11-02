@@ -17,7 +17,7 @@ if (typeof browser === 'undefined') {
     var browser = chrome;
 }
 
-let urlList = [];
+let urlList = ["<all_urls>"];
 let headersSentListener, headersReceivedListener;
 
 // ---------- IndexedDB helpers ----------
@@ -276,8 +276,6 @@ function initListener() {
     }).catch(e => {
         console.error("Failed to clear IndexedDB cache on init:", e);
     });
-    // Decide which urls we will watch for onSendHeaders/onHeadersReceived - keep default <all_urls>
-    urlList = ["<all_urls>"];
 
     // Read settings and then attach listeners accordingly
     getSettings(function (settings) {
@@ -307,7 +305,7 @@ function initListener() {
         beforeRequestListener = function (details) {
             try {
                 if (!details || !details.requestBody) return;
-                const protocol = new URL(details.originUrl).protocol
+                const protocol = new URL(details.originUrl || details.url).protocol
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so no need to capture request body
                 return;
@@ -366,7 +364,8 @@ function initListener() {
         }
 
         beforeSendHeadersListener = async function (details) {
-            const protocol = new URL(details.originUrl).protocol
+            console.log("BSEND")
+            const protocol = new URL(details.originUrl || details.url).protocol
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so try to add cookies
                 try {
@@ -415,7 +414,8 @@ function initListener() {
         console.log("Attached onBeforeSendHeaders listener.");
 
         headersSentListener = async function (details) {
-            const protocol = new URL(details.originUrl).protocol
+            console.log("HSENT")
+            const protocol = new URL(details.originUrl || details.url).protocol
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 return;
             }
@@ -506,7 +506,7 @@ function initListener() {
 
         // onHeadersReceived: used to update size/responseHeaders and also to save requests when mime-detection triggers
         headersReceivedListener = async function (details) {
-            const protocol = new URL(details.originUrl).protocol
+            const protocol = new URL(details.originUrl || details.url).protocol
             if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 return;
             }
