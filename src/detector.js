@@ -1,6 +1,4 @@
 /*
-Media Downloader Unleashed!! - https://github.com/helloyanis/media-downloader-unleashed/
-
 Copyright © 2026 🦊 helloyanis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -38,171 +36,128 @@ function openCacheDB() {
     });
 }
 
+function getContentType(headers) {
+    if (!Array.isArray(headers)) return "";
+    const header = headers.find(h => h && h.name && h.name.toLowerCase() === "content-type");
+    return (header?.value || "").split(";")[0].trim().toLowerCase();
+}
+
+function replaceContentTypeHeader(headers, mime) {
+    const updated = Array.isArray(headers) ? headers.map(h => ({ ...h })) : [];
+    const index = updated.findIndex(
+        h => h && h.name && h.name.toLowerCase() === "content-type"
+    );
+
+    if (index >= 0) {
+        updated[index] = { ...updated[index], value: mime };
+    } else {
+        updated.push({ name: "Content-Type", value: mime });
+    }
+    return updated;
+}
+
+function isMediaContentType(contentType) {
+    const type = (contentType || "").split(";")[0].trim().toLowerCase();
+
+    return (
+        type.startsWith("audio/") ||
+        type.startsWith("video/") ||
+        type === "application/vnd.apple.mpegurl" ||
+        type === "application/x-mpegurl" ||
+        type === "application/dash+xml" ||
+        type === "application/x-matroska" ||
+        type === "application/octet-stream" ||
+        type === "text/vtt" ||
+        type === "application/ttml+xml" ||
+        type === "application/x-subrip" ||
+        type === "application/x-srt"
+    );
+}
+
+// Inspect only the beginning of a text response. A generic text/plain response
+// is not a media response unless its contents have a recognizable media format.
+async function detectPlainTextMediaMime(blob) {
+    if (!(blob instanceof Blob) || blob.size === 0) return null;
+
+    const sample = await blob.slice(0, 256 * 1024).text();
+    const text = sample.replace(/^\uFEFF/, "").trimStart();
+
+    // Require the actual HLS header, not merely an incidental #EXTINF string.
+    if (/^#EXTM3U(?:\s|$)/i.test(text)) {
+        return "application/vnd.apple.mpegurl";
+    }
+
+    // Permit an XML declaration and comments before the DASH MPD root element.
+    if (/^(?:<\?xml\b[\s\S]*?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<(?:[\w.-]+:)?MPD(?:\s|>)/i.test(text)) {
+        return "application/dash+xml";
+    }
+
+    if (/^WEBVTT(?:[ \t].*)?(?:\r?\n|$)/i.test(text)) {
+        return "text/vtt";
+    }
+
+    return null;
+}
+
 async function storeInCache(url, blob, headers, status) {
     console.debug("Storing in cache:", url, "status:", status, "headers:", headers);
     try {
         const db = await openCacheDB();
 
-        // Read existing item
         const cachedItem = await new Promise((resolve, reject) => {
             const tx = db.transaction([STORE_NAME], "readonly");
-            const store = tx.objectStore(STORE_NAME);
-            const req = store.get(url);
-
+            const req = tx.objectStore(STORE_NAME).get(url);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
         });
 
+        // Headers are always stored as an array.
+        const safeHeaders = Array.isArray(headers)
+            ? headers
+            : (Array.isArray(cachedItem?.headers) ? cachedItem.headers : []);
+
         const item = {
             url,
-            headers: headers || cachedItem?.headers || {},
-            status: status || cachedItem?.status || "000",
-            data: blob || cachedItem?.data,
+            headers: safeHeaders,
+            status: status ?? cachedItem?.status ?? "000",
+            data: blob || cachedItem?.data || null,
+            mime: getContentType(safeHeaders) || cachedItem?.mime || "",
             timestamp: cachedItem?.timestamp || Date.now()
         };
 
-        if (cachedItem && cachedItem.headers) {
-            item.mime = cachedItem.headers?.find(h => h.name.toLowerCase() === 'content-type')?.value || cachedItem.mime;
-
-            if (item.mime.includes("text/plain")) {
-                if (!item.data) {
-                    console.debug("No data available to detect MIME type for", url);
-                    await removeFromCache(url);
-                    return;
-                }
-                // Attempt to detect MIME type from the blob if it's text/plain
-                const text = await blob.text();
-                if (text.startsWith("#EXTM3U") || text.includes("#EXTINF")) {
-                    item.mime = "application/vnd.apple.mpegurl"; // HLS playlist
-                } else if (text.includes("<MPD")) {
-                    item.mime = "application/dash+xml"; // DASH manifest
-                } else if (text.includes("WEBVTT")) {
-                    item.mime = "text/vtt"; // WebVTT subtitle
-                } else {
-                    // Probably not a media file, remove from cache
-                    console.debug("Removing non-media file from cache:", url);
-                    await removeFromCache(url);
-                    return;
-                }
-                // Update headers in session storage to reflect the new MIME type
-                browser.storage.session.get(url, async function (result) {
-                    let existingRequests = result[url] || [];
-                    for (let request of existingRequests) {
-                        if (request.responseHeaders) {
-                            request.responseHeaders = request.responseHeaders.map(h => {
-                                if (h.name.toLowerCase() === 'content-type') {
-                                    return { name: 'content-type', value: newItem.mime };
-                                }
-                                return h;
-                            });
-                        }
-                    }
-                    let requestsObj = {};
-                    requestsObj[url] = existingRequests;
-                    await browser.storage.session.set(requestsObj);
-                });
-            }
-        }
-
-        // Create write transaction only now
         await new Promise((resolve, reject) => {
             const tx = db.transaction([STORE_NAME], "readwrite");
-            const store = tx.objectStore(STORE_NAME);
-
-            const req = store.put(item);
-
+            const req = tx.objectStore(STORE_NAME).put(item);
             req.onsuccess = () => resolve();
             req.onerror = () => reject(req.error);
-
             tx.onabort = () => reject(tx.error);
             tx.onerror = () => reject(tx.error);
         });
     } catch (e) {
-        console.error("Failed to store in cache (1):", e);
+        console.error("Failed to store in cache:", e);
     }
 }
 
+// Kept for callers that only need to merge headers into an existing cache row.
+// It no longer creates a header-only row that can race with body validation.
 async function addHeadersToCache(url, headers, status) {
-    console.debug("Adding headers to cache:", url, "status:", status, "headers:", headers);
     try {
         const db = await openCacheDB();
-
-        // Read first
         const cachedItem = await new Promise((resolve, reject) => {
             const tx = db.transaction([STORE_NAME], "readonly");
-            const store = tx.objectStore(STORE_NAME);
-            const req = store.get(url);
-
+            const req = tx.objectStore(STORE_NAME).get(url);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
         });
 
-        if (!cachedItem) {
-            console.debug("Attempted to add headers to an item not in cache. Adding it!");
-            await storeInCache(url, null, headers, status)
+        if (!cachedItem?.data) {
+            console.debug("Deferring cache headers until response body is available:", url);
             return;
         }
 
-        const newItem = {
-            url: cachedItem.url,
-            headers,
-            status,
-            data: cachedItem.data,
-            mime: cachedItem.headers?.find(h => h.name.toLowerCase() === 'content-type')?.value || cachedItem.mime,
-            timestamp: cachedItem.timestamp
-        };
-
-        if (newItem.mime.includes("text/plain")) {
-            if (!newItem.data) {
-                console.debug("No data available to detect MIME type for", url);
-                await removeFromCache(url);
-                return;
-            }
-            // Attempt to detect MIME type from the blob if it's text/plain
-            const text = await newItem.data.text();
-            if (text.startsWith("#EXTM3U") || text.includes("#EXTINF")) {
-                newItem.mime = "application/vnd.apple.mpegurl"; // HLS playlist
-            } else if (text.includes("<MPD")) {
-                newItem.mime = "application/dash+xml"; // DASH manifest
-            } else if (text.includes("WEBVTT")) {
-                newItem.mime = "text/vtt"; // WebVTT subtitle
-            } else {
-                // Probably not a media file, remove from cache
-                console.debug("Removing non-media file from cache (2):", url);
-                await removeFromCache(url);
-                return;
-            }
-            // Update headers in session storage to reflect the new MIME type
-            browser.storage.session.get(url, async function (result) {
-                let existingRequests = result[url] || [];
-                for (let request of existingRequests) {
-                    if (request.responseHeaders) {
-                        request.responseHeaders = request.responseHeaders.map(h => {
-                            if (h.name.toLowerCase() === 'content-type') {
-                                return { name: 'content-type', value: newItem.mime };
-                            }
-                            return h;
-                        });
-                    }
-                }
-                let requestsObj = {};
-                requestsObj[url] = existingRequests;
-                await browser.storage.session.set(requestsObj);
-            });
-        }
-
-        // Create a fresh write transaction
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction([STORE_NAME], "readwrite");
-            const store = tx.objectStore(STORE_NAME);
-
-            const req = store.put(newItem);
-
-            req.onsuccess = () => resolve();
-            req.onerror = () => reject(req.error);
-        });
+        await storeInCache(url, cachedItem.data, headers, status);
     } catch (e) {
-        console.error("Failed to add mime to cache:", e);
+        console.error("Failed to add response headers to cache:", e);
     }
 }
 
@@ -255,6 +210,212 @@ const temporaryHeaderMap = new Map();
 const temporaryRequestBodyMap = new Map();
 const temporaryCookieMap = new Map();
 
+// Latest response metadata for each webRequest requestId. Redirect responses may
+// reuse an ID; the final response headers overwrite the redirect metadata.
+// Response headers and bodies can arrive in either order.
+const temporaryResponseMetaMap = new Map();
+const pendingResponseBodies = new Map();
+
+const detectedMimeByRequestId = new Map();
+
+// Use requestId + URL to keep redirect hops separate.
+function getResponseKey(requestId, url) {
+    return `${requestId}\u0000${url}`;
+}
+
+async function removeSessionRequest(url, requestId) {
+    try {
+        const result = await browser.storage.session.get(url);
+        const requests = Array.isArray(result[url]) ? result[url] : [];
+        const remaining = requests.filter(request => request.requestId !== requestId);
+
+        if (remaining.length === requests.length) return;
+        if (remaining.length) {
+            await browser.storage.session.set({ [url]: remaining });
+        } else {
+            await browser.storage.session.remove(url);
+        }
+    } catch (e) {
+        console.warn("Failed to remove rejected text response from session storage:", url, e);
+    }
+}
+
+async function updateSessionResponseHeaders(url, requestId, headers, mime) {
+    try {
+        const result = await browser.storage.session.get(url);
+        const requests = Array.isArray(result[url]) ? result[url] : [];
+        let changed = false;
+
+        const updated = requests.map(request => {
+            if (request.requestId !== requestId) return request;
+            changed = true;
+            return {
+                ...request,
+                responseHeaders: headers,
+                mime,
+                contentType: mime
+            };
+        });
+
+        if (changed) {
+            await browser.storage.session.set({ [url]: updated });
+        }
+        return changed;
+    } catch (e) {
+        console.warn("Failed to update detected MIME in session storage:", url, e);
+        return false;
+    }
+}
+
+
+// Add a text/plain response to the media list only after its body
+// has been positively identified as HLS, DASH, or WebVTT.
+async function upsertSniffedTextMediaRequest(
+    responseMeta,
+    requestId,
+    headers,
+    mime,
+    blob
+) {
+    const url = responseMeta.url;
+
+    try {
+        const result = await browser.storage.session.get(url);
+        const requests = Array.isArray(result[url])
+            ? [...result[url]]
+            : [];
+
+        const index = requests.findIndex(
+            item => item.requestId === requestId
+        );
+
+        const existing = index >= 0 ? requests[index] : null;
+
+        const settings = await new Promise(resolve =>
+            getSettings(resolve)
+        );
+
+        let urlMatches = false;
+
+        try {
+            urlMatches = detectionRegex.test(decodeURI(url));
+        } catch (_) {
+            urlMatches = detectionRegex.test(url);
+        }
+
+        // MIME detection admits a positively sniffed manifest.
+        // URL detection preserves the existing URL-based behavior.
+        const shouldAdd =
+            !!existing ||
+            settings.mimeDetection ||
+            (settings.urlDetection && urlMatches) ||
+            (!settings.mimeDetection && !settings.urlDetection);
+
+        if (!shouldAdd) {
+            return false;
+        }
+
+        let name = existing?.name || null;
+
+        if (!name && browser.tabs && responseMeta.tabId !== -1) {
+            try {
+                name = (
+                    await browser.tabs.get(responseMeta.tabId)
+                ).title;
+            } catch (e) {
+                console.debug(
+                    "Could not read tab title for sniffed media request:",
+                    requestId,
+                    e
+                );
+            }
+        }
+
+        const contentLength = headers.find(h =>
+            h && h.name &&
+            h.name.toLowerCase() === "content-length"
+        )?.value;
+
+        const entry = {
+            ...(existing || {}),
+            requestId,
+            url,
+            name,
+            method: responseMeta.method || existing?.method || "GET",
+
+            requestHeaders:
+                temporaryHeaderMap.get(requestId) ||
+                existing?.requestHeaders ||
+                null,
+
+            responseHeaders: headers,
+
+            requestBody:
+                temporaryRequestBodyMap.get(requestId) ||
+                existing?.requestBody ||
+                null,
+
+            cookie:
+                temporaryCookieMap.get(url) ||
+                existing?.cookie ||
+                "",
+
+            size: contentLength || String(blob.size),
+
+            timeStamp:
+                responseMeta.timeStamp ||
+                existing?.timeStamp ||
+                Date.now(),
+
+            tabId:
+                responseMeta.tabId ??
+                existing?.tabId ??
+                -1,
+
+            mime,
+            contentType: mime
+        };
+
+        if (index >= 0) {
+            requests[index] = entry;
+        } else {
+            requests.push(entry);
+        }
+
+        await browser.storage.session.set({
+            [url]: requests
+        });
+
+        console.debug(
+            "Added verified text media request:",
+            url,
+            "mime:",
+            mime
+        );
+
+        try {
+            recordParamDiff(url);
+        } catch (e) {
+            console.debug(
+                "recordParamDiff failed after text sniff",
+                e
+            );
+        }
+
+        return true;
+
+    } catch (e) {
+        console.error(
+            "Failed to add sniffed text media request:",
+            url,
+            e
+        );
+
+        return false;
+    }
+}
+
+
 // Helper: directory key for grouping segment URLs (origin + directory path)
 function getDirKeyFromUrl(urlString) {
     try {
@@ -266,8 +427,6 @@ function getDirKeyFromUrl(urlString) {
 }
 
 // Record differences in query parameters for URLs in the same directory.
-// If a request contains query parameters not previously observed for that directory,
-// save them under the `segmentParamOverrides` map in session storage.
 function recordParamDiff(urlString) {
     try {
         const u = new URL(urlString);
@@ -298,7 +457,6 @@ function recordParamDiff(urlString) {
                     console.log('Detected extra query params for', dirKey, 'added', newExtra);
                 });
             } else if (!existing.observedParams || existing.observedParams.length === 0) {
-                // initialize observed params if none recorded yet
                 existing.observedParams = keys;
                 existing.lastSeen = Date.now();
                 existing.example = existing.example || urlString;
@@ -319,7 +477,6 @@ function isFlagEnabled(val) {
 // get local settings
 function getSettings(callback) {
     browser.storage.local.get(['mime-detection', 'url-detection', 'media-cache', 'media-cache-private'], function (result) {
-        // If settings are not present yet (first run), assume defaults matching settings.js (enabled = '1')
         if (!result) result = {};
         const mimeRaw = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['mime-detection'] : '1';
         const urlRaw = Object.prototype.hasOwnProperty.call(result, 'url-detection') ? result['url-detection'] : '1';
@@ -337,7 +494,7 @@ function getSettings(callback) {
 // Helper: convert ArrayBuffer to base64 safely in chunks
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
-    const chunkSize = 0x8000; // 32KB chunks
+    const chunkSize = 0x8000;
     let binary = '';
     for (let i = 0; i < bytes.length; i += chunkSize) {
         const chunk = bytes.subarray(i, i + chunkSize);
@@ -358,16 +515,14 @@ function initListener() {
         console.error("Failed to clear IndexedDB cache on init:", e);
     });
 
-    // Read settings and then attach listeners accordingly
     getSettings(function (settings) {
         const mimeEnabled = !!settings.mimeDetection;
         const urlEnabled = !!settings.urlDetection;
-        const mediaCacheEnabled = !!settings.mediaCache
-        const mediaCachePrivateEnabled = !!settings.mediaCachePrivate
+        const mediaCacheEnabled = !!settings.mediaCache;
+        const mediaCachePrivateEnabled = !!settings.mediaCachePrivate;
 
         console.log('initListener settings: mimeEnabled=', mimeEnabled, 'urlEnabled=', urlEnabled);
 
-        // Remove existing listeners if present
         if (headersSentListener) {
             try { browser.webRequest.onSendHeaders.removeListener(headersSentListener); } catch (e) { }
         }
@@ -382,36 +537,28 @@ function initListener() {
             beforeRequestListener = null;
         }
 
-        // NEW: capture request bodies in onBeforeRequest (formData or raw bytes).
         beforeRequestListener = function (details) {
             try {
                 if (!details || !details.requestBody) return;
-                const protocol = new URL(details.originUrl || details.url).protocol
+                const protocol = new URL(details.originUrl || details.url).protocol;
                 if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
-                    // Requests is from extension itself, so no need to capture request body
                     return;
                 }
 
                 const rb = details.requestBody;
 
                 if (rb.formData) {
-                    // formData is an object of arrays; safe to store directly
                     temporaryRequestBodyMap.set(details.requestId, { type: 'formData', data: rb.formData });
                 } else if (rb.raw && rb.raw.length) {
-                    // raw may contain an ArrayBuffer/Uint8Array in .bytes
                     try {
-                        // Combine all raw parts into one ArrayBuffer (if multiple)
                         let totalLen = 0;
                         for (let part of rb.raw) {
                             if (part && part.bytes) {
                                 totalLen += part.bytes.byteLength || part.bytes.length || 0;
                             }
                         }
-                        if (totalLen === 0) {
-                            // nothing to store
-                            return;
-                        }
-                        // create combined buffer
+                        if (totalLen === 0) return;
+
                         const combined = new Uint8Array(totalLen);
                         let offset = 0;
                         for (let part of rb.raw) {
@@ -431,7 +578,6 @@ function initListener() {
             }
         };
 
-        // Attach beforeRequest listener to capture requestBody. Guard for availability.
         try {
             if (browser.webRequest && browser.webRequest.onBeforeRequest && !browser.webRequest.onBeforeRequest.hasListener(beforeRequestListener)) {
                 browser.webRequest.onBeforeRequest.addListener(
@@ -445,10 +591,9 @@ function initListener() {
         }
 
         beforeSendHeadersListener = async function (details) {
-            console.log("BSEND")
-            const protocol = new URL(details.originUrl || details.url).protocol
+            console.log("BSEND");
+            const protocol = new URL(details.originUrl || details.url).protocol;
             if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
-                // Requests is from extension itself, so try to add cookies
                 try {
                     const cookie = await browser.storage.session.get(details.url).then(result => {
                         return result[details.url]?.[0]?.cookie || '';
@@ -457,7 +602,6 @@ function initListener() {
                         if (!details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie')) {
                             details.requestHeaders.push({ name: 'Cookie', value: cookie });
                         } else {
-                            // If a Cookie header already exists, we can choose to overwrite it or append. Here we overwrite.
                             details.requestHeaders = details.requestHeaders.map(h => {
                                 if (h.name.toLowerCase() === 'cookie') {
                                     return { name: 'Cookie', value: cookie };
@@ -470,9 +614,7 @@ function initListener() {
                 } catch (e) {
                     console.error("Error adding Cookie header to extension request:", e);
                 }
-            }
-            else {
-                // For non-extension requests, we rely on onHeadersReceived to get cookies from response
+            } else {
                 console.debug("Details:", details);
 
                 const cookie = details.requestHeaders.find(h => h.name.toLowerCase() === 'cookie')?.value || '';
@@ -480,9 +622,7 @@ function initListener() {
                     console.debug("Saving request cookie :", cookie);
                 }
 
-                //Store the cookies from request headers into the corresponding request object in existingRequests
                 temporaryCookieMap.set(details.url, cookie);
-
             }
             return { requestHeaders: details.requestHeaders };
         };
@@ -495,47 +635,32 @@ function initListener() {
         console.log("Attached onBeforeSendHeaders listener.");
 
         headersSentListener = async function (details) {
-            console.log("HSENT")
-            const protocol = new URL(details.originUrl || details.url).protocol
+            console.log("HSENT");
+            const protocol = new URL(details.originUrl || details.url).protocol;
             if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 return;
             }
             try {
-                // [NEW] Always capture headers to the temporary map first
                 if (details.requestHeaders) {
                     temporaryHeaderMap.set(details.requestId, details.requestHeaders);
                 }
 
                 const urlMatches = detectionRegex.test(decodeURI(details.url));
 
-                // If neither flag is enabled -> save all (original behavior)
                 if (!mimeEnabled && !urlEnabled) {
-                    // Save as before
+                    // Save all requests (original behavior).
                 } else {
-                    // If url-detection enabled and URL matches -> save
                     if (!urlEnabled || (urlEnabled && !urlMatches)) {
-                        // If url-detection enabled but URL doesn't match, and mime-detection is enabled,
-                        // then we should NOT save now (wait for onHeadersReceived). So skip saving here.
                         if (urlEnabled && mimeEnabled && !urlMatches) {
-                            // wait for onHeadersReceived to decide
                             return;
                         }
                         if (mimeEnabled && !urlEnabled) {
                             return;
                         }
-                        // If urlEnabled is true and urlMatches is true -> fallthrough to save
-                        // Otherwise, if logic reaches here but conditions didn't match, skip
                     }
                 }
 
-                // At this point either:
-                // - neither flag set (=> save all), or
-                // - urlEnabled && urlMatches (=> save), or
-                // - both enabled and urlMatches (=> save)
-
-                // Retrieve any cached request body
                 const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
-
 
                 let mediaRequest = {
                     requestId: details.requestId,
@@ -555,8 +680,6 @@ function initListener() {
                     let existingRequests = result[details.url] || [];
 
                     if (existingRequests.length > 1000) {
-                        // Remove the oldest request
-                        // Also delete the corresponding cached request body and headers for the removed requestId
                         const oldestRequest = existingRequests.shift();
                         temporaryRequestBodyMap.delete(oldestRequest.requestId);
                         temporaryHeaderMap.delete(oldestRequest.requestId);
@@ -566,7 +689,7 @@ function initListener() {
                         });
                         console.warn("Removed oldest request to maintain limit of 1000 for", details.url);
                     }
-                    // push the new request
+
                     existingRequests.push(mediaRequest);
                     let requestsObj = {};
                     requestsObj[details.url] = existingRequests;
@@ -585,31 +708,93 @@ function initListener() {
             ['requestHeaders']
         );
 
-        // onHeadersReceived: used to update size/responseHeaders and also to save requests when mime-detection triggers
+        // onHeadersReceived: update size/responseHeaders and save requests
+        // when mime-detection triggers.
         headersReceivedListener = async function (details) {
-            const protocol = new URL(details.originUrl || details.url).protocol
+            const protocol = new URL(details.originUrl || details.url).protocol;
             if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 return;
             }
+
             try {
-                // Extract content-length and content-type (if present)
                 let responseHeaders = details.responseHeaders || [];
-                let mediaSizeHeader = responseHeaders.find(header => header.name && header.name.toLowerCase() === 'content-length');
+                let mediaSizeHeader = responseHeaders.find(header =>
+                    header.name && header.name.toLowerCase() === 'content-length'
+                );
                 let size = mediaSizeHeader ? mediaSizeHeader.value : 'unknown';
 
-                let contentTypeHeader = responseHeaders.find(header => header.name && header.name.toLowerCase() === 'content-type');
-                let contentType = contentTypeHeader ? (contentTypeHeader.value || '').toLowerCase() : '';
+                let contentTypeHeader = responseHeaders.find(header =>
+                    header.name && header.name.toLowerCase() === 'content-type'
+                );
+                let contentType = contentTypeHeader
+                    ? (contentTypeHeader.value || '').toLowerCase()
+                    : '';
 
-                // Normalize contentType (strip parameters)
                 if (contentType.indexOf(';') !== -1) {
                     contentType = contentType.split(';')[0].trim().toLowerCase();
                 }
 
-                // If youtube video, add a placeholder empty entry to session storage (used to show the youtube incompatible dialog in the popup)
+
+                const responseMeta = {
+                    url: details.url,
+                    responseHeaders: responseHeaders,
+                    statusCode: details.statusCode,
+                    contentType: contentType,
+                    timeStamp: details.timeStamp,
+                    method: details.method || 'GET',
+                    tabId: details.tabId,
+                    incognito: details.incognito
+                };
+
+                const responseKey = getResponseKey(
+                    details.requestId,
+                    details.url
+                );
+
+                temporaryResponseMetaMap.set(responseKey, responseMeta);
+
+                // The body might already have arrived.
+                // Try processing it now.
+                void processPendingCapturedResponse(
+                    details.requestId,
+                    details.url
+                );
+
+                // Redirects are not media resources.
+                // Wait for Firefox to report the final response.
+                if (
+                    details.statusCode >= 300 &&
+                    details.statusCode < 400 &&
+                    details.statusCode !== 304
+                ) {
+                    console.debug(
+                        "Ignoring redirect response for media list:",
+                        details.url,
+                        "status:",
+                        details.statusCode
+                    );
+
+                    return;
+                }
+
+                // text/plain responses must be inspected before they
+                // are allowed into the media list.
+                if (contentType === 'text/plain') {
+                    console.debug(
+                        "Deferring text/plain response until body sniffing:",
+                        details.url
+                    );
+
+                    return;
+                }
+
+
                 if (contentType === 'application/vnd.yt-ump') {
                     console.debug("Detected youtube video, adding placeholder entry for", details.url);
-                    await browser.storage.session.set({ [details.url]: [{ contentType: contentType }] });
-                    return; // skip further processing for this special case
+                    await browser.storage.session.set({
+                        [details.url]: [{ contentType: contentType }]
+                    });
+                    return;
                 }
 
                 const mimeMatches = (
@@ -618,10 +803,8 @@ function initListener() {
                     contentType.includes('application/vnd.apple.mpegurl') ||
                     contentType.includes('application/x-mpegurl') ||
                     contentType.includes('application/dash+xml') ||
-                    contentType.includes('application/x-matroska') || // <-- MKV
-                    contentType.includes('application/octet-stream') || // <-- treat generic binary as potential media (or segments)
-                    contentType.includes('text/plain') || //Some .m3u8 files are treated as text files
-                    // Subtitles
+                    contentType.includes('application/x-matroska') ||
+                    contentType.includes('application/octet-stream') ||
                     contentType.includes('text/vtt') ||
                     contentType.includes('application/ttml+xml') ||
                     contentType.includes('application/x-subrip') ||
@@ -630,30 +813,31 @@ function initListener() {
 
                 const urlMatches = detectionRegex.test(decodeURI(details.url));
 
-                // Retrieve existing stored requests for this URL (if any)
                 browser.storage.session.get(details.url, async function (result) {
                     let existingRequests = result[details.url] || [];
-                    let shouldDelete = false;
+                    const alreadySniffed = detectedMimeByRequestId.get(details.requestId);
+
+                    if (alreadySniffed && alreadySniffed.url === details.url) {
+                        responseHeaders = alreadySniffed.headers;
+                        contentType = alreadySniffed.mime;
+                    }
+
+                    let updated = false;
+
                     const userSettings = await new Promise((resolve) => {
                         getSettings(resolve);
                     });
 
-                    // If mime detection is enabled, and the mime type is not a media type, skip saving this request and remove any residual cached request body or headers for this requestId
                     if (userSettings.mimeDetection && !mimeMatches) {
                         console.debug("Skipping cache for non-media MIME:", details.url);
-                        // Remove any residual cached request body or headers for this requestId
-                        browser.storage.session.remove(details.requestId);
+                        browser.storage.session.remove(details.url);
                         removeFromCache(details.url).catch(e => {
                             console.error("Failed to remove from cache for non-media MIME:", details.url, e);
                         });
-                        shouldDelete = true;
                         return;
                     }
 
-                    // Try to find a previously created request to update it
-                    let updated = false;
                     for (let request of existingRequests) {
-                        // If the request has no size / responseHeaders yet, update it
                         if (!request.size && (!request.responseHeaders || request.responseHeaders === null)) {
                             request.size = size;
                             request.responseHeaders = responseHeaders;
@@ -663,21 +847,22 @@ function initListener() {
                         }
                     }
 
-                    if (contentTypeHeader && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
-                        addHeadersToCache(details.url, responseHeaders, details.statusCode)
-                        console.debug("Added type", contentType, "to URL", details.url)
-                    }
-
-                    // Decide whether to add a new request entry in cases where onSendHeaders did not add one:
-                    // - If neither flag set -> onSendHeaders already added, so we should have updated above.
-                    // - If mime-detection only and mimeMatches -> add new entry here
-                    // - If both enabled and neither matched onSendHeaders but mimeMatches now -> add
-                    // - If url-detection only, we would have saved at onSendHeaders; no need to add here.
-                    // So add if:
-                    // (mimeEnabled && mimeMatches) OR (urlEnabled && urlMatches AND no existing request present)
-                    // but guard against duplicates: only push if `updated` is false AND the saving condition matches.
-
                     getSettings(async function (currentSettings) {
+                        const sniffedMime = detectedMimeByRequestId.get(details.requestId);
+
+                        if (sniffedMime && sniffedMime.url === details.url) {
+                            responseHeaders = sniffedMime.headers;
+                            contentType = sniffedMime.mime;
+
+                            for (const request of existingRequests) {
+                                if (request.requestId === details.requestId) {
+                                    request.responseHeaders = responseHeaders;
+                                    request.mime = contentType;
+                                    request.contentType = contentType;
+                                }
+                            }
+                        }
+
                         const mimeEnabledNow = !!currentSettings.mimeDetection;
                         const urlEnabledNow = !!currentSettings.urlDetection;
 
@@ -689,23 +874,38 @@ function initListener() {
                         })();
 
                         if (!updated && shouldSaveNow) {
-                            // [NEW] Retrieve the stashed request headers and request body using requestId
                             const cachedHeaders = temporaryHeaderMap.get(details.requestId) || null;
                             const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
+
+                            let requestName = null;
+                            if (browser.tabs && details.tabId !== -1) {
+                                try {
+                                    requestName = (await browser.tabs.get(details.tabId)).title;
+                                } catch (e) {
+                                    console.debug("Could not read tab title for request:", details.requestId, e);
+                                }
+                            }
+
+                            const latestSniffedMime = detectedMimeByRequestId.get(details.requestId);
+                            if (latestSniffedMime && latestSniffedMime.url === details.url) {
+                                responseHeaders = latestSniffedMime.headers;
+                                contentType = latestSniffedMime.mime;
+                            }
 
                             let mediaRequest = {
                                 requestId: details.requestId,
                                 url: details.url,
-                                name: browser.tabs && details.tabId !== -1 ? (await browser.tabs.get(details.tabId)).title : null,
+                                name: requestName,
                                 method: details.method || 'GET',
                                 requestHeaders: cachedHeaders,
                                 responseHeaders: responseHeaders,
-                                requestBody: cachedBody, // <-- now populated if available
+                                requestBody: cachedBody,
                                 cookie: temporaryCookieMap.get(details.url) || '',
                                 size: size,
                                 timeStamp: details.timeStamp,
                                 tabId: details.tabId
                             };
+
                             existingRequests.push(mediaRequest);
                             console.log('Media request added (onHeadersReceived):', mediaRequest);
                             try { recordParamDiff(details.url); } catch (e) { console.debug('recordParamDiff failed (onHeadersReceived)', e); }
@@ -715,7 +915,11 @@ function initListener() {
 
                         let requestsObj = {};
                         requestsObj[details.url] = existingRequests;
-                        browser.storage.session.set(requestsObj);
+                        await browser.storage.session.set(requestsObj);
+
+                        if (sniffedMime && sniffedMime.url === details.url) {
+                            detectedMimeByRequestId.delete(details.requestId);
+                        }
                     });
                 });
             } catch (e) {
@@ -731,20 +935,24 @@ function initListener() {
     });
 }
 
-// Send media request data to the popup (session storage is not shared between background and popup scripts)
+// Send media request data to the popup
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'getMediaRequests') {
         browser.storage.session.get(null, function (items) {
-            // Clear the completedDownloads and failedDownloads keys from the response, as they are only relevant for the popup's own session and should not be shared with the background script or other popups.
             delete items['completedDownloads'];
             delete items['failedDownloads'];
             delete items['queuedAndroidDownloads'];
             delete items['pendingPopupState'];
-            // If the message has the tabId parameter, move the corresponding media requests to the top of the list in their original order
+
             if (message.tabId !== undefined && message.tabId !== NaN) {
                 const tabId = parseInt(message.tabId, 10);
-                const tabMediaUrls = Object.keys(items).filter(url => Array.isArray(items[url]) && items[url].some(r => r.tabId === tabId));
-                const otherMediaUrls = Object.keys(items).filter(url => !tabMediaUrls.includes(url));
+                const tabMediaUrls = Object.keys(items).filter(url =>
+                    Array.isArray(items[url]) && items[url].some(r => r.tabId === tabId)
+                );
+                const otherMediaUrls = Object.keys(items).filter(url =>
+                    !tabMediaUrls.includes(url)
+                );
+
                 const sortedUrls = [...tabMediaUrls, ...otherMediaUrls];
                 const sortedItems = {};
                 for (const url of sortedUrls) {
@@ -755,8 +963,9 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 sendResponse(items);
             }
         });
-        return true; // Indicate that the response will be sent asynchronously
+        return true;
     }
+
     if (message && message.action === 'readCachedBodyText') {
         const url = message.url;
         openCacheDB().then(db => {
@@ -766,19 +975,20 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             request.onsuccess = async function (event) {
                 const cachedItem = event.target.result;
+
                 if (!cachedItem?.data) {
                     sendResponse(null);
                     return;
                 }
 
                 try {
-                    // Response bodies are stored as Blobs, which must be read with text().
                     sendResponse(await cachedItem.data.text());
                 } catch (e) {
                     console.error("Failed to decode cached body:", e);
                     sendResponse(null);
                 }
             };
+
             request.onerror = function (event) {
                 console.error("Failed to read from IndexedDB cache:", event.target.error);
                 sendResponse(null);
@@ -788,13 +998,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse(null);
         });
 
-        return true; // Keep the message channel open for the IndexedDB response.
+        return true;
     }
 
-    // Clear local storage when message is received (clear list button)
     if (message.action === 'clearStorage') {
-
-        // Do not clear data for ongoing downloads
         const ongoingDownloads = message.ongoingDownloads || [];
         const ongoingIDs = new Set(ongoingDownloads.map(d => d.requestId));
         const ongoingURLs = new Set(ongoingDownloads.map(d => d.url));
@@ -802,13 +1009,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         browser.storage.session.get(null, function (items) {
             for (let url in items) {
                 let requests = items[url];
-                // Some keys in storage are not arrays of requests (parameter overrides).
-                // Wrap them in an array to filter safely.
+
                 if (!Array.isArray(requests)) {
-                    requests = [requests]; // Wrap in array to filter
+                    requests = [requests];
                 }
+
                 console.log(requests);
                 const filteredRequests = requests.filter(r => ongoingIDs.has(r.requestId));
+
                 if (filteredRequests.length > 0) {
                     let obj = {};
                     obj[url] = filteredRequests;
@@ -819,16 +1027,15 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         });
 
-        // Also clear IndexedDB entries that are not related to ongoing downloads
         openCacheDB().then(db => {
             const tx = db.transaction([STORE_NAME], "readwrite");
             const store = tx.objectStore(STORE_NAME);
             const request = store.openCursor();
+
             request.onsuccess = function (event) {
                 const cursor = event.target.result;
                 if (cursor) {
                     if (!ongoingURLs.has(cursor.value.url)) {
-                        // No ongoing download for this URL, safe to delete
                         store.delete(cursor.primaryKey);
                     }
                     cursor.continue();
@@ -843,11 +1050,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Initialize the listener
 initListener();
 
-
-// This is used to open the popup.html file when the add-on icon is clicked, and to open the installed.md and when the add-on is installed.
 browser.action.onClicked.addListener((tab) => {
     browser.storage.local.get('open-preference', async function (result) {
         console.log('Open preference:', result['open-preference']);
+
         if (result['open-preference'] === 'window') {
             browser.windows.create({
                 url: browser.runtime.getURL(`popup.html?tabId=${tab.id}`),
@@ -857,11 +1063,10 @@ browser.action.onClicked.addListener((tab) => {
             });
         } else if (result['open-preference'] === 'floating') {
             await browser.action.setPopup({ popup: 'popup.html?tabId=' + tab.id });
-            console.log(await browser.action.getPopup({}))
-            await browser.action.openPopup(); // Open in default popup behavior (floating window)
-            await browser.action.setPopup({ popup: null }); // Reset to no popup in case the user changes preference while the popup is open
+            console.log(await browser.action.getPopup({}));
+            await browser.action.openPopup();
+            await browser.action.setPopup({ popup: null });
         } else {
-            // Open the popup in a new tab
             browser.tabs.create({
                 url: browser.runtime.getURL(`popup.html?tabId=${tab.id}`),
             });
@@ -881,9 +1086,11 @@ browser.runtime.onStartup.addListener(initListener);
 
 browser.runtime.setUninstallURL(`https://forms.gle/Q5j2147qNkJnftU19`);
 
+
 // ----------------- Capture & cache media response bodies -----------------
-// We use onHeadersReceived to detect Content-Type, and if it's a media type we attach
-// a filterResponseData stream to capture the response body and store it into IndexedDB.
+// We use onHeadersReceived to detect Content-Type, and if it's a media type
+// we attach a filterResponseData stream to capture the response body and store
+// it into IndexedDB.
 // ------------------------------------------------------------------------------
 
 let cacheListener = null;
@@ -895,14 +1102,221 @@ function detachCacheListener() {
     if (!cacheListener) return;
     try {
         browser.webRequest.onBeforeRequest.removeListener(cacheListener);
-    } catch (e) { /* ignore if already removed */ }
+    } catch (e) {
+        // ignore if already removed
+    }
     cacheListener = null;
     console.debug("Cache listener detached.");
 }
 
-// attach listener (only when we already know mediaCacheEnabled === true)
+
+async function processPendingCapturedResponse(requestId, url) {
+    const key = getResponseKey(requestId, url);
+
+    const captured = pendingResponseBodies.get(key);
+    const responseMeta = temporaryResponseMetaMap.get(key);
+
+    // Wait until BOTH the body and response headers exist.
+    if (!captured || !responseMeta || captured.processing) {
+        return;
+    }
+
+    captured.processing = true;
+
+    const responseUrl = responseMeta.url || url;
+    const statusCode = Number(responseMeta.statusCode || 0);
+
+    try {
+        // Never cache redirect responses.
+        if (statusCode >= 300 && statusCode < 400) {
+            console.debug(
+                "Skipping cache for redirect response:",
+                responseUrl,
+                "status:",
+                statusCode
+            );
+            return;
+        }
+
+        const blob = captured.blob;
+        const totalSize = blob.size;
+
+        if (totalSize === 0) {
+            console.debug("Skipping empty response:", responseUrl);
+            return;
+        }
+
+        if (totalSize > 2 * 1024 * 1024 * 1024) {
+            console.warn("Skipping response larger than 2GB:", responseUrl);
+            return;
+        }
+
+        // Preserve the existing Range request protection.
+        const requestHeaders =
+            temporaryHeaderMap.get(requestId) || [];
+
+        const rangeHeader = requestHeaders.find(
+            h => h && h.name &&
+                h.name.toLowerCase() === "range"
+        )?.value?.trim().toLowerCase() || null;
+
+        if (
+            rangeHeader &&
+            rangeHeader !== "bytes=0-" &&
+            rangeHeader !== `bytes=0-${totalSize - 1}`
+        ) {
+            console.debug(
+                "Skipping partial response:",
+                responseUrl
+            );
+            return;
+        }
+
+        const contentType =
+            responseMeta.contentType ||
+            getContentType(responseMeta.responseHeaders);
+
+        let finalMime = contentType;
+
+        let finalHeaders = Array.isArray(responseMeta.responseHeaders)
+            ? responseMeta.responseHeaders
+            : [];
+
+        // --------------------------------------------------
+        // TEXT/PLAIN SNIFFING
+        // --------------------------------------------------
+
+        if (contentType === "text/plain") {
+
+            finalMime = await detectPlainTextMediaMime(blob);
+
+            if (!finalMime) {
+                console.debug(
+                    "Skipping ordinary text/plain response:",
+                    responseUrl
+                );
+
+                await removeFromCache(responseUrl);
+
+                await removeSessionRequest(
+                    responseUrl,
+                    requestId
+                );
+
+                return;
+            }
+
+            // Update cached MIME metadata.
+            finalHeaders = replaceContentTypeHeader(
+                finalHeaders,
+                finalMime
+            );
+
+            // Only now add the request to the media list.
+            await upsertSniffedTextMediaRequest(
+                responseMeta,
+                requestId,
+                finalHeaders,
+                finalMime,
+                blob
+            );
+
+            console.debug(
+                "Detected text/plain media response:",
+                responseUrl,
+                "->",
+                finalMime
+            );
+
+        } else {
+
+            // --------------------------------------------------
+            // NORMAL MEDIA MIME DETECTION
+            // --------------------------------------------------
+
+            let urlMatches = false;
+
+            try {
+                urlMatches = detectionRegex.test(
+                    decodeURI(responseUrl)
+                );
+            } catch (_) {
+                urlMatches = detectionRegex.test(responseUrl);
+            }
+
+            if (!isMediaContentType(contentType) && !urlMatches) {
+                console.debug(
+                    "Skipping cache for non-media response:",
+                    responseUrl,
+                    "content-type:",
+                    contentType || "(missing)"
+                );
+
+                return;
+            }
+        }
+
+        // --------------------------------------------------
+        // CACHE RESPONSE BODY
+        // --------------------------------------------------
+
+        const isIncognito = !!responseMeta.incognito;
+
+        const shouldCache =
+            (mediaCacheEnabled && !isIncognito) ||
+            (mediaCachePrivateEnabled && isIncognito);
+
+        if (!shouldCache) {
+            console.debug(
+                "Skipping body cache because media-cache is disabled:",
+                responseUrl
+            );
+            return;
+        }
+
+        const storedBlob = new Blob([blob], {
+            type: finalMime || "application/octet-stream"
+        });
+
+        await storeInCache(
+            responseUrl,
+            storedBlob,
+            finalHeaders,
+            statusCode
+        );
+
+        console.log(
+            "Cached media response for:",
+            responseUrl,
+            "bytes:",
+            storedBlob.size,
+            "mime:",
+            finalMime || "(not supplied)"
+        );
+
+    } catch (e) {
+        console.error(
+            "Failed to classify/cache response body:",
+            responseUrl,
+            e
+        );
+
+    } finally {
+
+        // Delete only the exact entries we processed.
+        if (pendingResponseBodies.get(key) === captured) {
+            pendingResponseBodies.delete(key);
+        }
+
+        if (temporaryResponseMetaMap.get(key) === responseMeta) {
+            temporaryResponseMetaMap.delete(key);
+        }
+    }
+}
+
+// attach listener
 function attachCacheListener() {
-    if (cacheListener) return; // already attached
+    if (cacheListener) return;
 
     // guard: if runtime doesn't support filterResponseData, don't attach
     if (!browser.webRequest || !browser.webRequest.filterResponseData) {
@@ -912,9 +1326,8 @@ function attachCacheListener() {
 
     cacheListener = (details) => {
         try {
-
-            // attach filter to stream & capture the response body
             let filter;
+
             try {
                 filter = browser.webRequest.filterResponseData(details.requestId);
             } catch (e) {
@@ -923,6 +1336,7 @@ function attachCacheListener() {
             }
 
             const chunks = [];
+
             filter.ondata = (event) => {
                 try {
                     chunks.push(event.data);
@@ -931,47 +1345,83 @@ function attachCacheListener() {
                     console.error("Error writing chunk back to filter:", e);
                 }
             };
+
+
             filter.onstop = async () => {
                 try {
                     filter.disconnect();
-                    // Skip cache if request has range header
-                    // Get the request headers from the temporary map
-                    const requestHeaders = temporaryHeaderMap.get(details.requestId) || [];
-                    const rangeHeader = requestHeaders.find(h => h.name.toLowerCase() === 'range')?.value?.trim().toLowerCase() || null;
 
-                    // If the range header is present and does not match the full content length, skip caching
-                    if (rangeHeader && (rangeHeader !== 'bytes=0-' && rangeHeader !== `bytes=0-${chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0) - 1}`)) {
-                        console.debug("Skipping cache for request with Range header:", details.url);
-                        return;
+                    const blob = new Blob(chunks);
+
+                    const key = getResponseKey(
+                        details.requestId,
+                        details.url
+                    );
+
+                    const captured = {
+                        url: details.url,
+                        blob: blob,
+                        capturedAt: Date.now(),
+                        processing: false
+                    };
+
+                    // Keep the captured body until its response metadata arrives.
+                    pendingResponseBodies.set(key, captured);
+
+                    if (!temporaryResponseMetaMap.has(key)) {
+                        console.debug(
+                            "Response body captured; waiting for response headers:",
+                            details.url
+                        );
                     }
-                    if (rangeHeader) console.debug("Range header present but matches full content length, proceeding to cache:", details.url);
 
-                    // Pre-emptively cache everything else while waiting for the server
+                    // This processes immediately if headers have already arrived.
+                    // Otherwise, onHeadersReceived will trigger it later.
+                    await processPendingCapturedResponse(
+                        details.requestId,
+                        details.url
+                    );
 
-                    // If size is > 2gb, skip caching to avoid IndexedDB & blob quota issues
-                    const totalSize = chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
-                    if (totalSize > 2 * 1024 * 1024 * 1024) { // 2GB
-                        console.warn("Skipping cache for large response (>2GB):", details.url, "size:", totalSize);
-                        return;
-                    }
-                    const blob = new Blob(chunks, { type: "unknown" }); // type will be updated in headersReceivedListener
-                    if (blob.size > 0) {
-                        if ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito)) {
-                            await storeInCache(details.url, blob, null, null); // Headers and status will be populated in headersReceivedListener
-                            console.log("Cached response for:", details.url, "bytes:", blob.size);
-                        } else {
-                            console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ", details.incognito, "mediaCacheEnabled:", mediaCacheEnabled, "mediaCachePrivateEnabled:", mediaCachePrivateEnabled);
+                    // Cleanup in case response headers never arrive.
+                    setTimeout(() => {
+                        if (pendingResponseBodies.get(key) === captured) {
+                            pendingResponseBodies.delete(key);
+                            temporaryResponseMetaMap.delete(key);
+
+                            console.debug(
+                                "Discarding response body that never received headers:",
+                                details.url
+                            );
                         }
-                    } else {
-                        console.warn("Skipping cache for empty response:", details.url);
-                    }
+                    }, 60000);
+
                 } catch (e) {
-                    console.error("Failed to cache response body for", details.url, e);
+                    console.error(
+                        "Failed to capture response body:",
+                        details.url,
+                        e
+                    );
                 }
             };
+
+
             filter.onerror = (err) => {
-                try { filter.disconnect(); } catch (e) { }
-                console.error(`Filter error for request ${details.requestId}`, err);
+                try {
+                    filter.disconnect();
+                } catch (e) { }
+
+                const key = getResponseKey(
+                    details.requestId,
+                    details.url
+                );
+
+                pendingResponseBodies.delete(key);
+                temporaryResponseMetaMap.delete(key);
+
+                console.error(
+                    `Filter error for request ${details.requestId}`,
+                    err
+                );
             };
         } catch (e) {
             console.error("Error in cache listener:", e);
@@ -980,7 +1430,7 @@ function attachCacheListener() {
 
     browser.webRequest.onBeforeRequest.addListener(
         cacheListener,
-        { urls: ["<all_urls>"], /*types: ["media", "object"]*/ }, // Types can't work with MPD files as the MPD request is categorized as "xmlhttprequest"
+        { urls: ["<all_urls>"] },
         ["blocking"]
     );
 
@@ -992,17 +1442,22 @@ async function initCacheState() {
     try {
         const resCache = await browser.storage.local.get('media-cache');
         const enabled = !!isFlagEnabled(resCache['media-cache']);
-        mediaCacheEnabled = enabled
+        mediaCacheEnabled = enabled;
+
         const resCachePrivate = await browser.storage.local.get('media-cache-private');
         const enabledPrivate = !!isFlagEnabled(resCachePrivate['media-cache-private']);
-        mediaCachePrivateEnabled = enabledPrivate
+        mediaCachePrivateEnabled = enabledPrivate;
 
-        console.debug("Initialized cache state, with cache", mediaCacheEnabled, " and private cache", mediaCachePrivateEnabled)
+        console.debug(
+            "Initialized cache state, with cache",
+            mediaCacheEnabled,
+            "and private cache",
+            mediaCachePrivateEnabled
+        );
 
-        attachCacheListener(); // Since we now do a distinction between private and non private caches, we just always attach the listener, and save depending on the incognito context of the resuest inside of the listener.
+        attachCacheListener();
     } catch (e) {
         console.error("Failed to read media-cache setting:", e);
-        // default to detached to avoid blocking requests
         mediaCacheEnabled = false;
         mediaCachePrivateEnabled = false;
         detachCacheListener();
@@ -1014,14 +1469,15 @@ browser.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (Object.prototype.hasOwnProperty.call(changes, 'media-cache')) {
         const newEnabled = !!isFlagEnabled(changes['media-cache'].newValue);
-        mediaCacheEnabled = newEnabled
-        console.debug("Changed media cache to", mediaCacheEnabled)
-    };
+        mediaCacheEnabled = newEnabled;
+        console.debug("Changed media cache to", mediaCacheEnabled);
+    }
+
     if (Object.prototype.hasOwnProperty.call(changes, 'media-cache-private')) {
         const newEnabled = !!isFlagEnabled(changes['media-cache-private'].newValue);
-        mediaCachePrivateEnabled = newEnabled
-        console.debug("Changed private media cache to", mediaCachePrivateEnabled)
-    };
+        mediaCachePrivateEnabled = newEnabled;
+        console.debug("Changed private media cache to", mediaCachePrivateEnabled);
+    }
 });
 
 // optional: message API to force re-init from elsewhere

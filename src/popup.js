@@ -1660,7 +1660,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     const hasMimeType = mimeType => responseHeaders.some(header =>
       /*header.name.toLowerCase() === 'content-type' &&*/ normalizeContentType(header.value).includes(mimeType)
     );
-    const isM3U8 = lowerPath.endsWith('.m3u8') || hasMimeType('applicationxmpegurl') || hasMimeType('applicationvndapplempegurl') || hasMimeType('textplain');
+    const isM3U8 = lowerPath.endsWith('.m3u8') || hasMimeType('applicationxmpegurl') || hasMimeType('applicationvndapplempegurl')
     const isMPD = lowerPath.endsWith('.mpd') || hasMimeType('applicationdashxml');
     const renamePreference = await browser.storage.local.get('rename-downloads-v2').then(result => result['rename-downloads-v2']);
     if (renamePreference === 'ask' ) {
