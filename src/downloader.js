@@ -189,7 +189,7 @@ async function fetchWithCache(url, options = {}, skipCache = false) {
 }
 // ----------------------------------------
 
-async function downloadRawMedia(url, fileName, headers, downloadMethod, request, skipCache = false) {
+async function downloadRawMedia(url, fileName, headers, downloadMethod, request, skipCache = false, incognito = false) {
   try {
   const abortController = registerAbortController(request.requestId, url);
   const signal = abortController.signal;
@@ -201,19 +201,24 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request,
       fileName = sanitizeFileName(fileName);
       if (downloadMethod === 'browser') {
       // Use the browser.downloads API to download the file
-      browser.downloads.download({
+      const download = await browser.downloads.download({
         url,
         filename: fileName,
         headers: headersArr,
-        method: request.method
-      }).then((downloadId) => {
-        console.log('Media file downloaded:', downloadId);
-        handleDownloadCompletion(request.requestId);
-        browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
-      }).catch((error) => {
-        throw new Error('Error downloading media file with browser download method:', error);
-        handleDownloadCompletion(request.requestId, true);
-      });
+        method: request.method,
+        incognito: incognito
+      })
+      console.log('Media file downloaded:', download);
+      handleDownloadCompletion(request.requestId);
+      browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      // .then((downloadId) => {
+      //   console.log('Media file downloaded:', downloadId);
+      //   handleDownloadCompletion(request.requestId);
+      //   browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
+      //   return
+      // }, (e) => {
+      //   throw new Error('Error downloading media file with browser download method:', e.message);
+      // })
 
     } else {
       // Use fetch to download the file
@@ -315,7 +320,7 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request,
  * @params {String} downloadMethod - The method to use for downloading. Either "browser" to use browser.downloads API or "fetch" to use fetch and create a blob URL.
  * @params {Object} request - The request object containing the request details.
  */
-async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request, skipCache = false) {
+async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, request, skipCache = false, incognito = false) {
   try {
     const abortController = registerAbortController(request.requestId, m3u8Url);
     const signal = abortController.signal;
@@ -781,7 +786,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
       const suffix = downloadedTracks.length > 1 ? getTrackSuffix(track, track.index) : '';
       const filename = `${baseFileName}${audioUrls.length ? '_video' : ''}${sanitizeFileName(suffix)}${track.ext}`;
       if (downloadMethod === "browser") {
-        await browser.downloads.download({ url: objectUrl, filename });
+        await browser.downloads.download({ url: objectUrl, filename, incognito });
       } else {
         const anchor = document.createElement("a");
         anchor.href = objectUrl;
@@ -810,7 +815,7 @@ async function downloadM3U8Offline(m3u8Url, fileName, headers, downloadMethod, r
         const filename = `${baseFileName}_audio${suffix}${audioResult.ext}`;
         const audioBlobUrl = URL.createObjectURL(audioResult.blob);
         if (downloadMethod === "browser") {
-          await browser.downloads.download({ url: audioBlobUrl, filename });
+          await browser.downloads.download({ url: audioBlobUrl, filename, incognito });
         } else {
           const audioAnchor = document.createElement("a");
           audioAnchor.href = audioBlobUrl;
@@ -1006,7 +1011,7 @@ async function selectStreamVariant(playlistLines, baseUrl, options = {}, skipCac
  * @param {String} downloadMethod   – (ignored here; always uses fetch)
  * @param {Object} request          – the single request object (requests[url][selectedSizeIndex])
  */
-async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request, skipCache = false) {
+async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, request, skipCache = false, incognito = false) {
   try {
     const abortController = registerAbortController(request.requestId, mpdUrl);
     const signal = abortController.signal;
@@ -1526,7 +1531,7 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
         const blob = new Blob([buffer]);
         const objectUrl = URL.createObjectURL(blob);
         if (downloadMethod === "browser") {
-          await browser.downloads.download({ url: objectUrl, filename: filename });
+          await browser.downloads.download({ url: objectUrl, filename: filename, incognito });
         } else {
           const a = document.createElement("a");
           a.href = objectUrl;
@@ -1879,7 +1884,8 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
             filename: file.path,
             headers: browserDownloadHeaders,
             method: request.method,
-            saveAs: false
+            saveAs: false,
+            incognito
           }).then(id => {
             downloadId = id;
             browser.downloads.onChanged.addListener(onChanged);
@@ -2137,23 +2143,14 @@ async function downloadMPDOffline(mpdUrl, fileName, headers, downloadMethod, req
       return;
     }
 
-    if (downloadMethod === "browser") {
-      const zipUrl = URL.createObjectURL(zipBlob);
-      try {
-        await browser.downloads.download({ url: zipUrl, filename: zipName });
-      } finally {
-        URL.revokeObjectURL(zipUrl);
-      }
-    } else {
-      // Use a temporary <a> element to trigger download
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(zipBlob);
-      a.download = zipName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(a.href);
-    }
+        // Use a temporary <a> element to trigger download
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = zipName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
 
 
     browser.runtime.sendMessage({ action: 'showMPDDownloadCompleteDialog', requestId: request.requestId, baseName: baseName, mpdUrl: mpdUrl, downloadMethod: downloadMethod });

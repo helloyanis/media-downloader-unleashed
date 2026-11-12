@@ -15,15 +15,7 @@ if (typeof browser === 'undefined') {
     var browser = chrome;
 }
 document.addEventListener('DOMContentLoaded', async () => {
-    // Show the help dialog if it hasn't been dismissed
-    document.querySelector("#dontremindme").addEventListener("click", function () {
-        browser.storage.local.set({ 'dontremindme': '1' });
-        document.querySelector("#previewhelp").open = false;
-    });
     mdui.setColorScheme(await browser.storage.local.get('interfaceColor').then(result => result.interfaceColor));
-    document.querySelector("#previewhelp").open = (await browser.storage.local.get({ 'dontremindme': '0' })).dontremindme !== '1';
-
-
     const mediaUrl = decodeURIComponent(new URLSearchParams(document.location.search).get('mediaUrl'));
     const mediaSize = new URLSearchParams(document.location.search).get('selectedSize');
     const isStream = new URLSearchParams(document.location.search).get('isStream');

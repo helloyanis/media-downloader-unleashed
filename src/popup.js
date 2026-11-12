@@ -1031,20 +1031,9 @@ function loadMediaList() {
       let path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
       if (hasResponseHeaders) {
         let contentType = getHeaderValue(requests[0].responseHeaders, 'content-type').toLowerCase();
-        // If the content type is text/plain, check if the body of the response starts with #EXTM3U, which indicates that it's an HLS manifest file. If so, treat it as a stream.
-        if (contentType.includes('text/plain')) {
-          const manifestText = await readCachedManifestText(url);
-          if (manifestText && manifestText.startsWith('#EXTM3U')) {
-            contentType = 'application/vnd.apple.mpegurl';
-            requests[0].responseHeaders.find(h => h.name.toLowerCase() === 'content-type').value = contentType;
-          }
-        }
         // If it's still a text file now, no need to show
         if (!useMimeDetection && !useUrlDetection) {
           // No filtering at all, proceed
-        } else if (!contentType || contentType.includes('text/plain')) {
-          // If the content type is empty or text/plain, skip
-          continue;
         }
         // Now we can place the "From other tabs" section
         if(shouldDisplayFromOtherTabSection){

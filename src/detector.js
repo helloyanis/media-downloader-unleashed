@@ -39,6 +39,7 @@ function openCacheDB() {
 }
 
 async function storeInCache(url, blob, headers, status) {
+    console.debug("Storing in cache:", url, "status:", status, "headers:", headers);
     try {
         const db = await openCacheDB();
 
@@ -60,8 +61,47 @@ async function storeInCache(url, blob, headers, status) {
             timestamp: cachedItem?.timestamp || Date.now()
         };
 
-        if (cachedItem) {
-            item.mime = cachedItem.mime;
+        if (cachedItem && cachedItem.headers) {
+            item.mime = cachedItem.headers?.find(h => h.name.toLowerCase() === 'content-type')?.value || cachedItem.mime;
+
+            if (item.mime.includes("text/plain")) {
+                if (!item.data) {
+                    console.debug("No data available to detect MIME type for", url);
+                    await removeFromCache(url);
+                    return;
+                }
+                // Attempt to detect MIME type from the blob if it's text/plain
+                const text = await blob.text();
+                if (text.startsWith("#EXTM3U") || text.includes("#EXTINF")) {
+                    item.mime = "application/vnd.apple.mpegurl"; // HLS playlist
+                } else if (text.includes("<MPD")) {
+                    item.mime = "application/dash+xml"; // DASH manifest
+                } else if (text.includes("WEBVTT")) {
+                    item.mime = "text/vtt"; // WebVTT subtitle
+                } else {
+                    // Probably not a media file, remove from cache
+                    console.debug("Removing non-media file from cache:", url);
+                    await removeFromCache(url);
+                    return;
+                }
+                // Update headers in session storage to reflect the new MIME type
+                browser.storage.session.get(url, async function (result) {
+                    let existingRequests = result[url] || [];
+                    for (let request of existingRequests) {
+                        if (request.responseHeaders) {
+                            request.responseHeaders = request.responseHeaders.map(h => {
+                                if (h.name.toLowerCase() === 'content-type') {
+                                    return { name: 'content-type', value: newItem.mime };
+                                }
+                                return h;
+                            });
+                        }
+                    }
+                    let requestsObj = {};
+                    requestsObj[url] = existingRequests;
+                    await browser.storage.session.set(requestsObj);
+                });
+            }
         }
 
         // Create write transaction only now
@@ -78,11 +118,12 @@ async function storeInCache(url, blob, headers, status) {
             tx.onerror = () => reject(tx.error);
         });
     } catch (e) {
-        console.error("Failed to store in cache:", e);
+        console.error("Failed to store in cache (1):", e);
     }
 }
 
 async function addHeadersToCache(url, headers, status) {
+    console.debug("Adding headers to cache:", url, "status:", status, "headers:", headers);
     try {
         const db = await openCacheDB();
 
@@ -98,7 +139,7 @@ async function addHeadersToCache(url, headers, status) {
 
         if (!cachedItem) {
             console.debug("Attempted to add headers to an item not in cache. Adding it!");
-            await storeInCache(url,null,headers, status)
+            await storeInCache(url, null, headers, status)
             return;
         }
 
@@ -107,9 +148,48 @@ async function addHeadersToCache(url, headers, status) {
             headers,
             status,
             data: cachedItem.data,
-            mime: cachedItem.mime,
-            timestamp: cachedItem.timestamp // check spelling here
+            mime: cachedItem.headers?.find(h => h.name.toLowerCase() === 'content-type')?.value || cachedItem.mime,
+            timestamp: cachedItem.timestamp
         };
+
+        if (newItem.mime.includes("text/plain")) {
+            if (!newItem.data) {
+                console.debug("No data available to detect MIME type for", url);
+                await removeFromCache(url);
+                return;
+            }
+            // Attempt to detect MIME type from the blob if it's text/plain
+            const text = await newItem.data.text();
+            if (text.startsWith("#EXTM3U") || text.includes("#EXTINF")) {
+                newItem.mime = "application/vnd.apple.mpegurl"; // HLS playlist
+            } else if (text.includes("<MPD")) {
+                newItem.mime = "application/dash+xml"; // DASH manifest
+            } else if (text.includes("WEBVTT")) {
+                newItem.mime = "text/vtt"; // WebVTT subtitle
+            } else {
+                // Probably not a media file, remove from cache
+                console.debug("Removing non-media file from cache (2):", url);
+                await removeFromCache(url);
+                return;
+            }
+            // Update headers in session storage to reflect the new MIME type
+            browser.storage.session.get(url, async function (result) {
+                let existingRequests = result[url] || [];
+                for (let request of existingRequests) {
+                    if (request.responseHeaders) {
+                        request.responseHeaders = request.responseHeaders.map(h => {
+                            if (h.name.toLowerCase() === 'content-type') {
+                                return { name: 'content-type', value: newItem.mime };
+                            }
+                            return h;
+                        });
+                    }
+                }
+                let requestsObj = {};
+                requestsObj[url] = existingRequests;
+                await browser.storage.session.set(requestsObj);
+            });
+        }
 
         // Create a fresh write transaction
         await new Promise((resolve, reject) => {
@@ -238,8 +318,9 @@ function isFlagEnabled(val) {
 
 // get local settings
 function getSettings(callback) {
-    browser.storage.local.get(['mime-detection', 'url-detection','media-cache','media-cache-private'], function (result) {
+    browser.storage.local.get(['mime-detection', 'url-detection', 'media-cache', 'media-cache-private'], function (result) {
         // If settings are not present yet (first run), assume defaults matching settings.js (enabled = '1')
+        if (!result) result = {};
         const mimeRaw = Object.prototype.hasOwnProperty.call(result, 'mime-detection') ? result['mime-detection'] : '1';
         const urlRaw = Object.prototype.hasOwnProperty.call(result, 'url-detection') ? result['url-detection'] : '1';
         const mediaCache = Object.prototype.hasOwnProperty.call(result, 'media-cache') ? result['media-cache'] : '1';
@@ -306,10 +387,10 @@ function initListener() {
             try {
                 if (!details || !details.requestBody) return;
                 const protocol = new URL(details.originUrl || details.url).protocol
-            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
-                // Requests is from extension itself, so no need to capture request body
-                return;
-            }
+                if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+                    // Requests is from extension itself, so no need to capture request body
+                    return;
+                }
 
                 const rb = details.requestBody;
 
@@ -366,14 +447,14 @@ function initListener() {
         beforeSendHeadersListener = async function (details) {
             console.log("BSEND")
             const protocol = new URL(details.originUrl || details.url).protocol
-            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+            if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 // Requests is from extension itself, so try to add cookies
                 try {
                     const cookie = await browser.storage.session.get(details.url).then(result => {
                         return result[details.url]?.[0]?.cookie || '';
                     });
                     if (cookie) {
-                       if (!details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie')) {
+                        if (!details.requestHeaders.some(h => h.name.toLowerCase() === 'cookie')) {
                             details.requestHeaders.push({ name: 'Cookie', value: cookie });
                         } else {
                             // If a Cookie header already exists, we can choose to overwrite it or append. Here we overwrite.
@@ -398,7 +479,7 @@ function initListener() {
                 if (cookie) {
                     console.debug("Saving request cookie :", cookie);
                 }
-                
+
                 //Store the cookies from request headers into the corresponding request object in existingRequests
                 temporaryCookieMap.set(details.url, cookie);
 
@@ -416,7 +497,7 @@ function initListener() {
         headersSentListener = async function (details) {
             console.log("HSENT")
             const protocol = new URL(details.originUrl || details.url).protocol
-            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+            if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 return;
             }
             try {
@@ -451,15 +532,15 @@ function initListener() {
                 // - neither flag set (=> save all), or
                 // - urlEnabled && urlMatches (=> save), or
                 // - both enabled and urlMatches (=> save)
-                
+
                 // Retrieve any cached request body
                 const cachedBody = temporaryRequestBodyMap.get(details.requestId) || null;
-                
+
 
                 let mediaRequest = {
                     requestId: details.requestId,
                     url: details.url,
-                    name: browser.tabs && details.tabId!==-1 ? (await browser.tabs.get(details.tabId)).title : null,
+                    name: browser.tabs && details.tabId !== -1 ? (await browser.tabs.get(details.tabId)).title : null,
                     method: details.method,
                     requestHeaders: details.requestHeaders,
                     responseHeaders: null,
@@ -473,7 +554,7 @@ function initListener() {
                 browser.storage.session.get(details.url, function (result) {
                     let existingRequests = result[details.url] || [];
 
-                    if(existingRequests.length > 1000) {
+                    if (existingRequests.length > 1000) {
                         // Remove the oldest request
                         // Also delete the corresponding cached request body and headers for the removed requestId
                         const oldestRequest = existingRequests.shift();
@@ -491,7 +572,7 @@ function initListener() {
                     requestsObj[details.url] = existingRequests;
                     browser.storage.session.set(requestsObj);
                     console.log('Media request intercepted (onSendHeaders):', mediaRequest);
-                    try { recordParamDiff(details.url); } catch(e) { console.debug('recordParamDiff failed (onSendHeaders)', e); }
+                    try { recordParamDiff(details.url); } catch (e) { console.debug('recordParamDiff failed (onSendHeaders)', e); }
                 });
             } catch (e) {
                 console.error("Error in onSendHeaders handler:", e);
@@ -507,7 +588,7 @@ function initListener() {
         // onHeadersReceived: used to update size/responseHeaders and also to save requests when mime-detection triggers
         headersReceivedListener = async function (details) {
             const protocol = new URL(details.originUrl || details.url).protocol
-            if(protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
+            if (protocol === 'moz-extension:' || protocol === 'chrome-extension:') {
                 return;
             }
             try {
@@ -525,9 +606,9 @@ function initListener() {
                 }
 
                 // If youtube video, add a placeholder empty entry to session storage (used to show the youtube incompatible dialog in the popup)
-                if(contentType === 'application/vnd.yt-ump') {
+                if (contentType === 'application/vnd.yt-ump') {
                     console.debug("Detected youtube video, adding placeholder entry for", details.url);
-                    await browser.storage.session.set({ [details.url]: [{ contentType : contentType }] });
+                    await browser.storage.session.set({ [details.url]: [{ contentType: contentType }] });
                     return; // skip further processing for this special case
                 }
 
@@ -582,7 +663,7 @@ function initListener() {
                         }
                     }
 
-                    if(contentTypeHeader && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
+                    if (contentTypeHeader && ((mediaCacheEnabled && !details.incognito) || (mediaCachePrivateEnabled && details.incognito))) {
                         addHeadersToCache(details.url, responseHeaders, details.statusCode)
                         console.debug("Added type", contentType, "to URL", details.url)
                     }
@@ -615,7 +696,7 @@ function initListener() {
                             let mediaRequest = {
                                 requestId: details.requestId,
                                 url: details.url,
-                                name: browser.tabs && details.tabId!==-1 ? (await browser.tabs.get(details.tabId)).title : null,
+                                name: browser.tabs && details.tabId !== -1 ? (await browser.tabs.get(details.tabId)).title : null,
                                 method: details.method || 'GET',
                                 requestHeaders: cachedHeaders,
                                 responseHeaders: responseHeaders,
@@ -627,7 +708,7 @@ function initListener() {
                             };
                             existingRequests.push(mediaRequest);
                             console.log('Media request added (onHeadersReceived):', mediaRequest);
-                            try { recordParamDiff(details.url); } catch(e) { console.debug('recordParamDiff failed (onHeadersReceived)', e); }
+                            try { recordParamDiff(details.url); } catch (e) { console.debug('recordParamDiff failed (onHeadersReceived)', e); }
                         } else if (updated) {
                             console.log('Media response updated (onHeadersReceived) for', details.url);
                         }
@@ -709,13 +790,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         return true; // Keep the message channel open for the IndexedDB response.
     }
-});
 
-// Initialize the listener
-initListener();
-
-// Clear local storage when message is received (clear list button)
-browser.runtime.onMessage.addListener((message) => {
+    // Clear local storage when message is received (clear list button)
     if (message.action === 'clearStorage') {
 
         // Do not clear data for ongoing downloads
@@ -764,6 +840,10 @@ browser.runtime.onMessage.addListener((message) => {
     }
 });
 
+// Initialize the listener
+initListener();
+
+
 // This is used to open the popup.html file when the add-on icon is clicked, and to open the installed.md and when the add-on is installed.
 browser.action.onClicked.addListener((tab) => {
     browser.storage.local.get('open-preference', async function (result) {
@@ -777,10 +857,10 @@ browser.action.onClicked.addListener((tab) => {
             });
         } else if (result['open-preference'] === 'floating') {
             await browser.action.setPopup({ popup: 'popup.html?tabId=' + tab.id });
-            console.log( await browser.action.getPopup({}))
+            console.log(await browser.action.getPopup({}))
             await browser.action.openPopup(); // Open in default popup behavior (floating window)
             await browser.action.setPopup({ popup: null }); // Reset to no popup in case the user changes preference while the popup is open
-        }else {
+        } else {
             // Open the popup in a new tab
             browser.tabs.create({
                 url: browser.runtime.getURL(`popup.html?tabId=${tab.id}`),
@@ -858,20 +938,13 @@ function attachCacheListener() {
                     // Get the request headers from the temporary map
                     const requestHeaders = temporaryHeaderMap.get(details.requestId) || [];
                     const rangeHeader = requestHeaders.find(h => h.name.toLowerCase() === 'range')?.value?.trim().toLowerCase() || null;
-                    
+
                     // If the range header is present and does not match the full content length, skip caching
-                    if (rangeHeader && (rangeHeader !== 'bytes=0-' && rangeHeader !== `bytes=0-${chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0) - 1}`)) { 
+                    if (rangeHeader && (rangeHeader !== 'bytes=0-' && rangeHeader !== `bytes=0-${chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0) - 1}`)) {
                         console.debug("Skipping cache for request with Range header:", details.url);
                         return;
                     }
                     if (rangeHeader) console.debug("Range header present but matches full content length, proceeding to cache:", details.url);
-
-                    // Also skip if request was already removed from session storage (e.g., cleared by user, not media...)
-                    const sessionData = await browser.storage.session.get(details.url);
-                    if (!sessionData || !sessionData[details.url] || sessionData[details.url].length === 0) {
-                        console.debug("Skipping cache for request not present in session storage:", details.url);
-                        return;
-                    }
 
                     // Pre-emptively cache everything else while waiting for the server
 
@@ -887,7 +960,7 @@ function attachCacheListener() {
                             await storeInCache(details.url, blob, null, null); // Headers and status will be populated in headersReceivedListener
                             console.log("Cached response for:", details.url, "bytes:", blob.size);
                         } else {
-                            console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ",details.incognito, "mediaCacheEnabled:", mediaCacheEnabled, "mediaCachePrivateEnabled:", mediaCachePrivateEnabled);
+                            console.debug("Skipping cache because setting is disabled", details.url, "is incognito : ", details.incognito, "mediaCacheEnabled:", mediaCacheEnabled, "mediaCachePrivateEnabled:", mediaCachePrivateEnabled);
                         }
                     } else {
                         console.warn("Skipping cache for empty response:", details.url);
@@ -897,7 +970,7 @@ function attachCacheListener() {
                 }
             };
             filter.onerror = (err) => {
-                try { filter.disconnect(); } catch (e) {}
+                try { filter.disconnect(); } catch (e) { }
                 console.error(`Filter error for request ${details.requestId}`, err);
             };
         } catch (e) {
@@ -924,7 +997,7 @@ async function initCacheState() {
         const enabledPrivate = !!isFlagEnabled(resCachePrivate['media-cache-private']);
         mediaCachePrivateEnabled = enabledPrivate
 
-        console.debug("Initialized cache state, with cache", mediaCacheEnabled," and private cache",mediaCachePrivateEnabled)
+        console.debug("Initialized cache state, with cache", mediaCacheEnabled, " and private cache", mediaCachePrivateEnabled)
 
         attachCacheListener(); // Since we now do a distinction between private and non private caches, we just always attach the listener, and save depending on the incognito context of the resuest inside of the listener.
     } catch (e) {
@@ -939,12 +1012,12 @@ async function initCacheState() {
 // watch for runtime changes to storage and update attachment immediately
 browser.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    if (Object.prototype.hasOwnProperty.call(changes, 'media-cache')){
+    if (Object.prototype.hasOwnProperty.call(changes, 'media-cache')) {
         const newEnabled = !!isFlagEnabled(changes['media-cache'].newValue);
         mediaCacheEnabled = newEnabled
         console.debug("Changed media cache to", mediaCacheEnabled)
     };
-    if (Object.prototype.hasOwnProperty.call(changes, 'media-cache-private')){
+    if (Object.prototype.hasOwnProperty.call(changes, 'media-cache-private')) {
         const newEnabled = !!isFlagEnabled(changes['media-cache-private'].newValue);
         mediaCachePrivateEnabled = newEnabled
         console.debug("Changed private media cache to", mediaCachePrivateEnabled)
