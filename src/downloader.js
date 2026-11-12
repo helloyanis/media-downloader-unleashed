@@ -211,15 +211,6 @@ async function downloadRawMedia(url, fileName, headers, downloadMethod, request,
       console.log('Media file downloaded:', download);
       handleDownloadCompletion(request.requestId);
       browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
-      // .then((downloadId) => {
-      //   console.log('Media file downloaded:', downloadId);
-      //   handleDownloadCompletion(request.requestId);
-      //   browser.runtime.sendMessage({ action: 'downloadComplete', requestId: request.requestId });
-      //   return
-      // }, (e) => {
-      //   throw new Error('Error downloading media file with browser download method:', e.message);
-      // })
-
     } else {
       // Use fetch to download the file
       // Get the request headers as an object to spoof the request
@@ -2342,13 +2333,13 @@ browser.runtime.onMessage.addListener((message) => {
   console.log("Received message in content script:", message);
   switch (message.action) {
     case 'downloadRawMedia':
-      return downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
+      return downloadRawMedia(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache, message.incognito).then(() => ({ success: true }))
       break;
     case 'downloadM3U8Offline':
-      return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
+      return downloadM3U8Offline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache, message.incognito).then(() => ({ success: true }))
       break;
     case 'downloadMPDOffline':
-      return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache).then(() => ({ success: true }))
+      return downloadMPDOffline(message.url, message.fileName, message.headers, message.downloadMethod, message.request, message.skipCache, message.incognito).then(() => ({ success: true }))
       break;
     case 'getOngoingDownloads':
       return Promise.resolve(Array.from(ongoingDownloads.values()).map(d => ({ requestId: d.requestId, url: d.url, status: d.status, progress: d.progress })));

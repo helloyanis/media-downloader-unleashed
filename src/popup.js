@@ -772,10 +772,6 @@ function collectSegmentUrlsFromManifest(manifestText, manifestUrl) {
 async function buildManifestSegmentIndex(mediaRequests) {
   const manifestIndex = new Map();
 
-  if (browser.extension?.inIncognitoContext) {
-    return manifestIndex;
-  }
-
   const manifestCandidates = [];
   for (const [url, requests] of Object.entries(mediaRequests || {})) {
     const request = requests?.[0];
@@ -1221,7 +1217,7 @@ function loadMediaList() {
                 helpLink.textContent = 'Download has not started?';
                 helpLink.addEventListener('click', (ev) => {
                   ev.preventDefault();
-                  showSettingsSection('#force-device-type', "download");
+                  helpDownloadNotStarted()
                 });
                 mediaDiv.appendChild(helpLink);
               }
@@ -1618,7 +1614,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
                 helpLink.textContent = 'Download has not started?';
                 helpLink.addEventListener('click', (ev) => {
                   ev.preventDefault();
-                  showSettingsSection('#force-device-type', "download");
+                  helpDownloadNotStarted()
                 });
                 mediaDiv.appendChild(helpLink);
               }
@@ -1696,7 +1692,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     if (streamDownload === 'offline' && isM3U8) {
       console.log('M3U8 detected → downloadM3U8Offline()');
       //await downloadM3U8Offline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
+      const result = await browser.runtime.sendMessage({ action: 'downloadM3U8Offline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache, incognito:  browser.extension?.inIncognitoContext });
       if (result && result.error) {
         throw new Error(result.error);
       }
@@ -1706,7 +1702,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
     if (streamDownload === 'offline' && isMPD) {
       console.log('MPD detected → downloadMPDOffline()');
       //await downloadMPDOffline(url, headers, downloadMethod, loadingBar, requests[url][selectedSizeIndex]);
-      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
+      const result = await browser.runtime.sendMessage({ action: 'downloadMPDOffline', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache, incognito:  browser.extension?.inIncognitoContext});
       if (result && result.error) {
         throw new Error(result.error);
       }
@@ -1715,7 +1711,7 @@ async function downloadFile(url, fileName = null, mediaDiv) {
 
 
     //At this point the media is not a stream or should not be treated as such, so initiate a regular download
-    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache });
+    const result = await browser.runtime.sendMessage({ action: 'downloadRawMedia', url, fileName, headers, downloadMethod, request: requests[url][selectedSizeIndex], skipCache: skipCache, incognito:  browser.extension?.inIncognitoContext });
     if (result && result.error) {
       throw new Error(result.error);
     }
@@ -2076,4 +2072,8 @@ async function promptDRMWarning(requestId) {
       },
     });
   });
+}
+
+async function helpDownloadNotStarted() {
+  browser.tabs.create({url:"https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting#file-saving-errors"})
 }
