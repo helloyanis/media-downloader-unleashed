@@ -1213,12 +1213,8 @@ function loadMediaList() {
               if (!mediaDiv.querySelector('.download-help-link')) {
                 const helpLink = document.createElement('a');
                 helpLink.className = 'download-help-link';
-                helpLink.href = '#force-device-type';
+                helpLink.href = 'https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting#file-saving-errors';
                 helpLink.textContent = 'Download has not started?';
-                helpLink.addEventListener('click', (ev) => {
-                  ev.preventDefault();
-                  helpDownloadNotStarted()
-                });
                 mediaDiv.appendChild(helpLink);
               }
             } catch (e) { console.warn('Could not append download help link', e); }
@@ -1610,12 +1606,8 @@ async function downloadFile(url, fileName = null, mediaDiv) {
               if (!mediaDiv.querySelector('.download-help-link')) {
                 const helpLink = document.createElement('a');
                 helpLink.className = 'download-help-link';
-                helpLink.href = '#force-device-type';
+                helpLink.href = 'https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting#file-saving-errors';
                 helpLink.textContent = 'Download has not started?';
-                helpLink.addEventListener('click', (ev) => {
-                  ev.preventDefault();
-                  helpDownloadNotStarted()
-                });
                 mediaDiv.appendChild(helpLink);
               }
             } catch (e) { console.warn('Could not append download help link', e); }
@@ -2072,8 +2064,4 @@ async function promptDRMWarning(requestId) {
       },
     });
   });
-}
-
-async function helpDownloadNotStarted() {
-  browser.tabs.create({url:"https://github.com/helloyanis/media-downloader-unleashed/wiki/Troubleshooting#file-saving-errors"})
 }
