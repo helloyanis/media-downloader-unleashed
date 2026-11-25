@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    if (videoExtensions.includes(mediaExtension) || streamExtensions.includes(mediaExtension) || isStream === 'true') {
         const video = document.createElement('video');
         video.controls = true;
         video.style.maxWidth = '100%';
@@ -116,13 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("Browser can play this video type natively.");
             video.src = mediaBlobUrl;
         }
-    } else if (audioExtensions.includes(mediaExtension)) {
-        const audio = document.createElement('audio');
-        audio.src = mediaBlobUrl;
-        audio.controls = true;
-        audio.style.width = '100%';
-        document.body.appendChild(audio);
-    }
+    
 });
 
 async function fetchMedia(url, size) {
